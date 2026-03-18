@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+pillow
+numpy
+scikit-learn
+joblib
+pytest
+mlflow>=3.10.0
+pyyaml
+psycopg2-binary

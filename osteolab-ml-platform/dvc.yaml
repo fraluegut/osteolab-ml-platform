@@ -1,0 +1,12 @@
+stages:
+  train:
+    cmd: python src/training/train.py
+    deps:
+      - src/training/train.py
+      - data/raw/bones
+    params:
+      - training
+      - model
+    outs:
+      - models/model.joblib
+      - models/encoder.joblib

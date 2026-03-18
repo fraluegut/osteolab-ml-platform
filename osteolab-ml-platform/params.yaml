@@ -1,0 +1,20 @@
+dataset:
+  path: data/raw/bones
+  classes:
+    - craneo
+    - femur
+    - humero
+
+training:
+  image_size: 32
+  test_size: 0.2
+  max_images_per_class: 1000
+  random_state: 42
+
+model:
+  name: logistic_regression
+  max_iter: 1000
+  solver: lbfgs
+
+inference:
+  model_version: baseline_v1

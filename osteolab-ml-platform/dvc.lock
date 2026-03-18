@@ -1,0 +1,34 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: python src/training/train.py
+    deps:
+    - path: data/raw/bones
+      hash: md5
+      md5: 00b56b551fe40b6a4b97f0135e49b724.dir
+      size: 137834513
+      nfiles: 10890
+    - path: src/training/train.py
+      hash: md5
+      md5: 84aa11cb4e3a5b2f7c937cfffe22eef5
+      size: 3797
+    params:
+      params.yaml:
+        model:
+          name: logistic_regression
+          max_iter: 1000
+          solver: lbfgs
+        training:
+          image_size: 32
+          test_size: 0.2
+          max_images_per_class: 1000
+          random_state: 42
+    outs:
+    - path: models/encoder.joblib
+      hash: md5
+      md5: feab5ec0437c1132cf8e822c06e46451
+      size: 399
+    - path: models/model.joblib
+      hash: md5
+      md5: 461ca8192022b3e18c374c913366eb0b
+      size: 25471

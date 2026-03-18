@@ -1,0 +1,6 @@
+outs:
+- md5: 00b56b551fe40b6a4b97f0135e49b724.dir
+  size: 137834513
+  nfiles: 10890
+  hash: md5
+  path: bones
