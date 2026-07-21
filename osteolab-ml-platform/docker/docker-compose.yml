@@ -50,6 +50,21 @@ services:
       - ../data:/app/data
       - ../models:/app/models
 
+  ui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    depends_on:
+      - app
+    environment:
+      - OSTEOLAB_API_URL=http://app:8000
+    ports:
+      - "8501:8501"
+    command: >
+      streamlit run app/streamlit_app.py
+      --server.port 8501
+      --server.address 0.0.0.0
+
 volumes:
   postgres_data:
   mlflow_artifacts:
