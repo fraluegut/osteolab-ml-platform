@@ -54,13 +54,14 @@ docker compose -f docker/docker-compose.yml down -v   # además borra datos de P
   ```
 - **MLflow UI**: `http://localhost:5000` — experimentos, métricas y modelos registrados.
 
-## Pipeline de filtrado en 3 pasos
+## Pipeline
 
-`streamlit_app.py` encadena tres capas independientes antes de mostrar un resultado:
+`streamlit_app.py` encadena varias capas independientes antes de mostrar un resultado:
 
-1. **CLIP zero-shot** (`/filter/clip`) — primera capa, sin entrenamiento propio.
-2. **ResNet18 entrenado** (`/filter/is-bone`) — segunda confirmación de si es hueso.
-3. **Clasificador multi-clase** (`/predict`) — tipo de hueso final (craneo/femur/humero).
+1. **CLIP zero-shot** (`/filter/clip`) — primera capa, sin entrenamiento propio: ¿es un hueso? + sugerencia de tipo.
+2. **Extracción de features con OpenCV** (`/features/extract`) — localiza el hueso y mide su forma.
+3. **ResNet18 entrenado** (`/filter/is-bone`) — segunda confirmación de si es hueso (resultado adicional).
+4. **Clasificador multi-clase** (`/predict`) — tipo de hueso final craneo/femur/humero (resultado adicional).
 
 Cada capa es un módulo aislado, sin compartir código ni estado con las demás.
 
@@ -80,7 +81,37 @@ mismas clases del clasificador multi-clase.
 - **Cómo se llama**: la API expone `POST /filter/clip`, y `streamlit_app.py` lo
   invoca primero, antes que el filtro ResNet18.
 
-### Paso 2 — Filtro ResNet18 entrenado: ¿es un hueso?
+### Paso 2 — Extracción de features geométricas con OpenCV
+
+Segunda capa del pipeline, tras confirmar con CLIP que hay un hueso. Segmentación
+clásica (Otsu + contornos, sin aprendizaje): localiza el contorno del hueso y mide
+su forma. Pensado como la fuente de features numéricas para un modelo posterior
+(y para comparar más adelante con lo que se genere sintéticamente en Blender).
+
+- **Código**: `src/cv_extractor/extract.py`.
+- **Geometría básica**: `bounding_box_px`, `rotated_box_px` (rectángulo alineado con
+  el eje principal del hueso, no con la imagen), `area_px`, `area_ratio`, `aspect_ratio`,
+  `extent`, `solidity`.
+- **Forma**: `elongation` (PCA sobre la nube de puntos del contorno), `ellipse_ratio`
+  (elipse ajustada), `circularity` (4π·área/perímetro²), `convexity` (perímetro de la
+  envolvente convexa / perímetro del contorno), `hu_moments` (los 7 momentos de Hu,
+  invariantes a traslación/escala/rotación, con la transformación logarítmica estándar).
+- **Perfil de anchura**: `width_profile` (anchura en 20 cortes perpendiculares al eje
+  principal, de un extremo al otro) y sus estadísticos `mean_width`, `std_width`,
+  `max_width`, `min_width`.
+- **Curvatura**: `curvature_mean`, `curvature_max` de la línea central que resulta de
+  unir el punto medio de cada corte del perfil de anchura (curvatura de Menger, 1/px).
+- **Visual**: `annotated_image_base64` (medidas pegadas a cada lado del hueso) y
+  `mask_overlay_base64` (región detectada resaltada, para verificar la segmentación).
+- Todas las medidas son relativas a la imagen (píxeles, ratios): no hay forma de
+  derivar medidas reales (cm) sin una referencia de escala en la foto, así que ese
+  cálculo no se intenta. El contexto opcional que aporte el usuario (medidas reales,
+  peso, tipo...) se transporta aparte, sin mezclarse en el cálculo.
+- **Cómo se llama**: la API expone `POST /features/extract` (imagen + campos de
+  contexto opcionales por `multipart/form-data`), y `streamlit_app.py` lo invoca
+  tras el formulario de contexto opcional.
+
+### Paso 3 — Filtro ResNet18 entrenado: ¿es un hueso?
 
 Filtro binario aislado que confirma si la imagen subida es o no un hueso, ya
 entrenado con datos propios. Modelo distinto al de CLIP (ResNet18 en vez de
@@ -102,8 +133,8 @@ distinto. No comparte código ni estado con `src/training` / `src/inference` /
   registra también la corrida en el experimento `osteolab-bone-filter` (sin mezclarse
   con `osteolab-bone-classification`).
 - **Cómo se llama**: la API expone `POST /filter/is-bone`, y `streamlit_app.py` lo
-  invoca después de CLIP; solo si ambos filtros dicen que sí es un hueso, se llama
-  después a `/predict` para clasificar el tipo.
+  invoca junto con `/predict` (Paso 4) tras la extracción de OpenCV, agrupados en la
+  UI bajo "Resultados adicionales".
 
 ## Entrenar el modelo
 
@@ -135,14 +166,16 @@ Cómo elige el modelo la API/UI en cada predicción (`src/inference/predict.py`)
 
 ```text
 app/
-  main.py                # API FastAPI (/health, /version, /predict, /filter/clip, /filter/is-bone)
-  streamlit_app.py       # UI de demo (sube imagen -> CLIP -> ResNet18 -> clasificador)
+  main.py                # API FastAPI (/health, /version, /predict, /filter/clip, /features/extract, /filter/is-bone)
+  streamlit_app.py       # UI de demo (sube imagen -> CLIP -> OpenCV -> ResNet18 + clasificador)
 src/
   training/train.py      # Entrenamiento + logging a MLflow (clasificador multi-clase)
   inference/predict.py   # Carga de modelo (MLflow o local) + inferencia (clasificador multi-clase)
   clip_filter/             # Filtro CLIP zero-shot "¿es un hueso?" + sugerencia de tipo
     model.py               # Prompts, umbral de confianza y carga del modelo CLIP
     predict.py             # Inferencia, llamada desde app/main.py::/filter/clip
+  cv_extractor/            # Localización y features geométricas con OpenCV, sin aprendizaje
+    extract.py              # Segmentación, medidas de forma, perfil de anchura y curvatura
   bone_filter/            # Filtro binario "¿es un hueso?" (ResNet18 entrenado), aislado del resto
     model.py               # Definición del modelo
     train.py               # Script de entrenamiento (usa GPU si hay CUDA)

@@ -61,6 +61,107 @@ def _largest_contour(binary: np.ndarray):
     return max(contours, key=cv2.contourArea)
 
 
+def _elongation(contour: np.ndarray) -> float:
+    """1 - (autovalor menor / autovalor mayor) de la nube de puntos del
+    contorno: 0 para una forma compacta (círculo), cerca de 1 cuanto más
+    alargada, sin depender de que esté alineada a los ejes."""
+    pts = contour.reshape(-1, 2).astype(np.float64)
+    centered = pts - pts.mean(axis=0)
+    cov = (centered.T @ centered) / len(pts)
+    eigvals = np.linalg.eigvalsh(cov)
+    lam_min, lam_max = float(eigvals[0]), float(eigvals[-1])
+    return round(1 - (lam_min / lam_max), 4) if lam_max > 1e-9 else 0.0
+
+
+def _ellipse_ratio(contour: np.ndarray) -> float | None:
+    """Eje mayor / eje menor de la elipse ajustada al contorno (necesita al
+    menos 5 puntos)."""
+    if len(contour) < 5:
+        return None
+    (_, _), (ma, mb), _ = cv2.fitEllipse(contour)
+    short_axis, long_axis = sorted((ma, mb))
+    return round(long_axis / short_axis, 4) if short_axis > 1e-6 else None
+
+
+def _hu_moments(contour: np.ndarray) -> dict:
+    """Los 7 momentos de Hu (invariantes a traslación, escala y rotación),
+    con la transformación logarítmica estándar (-sign(h)*log10(|h|)) para que
+    sean comparables entre sí: los valores en crudo abarcan órdenes de
+    magnitud muy distintos y son inutilizables tal cual."""
+    moments = cv2.moments(contour)
+    hu = cv2.HuMoments(moments).flatten()
+    log_hu = [(-np.sign(h) * np.log10(abs(h))) if abs(h) > 1e-12 else 0.0 for h in hu]
+    return {f"hu{i + 1}": round(float(v), 4) for i, v in enumerate(log_hu)}
+
+
+def _menger_curvature(p1, p2, p3) -> float:
+    """Curvatura (1/radio del círculo que pasa por los 3 puntos) en el punto
+    central; 0 si los puntos están (casi) alineados."""
+    p1, p2, p3 = np.asarray(p1), np.asarray(p2), np.asarray(p3)
+    a = np.linalg.norm(p2 - p3)
+    b = np.linalg.norm(p1 - p3)
+    c = np.linalg.norm(p1 - p2)
+    area = abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) / 2
+    denom = a * b * c
+    return 4 * area / denom if denom > 1e-9 else 0.0
+
+
+def _width_profile_and_curvature(contour: np.ndarray, box_points: np.ndarray, n_samples: int = 20) -> dict:
+    """Perfil de anchura a lo largo del eje principal del hueso (n_samples
+    cortes perpendiculares equiespaciados) y curvatura de la línea central
+    que resulta de unir el punto medio de cada corte. Usa el eje principal
+    del rectángulo rotado, no los ejes de la imagen, así que funciona igual
+    esté el hueso derecho o inclinado."""
+    box = np.asarray(box_points, dtype=np.float64)
+    edge_lengths = [np.linalg.norm(box[i] - box[i - 1]) for i in range(4)]
+    long_edge = int(np.argmax(edge_lengths))
+    u = (box[long_edge] - box[long_edge - 1])
+    u = u / np.linalg.norm(u)
+    v = np.array([-u[1], u[0]])
+
+    pts = contour.reshape(-1, 2).astype(np.float64)
+    center = box.mean(axis=0)
+    local = pts - center
+    x = local @ u
+    y = local @ v
+
+    x_min, x_max = x.min(), x.max()
+    if x_max - x_min < 1e-6:
+        empty_profile = [0.0] * n_samples
+        return {
+            "width_profile": empty_profile, "mean_width": 0.0, "std_width": 0.0,
+            "max_width": 0.0, "min_width": 0.0, "curvature_mean": 0.0, "curvature_max": 0.0,
+        }
+
+    sample_xs = np.linspace(x_min, x_max, n_samples)
+    band = (x_max - x_min) / (n_samples * 1.5)
+
+    widths, centerline = [], []
+    for sx in sample_xs:
+        mask = np.abs(x - sx) <= band
+        if not np.any(mask):
+            mask = np.argsort(np.abs(x - sx))[:5]
+        y_slice = y[mask]
+        widths.append(float(y_slice.max() - y_slice.min()))
+        centerline.append((float(sx), float((y_slice.max() + y_slice.min()) / 2)))
+
+    widths_arr = np.array(widths)
+    curvatures = [
+        _menger_curvature(centerline[i - 1], centerline[i], centerline[i + 1])
+        for i in range(1, len(centerline) - 1)
+    ]
+
+    return {
+        "width_profile": [round(w, 2) for w in widths],
+        "mean_width": round(float(widths_arr.mean()), 2),
+        "std_width": round(float(widths_arr.std()), 2),
+        "max_width": round(float(widths_arr.max()), 2),
+        "min_width": round(float(widths_arr.min()), 2),
+        "curvature_mean": round(float(np.mean(curvatures)), 6) if curvatures else 0.0,
+        "curvature_max": round(float(np.max(curvatures)), 6) if curvatures else 0.0,
+    }
+
+
 def _text_with_outline(draw: ImageDraw.ImageDraw, xy, text, anchor="la", fill=(255, 255, 0, 255)):
     """Texto con borde negro para que se lea sobre cualquier fondo."""
     x, y = xy
@@ -167,6 +268,14 @@ def extract_features(image_file) -> dict:
           "aspect_ratio": float,    # lado largo / lado corto del rectángulo rotado
           "extent": float,          # área del contorno / área del bounding box
           "solidity": float,        # área del contorno / área de su envolvente convexa
+          "elongation": float,      # 1 - autovalores de la nube de puntos (PCA), 0=compacto..1=alargado
+          "ellipse_ratio": float,   # eje mayor / eje menor de la elipse ajustada
+          "circularity": float,     # 4π·área / perímetro² (1.0 = círculo perfecto)
+          "convexity": float,       # perímetro de la envolvente convexa / perímetro del contorno
+          "hu_moments": {"hu1".."hu7": float},   # invariantes de forma, escala log
+          "mean_width": float, "std_width": float, "max_width": float, "min_width": float,
+          "curvature_mean": float, "curvature_max": float,   # de la línea central (1/px)
+          "width_profile": [float] * 20,   # anchura en 20 cortes a lo largo del eje principal
           "annotated_image_base64": str,   # imagen con las medidas pegadas a cada lado
           "mask_overlay_base64": str,      # imagen con la región detectada resaltada
         }
@@ -187,19 +296,27 @@ def extract_features(image_file) -> dict:
         return {"found": False, "image_size": {"width": img_w, "height": img_h}}
 
     contour_area = cv2.contourArea(contour)
+    perimeter = cv2.arcLength(contour, True)
     x, y, w, h = cv2.boundingRect(contour)
     (cx, cy), (rw, rh), angle = cv2.minAreaRect(contour)
     box_points = cv2.boxPoints(((cx, cy), (rw, rh), angle))
 
     long_side, short_side = max(rw, rh), min(rw, rh)
-    hull_area = cv2.contourArea(cv2.convexHull(contour))
+    hull = cv2.convexHull(contour)
+    hull_area = cv2.contourArea(hull)
+    hull_perimeter = cv2.arcLength(hull, True)
 
     shape_stats = {
         "area_ratio": round(float(contour_area / img_area), 6),
         "aspect_ratio": round(float(long_side / short_side), 4) if short_side > 0 else None,
         "extent": round(float(contour_area / (w * h)), 4) if w * h > 0 else None,
         "solidity": round(float(contour_area / hull_area), 4) if hull_area > 0 else None,
+        "elongation": _elongation(contour),
+        "ellipse_ratio": _ellipse_ratio(contour),
+        "circularity": round(float(4 * np.pi * contour_area / perimeter**2), 4) if perimeter > 0 else None,
+        "convexity": round(float(hull_perimeter / perimeter), 4) if perimeter > 0 else None,
     }
+    width_stats = _width_profile_and_curvature(contour, box_points)
 
     return {
         "found": True,
@@ -212,6 +329,8 @@ def extract_features(image_file) -> dict:
         },
         "area_px": round(float(contour_area), 2),
         **shape_stats,
+        "hu_moments": _hu_moments(contour),
+        **width_stats,
         "annotated_image_base64": _dimensioned_image(
             image, contour, box_points, (x, y, w, h), (long_side, short_side, angle), shape_stats
         ),

@@ -194,7 +194,7 @@ if st.session_state.stage == "processed":
                         width=340,
                     )
 
-            # Métricas en una rejilla compacta debajo de las imágenes, en vez
+            # Métricas en rejillas compactas debajo de las imágenes, en vez
             # de una columna larga al lado.
             m1, m2, m3, m4, m5, m6 = st.columns(6)
             m1.metric("Ancho", f"{features['bounding_box_px']['width']}px")
@@ -203,13 +203,28 @@ if st.session_state.stage == "processed":
             m4.metric("Aspecto", features["aspect_ratio"])
             m5.metric("Extensión", features["extent"])
             m6.metric("Solidez", features["solidity"])
+
+            n1, n2, n3, n4 = st.columns(4)
+            n1.metric("Elongación", features["elongation"])
+            n2.metric("Ratio elipse", features["ellipse_ratio"])
+            n3.metric("Circularidad", features["circularity"])
+            n4.metric("Convexidad", features["convexity"])
+
             rb = features["rotated_box_px"]
             st.caption(
                 f"Rectángulo rotado (orientación real): {rb['width']}×{rb['height']} px, "
                 f"{rb['angle_deg']}°"
             )
 
-            with st.expander("Ver todas las medidas (JSON)"):
+            st.caption(
+                f"Anchura a lo largo del hueso (20 cortes) — media {features['mean_width']}px, "
+                f"mín {features['min_width']}px, máx {features['max_width']}px, "
+                f"desv. {features['std_width']}px · curvatura media {features['curvature_mean']}, "
+                f"máx {features['curvature_max']}"
+            )
+            st.line_chart(features["width_profile"], height=140)
+
+            with st.expander("Ver todas las medidas (JSON, incluye momentos de Hu)"):
                 st.json(features)
 
         if cv_result["context"]:
