@@ -136,6 +136,127 @@ distinto. No comparte código ni estado con `src/training` / `src/inference` /
   invoca junto con `/predict` (Paso 4) tras la extracción de OpenCV, agrupados en la
   UI bajo "Resultados adicionales".
 
+## Itinerario del flujo (archivo por archivo, función por función)
+
+La sección anterior explica el pipeline a alto nivel; esta es la traza completa de
+qué se ejecuta, en qué archivo y en qué función, desde que alguien sube una foto en
+la UI hasta que ve el resultado final.
+
+### 0. El usuario sube la imagen — `app/streamlit_app.py`
+
+- Se sube desde la barra lateral con `st.file_uploader(...)` → `uploaded_file`.
+- Se calcula `file_id = hashlib.md5(file_bytes).hexdigest()`: si es distinto al de
+  la última imagen procesada, `_reset_state()` limpia `st.session_state` y vuelve
+  a `stage = "idle"` (descarta resultados de la imagen anterior).
+- `_file_payload()` empaqueta `(nombre, bytes, content_type)`: es lo que se reenvía
+  por HTTP a la API en cada paso siguiente, sin volver a tocar el archivo subido.
+
+### 1. Botón "Procesar" → filtro CLIP
+
+`streamlit_app.py` hace `requests.post(f"{API_URL}/filter/clip", ...)`.
+
+`app/main.py::filter_clip()` valida que sea una imagen y llama a
+`src/clip_filter/predict.py::classify_image(image_file)`:
+
+1. `_load()` — la primera vez, carga CLIP (`src/clip_filter/model.py::load_clip()`,
+   `openai/clip-vit-base-patch32` vía `transformers`) y precalcula, con
+   `_embed_descriptions()`, los embeddings de texto de las descripciones fijas
+   definidas en `model.py` (`BONE_DESCRIPTIONS`, `NOT_BONE_DESCRIPTIONS`,
+   `BONE_TYPE_DESCRIPTIONS`). Solo ocurre una vez por proceso: se cachea en
+   variables de módulo.
+2. `_image_embedding(image_file)` — embedding normalizado de la imagen subida.
+3. `_softmax_over_groups(image_embed, _bone_text_embeds, _not_bone_text_embeds)` —
+   similitud coseno de la imagen contra las descripciones de "hueso" y "no hueso",
+   softmax conjunta y suma de probabilidad por grupo → `is_bone`.
+4. Si `is_bone` es `False`, `classify_image` devuelve el resultado ahí mismo
+   (`suggestion: None`) y el flujo se detiene: Streamlit muestra el aviso y no
+   llama a nada más.
+5. Si es `True`, repite el paso 3 pero contra `_type_text_embeds` (craneo/femur/
+   humero) para la sugerencia de tipo, marcando `certain: True` si supera
+   `SUGGESTION_CERTAIN_THRESHOLD` (0.7, en `model.py`).
+
+Streamlit guarda la respuesta en `st.session_state.clip_result`, pasa a
+`stage = "clip_checked"` y hace `st.rerun()`.
+
+### 2. Formulario de contexto → extracción con OpenCV + resultados adicionales
+
+Si CLIP dijo que sí es un hueso, Streamlit muestra el formulario opcional
+(`st.form("context_form")`). Al enviarlo (`submitted`), encadena tres llamadas:
+
+**a) `POST /features/extract`** — `app/main.py::features_extract()` separa los
+campos de contexto (los vacíos se descartan, no se usan para nada) y llama a
+`src/cv_extractor/extract.py::extract_features(image_file)`:
+
+1. Decodifica la imagen con `cv2.imdecode`.
+2. `_segment(gray)` — `GaussianBlur` + umbral de Otsu, se invierte si hace falta
+   (se asume que el fondo ocupa más superficie que el hueso) y se limpia con
+   `morphologyEx` (close + open) para quitar ruido.
+3. `_largest_contour(binary)` — `cv2.findContours` y se queda con el de mayor
+   área. Si no hay nada suficientemente grande, devuelve `{"found": False}` y
+   termina aquí.
+4. Con el contorno localizado: geometría base vía `cv2.contourArea`,
+   `cv2.arcLength`, `cv2.boundingRect`, `cv2.minAreaRect` + `cv2.boxPoints`
+   (rectángulo rotado, alineado con el hueso y no con la imagen), `cv2.convexHull`.
+5. Descriptores de forma (todos en `shape_stats`): `area_ratio`, `aspect_ratio`,
+   `extent` y `solidity` calculados inline; `_elongation(contour)` (PCA sobre la
+   nube de puntos del contorno); `_ellipse_ratio(contour)` (`cv2.fitEllipse`);
+   `circularity` y `convexity` calculados inline a partir de área y perímetro.
+6. `_hu_moments(contour)` — `cv2.moments` + `cv2.HuMoments`, con la
+   transformación logarítmica estándar para que sean comparables entre sí.
+7. `_width_profile_and_curvature(contour, box_points)` — proyecta el contorno
+   sobre el eje principal del rectángulo rotado, lo corta en 20 posiciones
+   equiespaciadas, mide la anchura en cada corte y arma la línea central uniendo
+   los puntos medios; `_menger_curvature()` calcula la curvatura en cada punto
+   de esa línea a partir de 3 puntos consecutivos.
+8. `_dimensioned_image(...)` — dibuja con Pillow (`ImageDraw`) el contorno, el
+   bounding box con "Ancho"/"Alto" pegados a cada lado (`_text_with_outline()`
+   para que se lea sobre cualquier fondo), el rectángulo rotado y una franja
+   inferior con el resto de estadísticas; `_encode_png()` lo codifica a base64.
+9. `_mask_overlay_image(...)` — la imagen original con la máscara binaria
+   resaltada en color, para verificar la segmentación a simple vista.
+
+`extract_features` devuelve un único diccionario con todo lo anterior;
+`features_extract()` lo empaqueta junto con el contexto del usuario en
+`{"cv_features": ..., "context": ...}`.
+
+**b) `POST /filter/is-bone`** (resultado adicional, se pide en la misma tanda
+para no tener que volver a llamarlo luego) — `app/main.py::filter_is_bone()` →
+`src/bone_filter/predict.py::is_bone(image_file)`:
+
+- `_load()` carga, una vez por proceso, los pesos entrenados
+  (`models/bone_filter/bone_filter_resnet18.pt` + `labels.json`) sobre la
+  arquitectura de `src/bone_filter/model.py::build_model()` (ResNet18 con la
+  última capa cambiada a 2 clases).
+- Aplica la transformación de `torchvision` (resize 224 + normalización
+  ImageNet) y pasa la imagen por el modelo; `torch.softmax` da la probabilidad
+  de "bone" vs "not_bone".
+
+**c) `POST /predict`** (solo si el filtro anterior también dice que es hueso) —
+`app/main.py::predict()` → `src/inference/predict.py::predict_image(image_file)`:
+
+- El modelo (`models/model.joblib` + `models/encoder.joblib`) se carga una única
+  vez al importar el módulo, vía `_get_model()` → `_load_local_model()` o, si hay
+  `MLFLOW_TRACKING_URI`, `_load_mlflow_model()` (con fallback a local si falla).
+- Reduce la imagen a escala de grises 32×32, la aplana a vector y llama a
+  `model.predict()` / `predict_proba()` (regresión logística de scikit-learn)
+  para obtener la clase (craneo/femur/humero) y sus probabilidades.
+
+Streamlit guarda `cv_result` y `extra_result` en `session_state`, pasa a
+`stage = "processed"` y hace `st.rerun()`.
+
+### 3. Resultado en pantalla — `app/streamlit_app.py`
+
+Bloque `if st.session_state.stage == "processed":`
+
+- Pinta las dos imágenes de OpenCV (`annotated_image_base64`,
+  `mask_overlay_base64`), las rejillas de métricas, el gráfico de
+  `width_profile` (`st.line_chart`) y el JSON completo en un expander.
+- El contexto que rellenó el usuario, si lo hizo.
+- En un expander aparte, "Resultados adicionales": el filtro ResNet18 y, si
+  coincide en que es hueso, la predicción del clasificador multi-clase con su
+  gráfico de barras.
+- Botón "Analizar otra imagen" → `_reset_state()` + `st.rerun()`, vuelta al paso 0.
+
 ## Entrenar el modelo
 
 Con el stack levantado:
