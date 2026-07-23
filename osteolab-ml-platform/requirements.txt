@@ -15,3 +15,5 @@ torch
 torchvision
 transformers
 opencv-python-headless
+pandas
+plotly

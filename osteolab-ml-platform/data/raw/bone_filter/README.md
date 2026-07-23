@@ -1,8 +1,8 @@
 # Dataset del filtro "¿es un hueso?"
 
 Vuelca aquí las imágenes para entrenar el filtro binario aislado (ver
-`src/bone_filter/`). No se mezcla con `data/raw/bones` (dataset del
-clasificador craneo/fémur/húmero).
+`src/bone_filter/`). No se mezcla con `data/processed/bone_geometric_features.csv`
+(tabla del clasificador de grupo morfológico, ver `src/training/train_geometric.py`).
 
 Estructura esperada (formato `ImageFolder` de torchvision):
 
@@ -26,5 +26,5 @@ Para entrenar una vez tengas las imágenes:
 python src/bone_filter/train.py
 ```
 
-El modelo entrenado se guarda en `models/bone_filter/` (no en `models/model.joblib`,
-que pertenece al clasificador multi-clase).
+El modelo entrenado se guarda en `models/bone_filter/` (no en `models/geometric_model_*.joblib`,
+que pertenece al clasificador de grupo morfológico).

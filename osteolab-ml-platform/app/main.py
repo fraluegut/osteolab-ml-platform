@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
-from src.inference.predict import predict_image
+from src.inference.predict_geometric import classify_image, get_reference_points
 from src.bone_filter.predict import is_bone
 from src.clip_filter.predict import classify_image as clip_classify
 from src.cv_extractor.extract import extract_features
 
-app = FastAPI(title="OsteoLab", version="0.1.0")
+app = FastAPI(title="OsteoLab", version="0.2.0")
 
 
 @app.get("/health")
@@ -15,20 +15,43 @@ def health():
 @app.get("/version")
 def version():
     return {
-        "api_version": "0.1.0",
-        "model_source": predict_image.__module__,
+        "api_version": "0.2.0",
+        "model_source": classify_image.__module__,
     }
 
 
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+@app.post("/classify")
+async def classify(file: UploadFile = File(...)):
+    """Mide la imagen con OpenCV y clasifica el grupo morfológico de hueso
+    (cráneo, hueso largo, vértebra...) con el modelo entrenado sobre esas
+    medidas — ver `src/training/train_geometric.py`. Sustituye al antiguo
+    `/predict` (regresión logística sobre píxeles, 3 clases, retirado por no
+    tener relación con el catálogo de huesos real).
+
+    Devuelve también el punto en el espacio PCA de referencia (2D, ajustado
+    sobre las mismas features) para poder dibujar la imagen subida junto a
+    las 1300+ vistas ya conocidas — ver `/pca/reference`.
+    """
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
 
     try:
-        return predict_image(file.file)
+        return classify_image(file.file)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/pca/reference")
+def pca_reference():
+    """Coordenadas PCA de las vistas usadas para entrenar (una por imagen),
+    con su especie/hueso/grupo — para dibujar de fondo en el scatter y
+    comparar visualmente la imagen nueva contra lo ya conocido."""
+    try:
+        return {"points": get_reference_points()}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 
 @app.post("/filter/clip")

@@ -1,12 +1,17 @@
 stages:
-  train:
-    cmd: python src/training/train.py
+  train_geometric:
+    cmd: python -m src.training.train_geometric
     deps:
-      - src/training/train.py
-      - data/raw/bones
+      - src/training/train_geometric.py
+      - src/cv_extractor/extract.py
+      - data/processed/bone_geometric_features.csv
     params:
-      - training
-      - model
+      - geometric_dataset
+      - geometric_training
+      - geometric_model
     outs:
-      - models/model.joblib
-      - models/encoder.joblib
+      - models/geometric_model_bone_group.joblib
+      - models/geometric_encoder_bone_group.joblib
+      - models/geometric_feature_columns_bone_group.joblib
+      - models/geometric_pca_pipeline.joblib
+      - data/processed/bone_geometric_pca_reference.csv

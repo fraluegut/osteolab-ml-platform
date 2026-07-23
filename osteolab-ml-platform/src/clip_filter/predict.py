@@ -2,9 +2,9 @@
 
 Módulo aislado: no comparte estado, modelo ni lógica con
 `src/bone_filter/predict.py` (filtro ResNet18 entrenado) ni con
-`src/inference/predict.py` (clasificador multiclase). Se invoca de forma
-explícita desde el endpoint dedicado en `app/main.py`, como primera capa,
-antes del filtro ResNet18.
+`src/inference/predict_geometric.py` (clasificador de grupo morfológico). Se
+invoca de forma explícita desde el endpoint dedicado en `app/main.py`, como
+primera capa del flujo de la UI.
 """
 import torch
 import torch.nn.functional as F
@@ -90,10 +90,10 @@ def classify_image(image_file) -> dict:
           "confidence": float,               # confianza de la decisión hueso/no-hueso
           "probabilities": {"bone": .., "not_bone": ..},
           "suggestion": {
-              "type": str,                   # craneo/femur/humero más probable
+              "type": str,                   # grupo morfológico más probable (cranio/hueso_largo/...)
               "confidence": float,
               "certain": bool,                # True si supera el umbral de "muy claro"
-              "probabilities": {"craneo": .., "femur": .., "humero": ..},
+              "probabilities": {"cranio": .., "hueso_largo": .., ...},  # 9 grupos
           } | None,                          # None si is_bone es False
         }
     """

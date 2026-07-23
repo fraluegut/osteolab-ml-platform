@@ -1,9 +1,9 @@
 """Definición del modelo del filtro binario hueso / no-hueso (ResNet18).
 
-Módulo totalmente aislado del pipeline de clasificación multi-clase
-(`src/training`, `src/inference`, `models/model.joblib`). No importa nada de
-esos módulos y no debe ser importado por ellos: solo se expone hacia afuera
-a través de `src/bone_filter/predict.py`.
+Módulo totalmente aislado del pipeline de clasificación geométrica
+(`src/training`, `src/inference`, `models/geometric_*.joblib`). No importa
+nada de esos módulos y no debe ser importado por ellos: solo se expone hacia
+afuera a través de `src/bone_filter/predict.py`.
 """
 from pathlib import Path
 

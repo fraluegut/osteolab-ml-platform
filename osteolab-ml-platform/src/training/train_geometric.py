@@ -27,7 +27,9 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, GroupKFold, cross_val_predict
 from sklearn.metrics import classification_report, accuracy_score
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.pipeline import Pipeline
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 MODEL_DIR = BASE_DIR / "models"
@@ -51,7 +53,7 @@ def load_dataset(csv_path: Path, target_col: str):
     y = df[target_col].to_numpy()
     groups = df["specimen"].to_numpy()  # para detectar fuga de espécimen entre train/test
     print(f"Dataset cargado: X={X.shape}, y={y.shape} ({target_col}), {len(set(y))} clases")
-    return X, y, groups, feature_cols
+    return X, y, groups, feature_cols, df
 
 
 def main():
@@ -68,7 +70,7 @@ def main():
     mlflow.set_experiment(f"osteolab-bone-classification-geometric-{args.target}")
 
     csv_path = BASE_DIR / dataset_params["path"]
-    X, y, groups, feature_cols = load_dataset(csv_path, args.target)
+    X, y, groups, feature_cols, df = load_dataset(csv_path, args.target)
 
     if len(X) == 0:
         raise ValueError(f"No se encontraron filas en {csv_path}")
@@ -190,8 +192,10 @@ def main():
 
         model_path = MODEL_DIR / f"geometric_model_{args.target}.joblib"
         encoder_path = MODEL_DIR / f"geometric_encoder_{args.target}.joblib"
+        columns_path = MODEL_DIR / f"geometric_feature_columns_{args.target}.joblib"
         joblib.dump(model, model_path)
         joblib.dump(le, encoder_path)
+        joblib.dump(feature_cols, columns_path)
 
         mlflow.sklearn.log_model(model, "model")
         mlflow.log_artifact(str(model_path), artifact_path="artifacts")
@@ -199,6 +203,33 @@ def main():
 
         print(f"\nModelo guardado en: {MODEL_DIR}")
         print(f"Run ID: {mlflow.active_run().info.run_id}")
+
+    # PCA de referencia (solo para bone_group: es lo que se enseña en la UI
+    # como "dónde cae esta foto respecto a lo que ya conocemos"). Se
+    # estandariza antes de proyectar porque las features vienen en escalas
+    # muy distintas (área en px² frente a ratios 0-1 o momentos de Hu en
+    # escala logarítmica) — sin esto, PCA solo vería la varianza de las
+    # features de mayor magnitud (área, bbox en píxeles) e ignoraría el resto.
+    if args.target == "bone_group":
+        pca_pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("pca", PCA(n_components=2, random_state=training_params["random_state"])),
+        ])
+        coords = pca_pipeline.fit_transform(X)
+        explained = pca_pipeline.named_steps["pca"].explained_variance_ratio_
+        print(f"\nPCA de referencia: {explained[0]*100:.1f}% + {explained[1]*100:.1f}% "
+              f"= {explained.sum()*100:.1f}% de varianza explicada en 2D")
+
+        pca_path = MODEL_DIR / "geometric_pca_pipeline.joblib"
+        joblib.dump(pca_pipeline, pca_path)
+
+        reference_df = df[["species", "bone", "bone_group", "specimen", "view"]].copy()
+        reference_df["pca_x"] = coords[:, 0]
+        reference_df["pca_y"] = coords[:, 1]
+        reference_path = BASE_DIR / "data/processed/bone_geometric_pca_reference.csv"
+        reference_df.to_csv(reference_path, index=False)
+        print(f"PCA guardado en: {pca_path}")
+        print(f"Coordenadas de referencia guardadas en: {reference_path}")
 
 
 if __name__ == "__main__":

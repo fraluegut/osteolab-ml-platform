@@ -1,4 +1,4 @@
-/model.joblib
-/encoder.joblib
 /geometric_model_*.joblib
 /geometric_encoder_*.joblib
+/geometric_feature_columns_*.joblib
+/geometric_pca_pipeline.joblib

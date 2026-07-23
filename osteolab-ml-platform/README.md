@@ -1,6 +1,12 @@
 # OsteoLab ML Platform
 
-Plataforma de machine learning para clasificar imágenes de huesos (cráneo, fémur, húmero), con tracking de experimentos, versionado de datos y una API + UI de demo.
+Plataforma de machine learning para clasificar imágenes de huesos por **grupo morfológico**
+(cráneo, mandíbula/maxilar, hueso largo, hueso plano, pelvis, sacro, vértebra, costilla, hueso
+pequeño de mano/pie), con tracking de experimentos, versionado de datos y una API + UI de demo.
+
+Las mallas 3D, el render multi-vista y el dataset base vienen del repo hermano
+`base_datos_osea` (ver su `HISTORIAL.md` para el porqué de la taxonomía de 9 grupos y de por qué
+se abandonó clasificar por hueso exacto o por especie).
 
 ## Stack
 
@@ -46,32 +52,33 @@ docker compose -f docker/docker-compose.yml down -v   # además borra datos de P
 
 ## Probar que funciona
 
-- **UI (recomendado)**: abre `http://localhost:8501`, sube una imagen de hueso y mira la predicción y las probabilidades por clase.
+- **UI (recomendado)**: abre `http://localhost:8501`, sube una imagen de hueso y mira el grupo morfológico predicho, las probabilidades y dónde cae en el espacio PCA respecto a lo ya conocido.
 - **API directa**:
   ```bash
   curl http://localhost:8000/health
-  curl -X POST "http://localhost:8000/predict" -F "file=@/ruta/a/tu/imagen.jpg"
+  curl -X POST "http://localhost:8000/classify" -F "file=@/ruta/a/tu/imagen.jpg"
+  curl http://localhost:8000/pca/reference   # las ~1300 vistas de referencia, en coordenadas PCA
   ```
 - **MLflow UI**: `http://localhost:5000` — experimentos, métricas y modelos registrados.
 
 ## Pipeline
 
-`streamlit_app.py` encadena varias capas independientes antes de mostrar un resultado:
+`streamlit_app.py` encadena dos capas independientes antes de mostrar un resultado:
 
-1. **CLIP zero-shot** (`/filter/clip`) — primera capa, sin entrenamiento propio: ¿es un hueso? + sugerencia de tipo.
-2. **Extracción de features con OpenCV** (`/features/extract`) — localiza el hueso y mide su forma.
-3. **ResNet18 entrenado** (`/filter/is-bone`) — segunda confirmación de si es hueso (resultado adicional).
-4. **Clasificador multi-clase** (`/predict`) — tipo de hueso final craneo/femur/humero (resultado adicional).
+1. **CLIP zero-shot** (`/filter/clip`) — primera capa, sin entrenamiento propio: ¿es un hueso? + sugerencia de tipo. Si dice que no, el flujo se detiene ahí.
+2. **Medir + clasificar** (`/classify`) — localiza el hueso con OpenCV, mide su forma (Hu moments, ratios, perfil de anchura...) y con esas mismas medidas: (a) da una probabilidad por grupo morfológico con un Random Forest, y (b) proyecta la medida en un espacio PCA 2D ajustado sobre ~1300 vistas ya conocidas, para poder dibujarla junto a ellas.
 
-Cada capa es un módulo aislado, sin compartir código ni estado con las demás.
+Cada capa es un módulo aislado, sin compartir código ni estado con las demás. (El filtro binario
+ResNet18 `/filter/is-bone`, entrenado aparte, sigue disponible como endpoint suelto pero ya no
+forma parte del flujo por defecto de la UI — ver más abajo.)
 
 ### Paso 1 — Filtro CLIP zero-shot: ¿es un hueso? + sugerencia de tipo
 
 Primera capa del pipeline. Usa CLIP (`openai/clip-vit-base-patch32`, vía
 `transformers`) en modo zero-shot: compara la imagen contra descripciones de texto
 en inglés, sin necesitar entrenamiento ni dataset propio. Decide si la imagen es o
-no un hueso y, si lo es, sugiere el tipo (craneo/femur/humero) comparando contra las
-mismas clases del clasificador multi-clase.
+no un hueso y, si lo es, sugiere el grupo morfológico comparando contra las mismas
+9 clases del clasificador geométrico (cráneo, mandíbula/maxilar, hueso largo...).
 
 - **Código**: `src/clip_filter/` (`model.py`, `predict.py`).
 - **Umbral de confianza**: si la probabilidad de la sugerencia supera
@@ -111,13 +118,42 @@ su forma. Pensado como la fuente de features numéricas para un modelo posterior
   contexto opcionales por `multipart/form-data`), y `streamlit_app.py` lo invoca
   tras el formulario de contexto opcional.
 
-### Paso 3 — Filtro ResNet18 entrenado: ¿es un hueso?
+### Paso 3 — Clasificación por grupo morfológico + posición en el espacio de features
 
-Filtro binario aislado que confirma si la imagen subida es o no un hueso, ya
-entrenado con datos propios. Modelo distinto al de CLIP (ResNet18 en vez de
-zero-shot), dataset distinto, carpeta de modelos distinta y endpoint de API
-distinto. No comparte código ni estado con `src/training` / `src/inference` /
-`src/clip_filter`.
+Con las features geométricas del Paso 2 ya calculadas, un Random Forest entrenado
+sobre esas mismas medidas (`src/training/train_geometric.py`) da una probabilidad
+por cada uno de los 9 grupos morfológicos, y un PCA (2 componentes, ajustado sobre
+las mismas features estandarizadas) proyecta la medida en 2D para poder dibujarla
+junto a las ~1300 vistas ya conocidas.
+
+- **Código**: `src/inference/predict_geometric.py`.
+- **Por qué grupos y no huesos exactos ni especies**: con 1-9 especímenes físicos
+  reales por hueso (ver `base_datos_osea/HISTORIAL.md`), un clasificador de 21 huesos
+  finos o de especie no puede generalizar más allá de "reconozco este objeto
+  concreto" — confirmado empíricamente con `GroupKFold` dejando especímenes
+  completos fuera. Agrupando por forma general cada grupo reúne entre 2 y 9
+  especímenes, lo mínimo razonable para intentar generalizar.
+- **Modelo**: `models/geometric_model_bone_group.joblib` (Random Forest) +
+  `models/geometric_encoder_bone_group.joblib` (`LabelEncoder`) +
+  `models/geometric_feature_columns_bone_group.joblib` (orden exacto de columnas
+  que espera el modelo — se guarda en el entrenamiento y se reutiliza aquí para que
+  la imagen subida se mida columna a columna igual que los datos de entrenamiento).
+- **PCA de referencia**: `models/geometric_pca_pipeline.joblib`
+  (`StandardScaler` + `PCA(n_components=2)`, ajustado sobre las mismas features
+  que el modelo — sin estandarizar antes, el PCA solo vería la varianza de las
+  features de mayor magnitud en píxeles e ignoraría ratios/momentos de Hu) y
+  `data/processed/bone_geometric_pca_reference.csv` (coordenadas ya calculadas
+  de cada vista de entrenamiento, para pintar de fondo).
+- **Cómo se llama**: la API expone `POST /classify` (mide + clasifica + proyecta
+  en un único endpoint) y `GET /pca/reference` (las coordenadas de fondo, se piden
+  una sola vez, cacheadas en el proceso con `functools.lru_cache`).
+
+### Filtro ResNet18 entrenado: ¿es un hueso? (endpoint suelto, no en el flujo por defecto)
+
+Filtro binario aislado, entrenado con datos propios (ResNet18, no zero-shot).
+Sigue disponible en la API pero `streamlit_app.py` ya no lo llama por defecto — el
+flujo actual usa solo CLIP como puerta de entrada. No comparte código ni estado
+con el resto de módulos.
 
 - **Código**: `src/bone_filter/` (`model.py`, `train.py`, `predict.py`).
 - **Dataset**: vuelca tus imágenes en `data/raw/bone_filter/bone/` y
@@ -131,10 +167,8 @@ distinto. No comparte código ni estado con `src/training` / `src/inference` /
   Guarda los pesos en `models/bone_filter/bone_filter_resnet18.pt` y el mapeo de
   clases en `models/bone_filter/labels.json`. Si hay un servidor MLflow disponible,
   registra también la corrida en el experimento `osteolab-bone-filter` (sin mezclarse
-  con `osteolab-bone-classification`).
-- **Cómo se llama**: la API expone `POST /filter/is-bone`, y `streamlit_app.py` lo
-  invoca junto con `/predict` (Paso 4) tras la extracción de OpenCV, agrupados en la
-  UI bajo "Resultados adicionales".
+  con `osteolab-bone-classification-geometric-bone_group`).
+- **Cómo se llama**: la API expone `POST /filter/is-bone`, independiente del resto.
 
 ## Itinerario del flujo (archivo por archivo, función por función)
 
@@ -178,13 +212,13 @@ la UI hasta que ve el resultado final.
 Streamlit guarda la respuesta en `st.session_state.clip_result`, pasa a
 `stage = "clip_checked"` y hace `st.rerun()`.
 
-### 2. Formulario de contexto → extracción con OpenCV + resultados adicionales
+### 2. Si CLIP dice que sí es un hueso → medir y clasificar
 
-Si CLIP dijo que sí es un hueso, Streamlit muestra el formulario opcional
-(`st.form("context_form")`). Al enviarlo (`submitted`), encadena tres llamadas:
+Streamlit llama directamente a `POST /classify` (sin formulario intermedio).
+`app/main.py::classify()` → `src/inference/predict_geometric.py::classify_image(image_file)`,
+que hace dos cosas con la misma imagen:
 
-**a) `POST /features/extract`** — `app/main.py::features_extract()` separa los
-campos de contexto (los vacíos se descartan, no se usan para nada) y llama a
+**a) Medir con OpenCV** — llama a
 `src/cv_extractor/extract.py::extract_features(image_file)`:
 
 1. Decodifica la imagen con `cv2.imdecode`.
@@ -215,46 +249,43 @@ campos de contexto (los vacíos se descartan, no se usan para nada) y llama a
 9. `_mask_overlay_image(...)` — la imagen original con la máscara binaria
    resaltada en color, para verificar la segmentación a simple vista.
 
-`extract_features` devuelve un único diccionario con todo lo anterior;
-`features_extract()` lo empaqueta junto con el contexto del usuario en
-`{"cv_features": ..., "context": ...}`.
+`extract_features` devuelve un único diccionario con todo lo anterior.
 
-**b) `POST /filter/is-bone`** (resultado adicional, se pide en la misma tanda
-para no tener que volver a llamarlo luego) — `app/main.py::filter_is_bone()` →
-`src/bone_filter/predict.py::is_bone(image_file)`:
+**b) Clasificar + proyectar** — con ese mismo diccionario, `classify_image`:
 
-- `_load()` carga, una vez por proceso, los pesos entrenados
-  (`models/bone_filter/bone_filter_resnet18.pt` + `labels.json`) sobre la
-  arquitectura de `src/bone_filter/model.py::build_model()` (ResNet18 con la
-  última capa cambiada a 2 clases).
-- Aplica la transformación de `torchvision` (resize 224 + normalización
-  ImageNet) y pasa la imagen por el modelo; `torch.softmax` da la probabilidad
-  de "bone" vs "not_bone".
+1. `flatten_features(raw_features)` (reutilizada literalmente de
+   `src/cv_extractor/build_dataset.py`, el mismo script que construyó la tabla
+   de entrenamiento) aplana los dicts anidados (`hu_moments`, `width_profile`,
+   `bounding_box_px`...) a columnas sueltas, descartando las dos imágenes en
+   base64 (no son features, son solo para mostrar).
+2. Construye el vector de entrada en el **mismo orden de columnas** que se usó
+   al entrenar (`geometric_feature_columns_bone_group.joblib`) — crítico: un
+   `RandomForestClassifier` no sabe qué significa cada columna, solo su
+   posición, así que si el orden no coincide exactamente las probabilidades
+   salen sin sentido.
+3. `model.predict_proba(row)` → probabilidad por cada uno de los 9 grupos.
+4. `pca_pipeline.transform(row)` → el mismo vector, escalado y proyectado con
+   el PCA ajustado en el entrenamiento → `{"x": ..., "y": ...}`.
 
-**c) `POST /predict`** (solo si el filtro anterior también dice que es hueso) —
-`app/main.py::predict()` → `src/inference/predict.py::predict_image(image_file)`:
+`classify_image` devuelve `{"found", "prediction", "probabilities", "pca_point", "cv_features"}`
+(o solo `{"found": False, "cv_features": ...}` si OpenCV no pudo aislar un contorno).
 
-- El modelo (`models/model.joblib` + `models/encoder.joblib`) se carga una única
-  vez al importar el módulo, vía `_get_model()` → `_load_local_model()` o, si hay
-  `MLFLOW_TRACKING_URI`, `_load_mlflow_model()` (con fallback a local si falla).
-- Reduce la imagen a escala de grises 32×32, la aplana a vector y llama a
-  `model.predict()` / `predict_proba()` (regresión logística de scikit-learn)
-  para obtener la clase (craneo/femur/humero) y sus probabilidades.
-
-Streamlit guarda `cv_result` y `extra_result` en `session_state`, pasa a
-`stage = "processed"` y hace `st.rerun()`.
+Streamlit guarda el resultado completo en `st.session_state.classify_result` y
+hace `st.rerun()` — ya no hay `stage = "processed"` con llamadas encadenadas,
+una sola respuesta trae todo lo necesario para pintar los pasos 2 y 3.
 
 ### 3. Resultado en pantalla — `app/streamlit_app.py`
 
-Bloque `if st.session_state.stage == "processed":`
-
-- Pinta las dos imágenes de OpenCV (`annotated_image_base64`,
+- **Paso 2 en pantalla**: las dos imágenes de OpenCV (`annotated_image_base64`,
   `mask_overlay_base64`), las rejillas de métricas, el gráfico de
-  `width_profile` (`st.line_chart`) y el JSON completo en un expander.
-- El contexto que rellenó el usuario, si lo hizo.
-- En un expander aparte, "Resultados adicionales": el filtro ResNet18 y, si
-  coincide en que es hueso, la predicción del clasificador multi-clase con su
-  gráfico de barras.
+  `width_profile` (`st.line_chart`) y el JSON completo en un expander — igual
+  que antes, solo que los datos ahora vienen de `classify_result["cv_features"]`
+  en vez de una llamada aparte a `/features/extract`.
+- **Paso 3 en pantalla** (solo si `features["found"]`): `st.metric` con el
+  grupo más probable, `st.bar_chart` con las 9 probabilidades, y un scatter de
+  Plotly (`px.scatter`) con los puntos de `GET /pca/reference` (cacheados con
+  `@st.cache_data(ttl=3600)`, coloreados por `bone_group`) más un marcador de
+  estrella para el punto de la imagen subida (`fig.add_scatter(...)`).
 - Botón "Analizar otra imagen" → `_reset_state()` + `st.rerun()`, vuelta al paso 0.
 
 ## Entrenar el modelo
@@ -262,62 +293,86 @@ Bloque `if st.session_state.stage == "processed":`
 Con el stack levantado:
 
 ```bash
-docker compose -f docker/docker-compose.yml exec app python src/training/train.py
+docker compose -f docker/docker-compose.yml exec app python -m src.training.train_geometric
 ```
 
 Esto:
 
-- Lee imágenes desde `data/raw/bones` (una carpeta por clase).
-- Entrena según `params.yaml` (tamaño de imagen, algoritmo, hiperparámetros, nº máx. de imágenes por clase).
-- Guarda `models/model.joblib` y `models/encoder.joblib`.
-- Registra parámetros, métricas (accuracy, precision/recall/F1 por clase) y el modelo en MLflow.
+- Lee `data/processed/bone_geometric_features.csv` (generada por
+  `python -m src.cv_extractor.build_dataset` a partir de los renders de
+  `base_datos_osea` — no se regenera sola, hay que correr ese script después de
+  añadir mallas/renders nuevos ahí).
+- Entrena un Random Forest sobre `bone_group` (9 clases) según `params.yaml`
+  (`geometric_training`, `geometric_model`).
+- Evalúa dos veces: un split aleatorio por fila (optimista, deja fugarse vistas
+  del mismo espécimen entre train/test) y un `GroupKFold` repetido 10 veces con
+  especímenes completos fuera (la lectura honesta de si generaliza) — ambos se
+  imprimen y se registran en MLflow.
+- Guarda `models/geometric_model_bone_group.joblib`,
+  `models/geometric_encoder_bone_group.joblib`,
+  `models/geometric_feature_columns_bone_group.joblib`,
+  `models/geometric_pca_pipeline.joblib` y
+  `data/processed/bone_geometric_pca_reference.csv`.
+- Acepta `--target bone` para entrenar en su lugar el clasificador de 21 huesos
+  finos (no recomendado como modelo de producción — ver el porqué en
+  `base_datos_osea/HISTORIAL.md` — pero útil para comparar).
 
-El pipeline también se puede reproducir con DVC (`dvc.yaml` define la etapa `train`, sus dependencias y parámetros):
+El pipeline también se puede reproducir con DVC (`dvc.yaml` define la etapa
+`train_geometric`, sus dependencias y parámetros):
 
 ```bash
 docker compose -f docker/docker-compose.yml exec app dvc repro
 ```
 
-Cómo elige el modelo la API/UI en cada predicción (`src/inference/predict.py`):
-
-1. Si hay un modelo en Producción en el Model Registry de MLflow (`osteolab-bone-classifier/Production`), lo usa.
-2. Si no, hace fallback al modelo local en `models/`.
+`src/inference/predict_geometric.py` carga los 4 artefactos del modelo una
+única vez al importar el módulo (variables de módulo, no por request) y falla
+con un mensaje explícito si no existen todavía (hay que entrenar primero).
 
 ## Estructura del proyecto
 
 ```text
 app/
-  main.py                # API FastAPI (/health, /version, /predict, /filter/clip, /features/extract, /filter/is-bone)
-  streamlit_app.py       # UI de demo (sube imagen -> CLIP -> OpenCV -> ResNet18 + clasificador)
+  main.py                    # API FastAPI (/health, /version, /classify, /pca/reference, /filter/clip, /features/extract, /filter/is-bone)
+  streamlit_app.py           # UI de demo (sube imagen -> CLIP -> medir+clasificar+PCA)
 src/
-  training/train.py      # Entrenamiento + logging a MLflow (clasificador multi-clase)
-  inference/predict.py   # Carga de modelo (MLflow o local) + inferencia (clasificador multi-clase)
-  clip_filter/             # Filtro CLIP zero-shot "¿es un hueso?" + sugerencia de tipo
+  training/train_geometric.py   # Entrenamiento (Random Forest + PCA de referencia) + logging a MLflow
+  inference/predict_geometric.py  # Carga de modelo/PCA + inferencia sobre una imagen subida
+  clip_filter/             # Filtro CLIP zero-shot "¿es un hueso?" + sugerencia de tipo (9 grupos)
     model.py               # Prompts, umbral de confianza y carga del modelo CLIP
     predict.py             # Inferencia, llamada desde app/main.py::/filter/clip
   cv_extractor/            # Localización y features geométricas con OpenCV, sin aprendizaje
     extract.py              # Segmentación, medidas de forma, perfil de anchura y curvatura
-  bone_filter/            # Filtro binario "¿es un hueso?" (ResNet18 entrenado), aislado del resto
+    build_dataset.py         # Recorre los renders de base_datos_osea -> tabla CSV de features + bone_group
+  bone_filter/            # Filtro binario "¿es un hueso?" (ResNet18 entrenado), endpoint suelto
     model.py               # Definición del modelo
     train.py               # Script de entrenamiento (usa GPU si hay CUDA)
     predict.py             # Inferencia, llamada desde app/main.py::/filter/is-bone
 airflow/dags/             # DAG de orquestación del pipeline de entrenamiento
 docker/                   # Dockerfiles y docker-compose.yml
-data/raw/bones/            # Dataset, una carpeta por clase (versionado con DVC)
+data/processed/bone_geometric_features.csv    # Tabla de entrenamiento (generada, versionada en git: es pequeña)
+data/processed/bone_geometric_pca_reference.csv  # Coordenadas PCA de esa misma tabla (generada al entrenar)
 data/raw/bone_filter/       # Dataset del filtro bone/not_bone (vuelca tus imágenes aquí)
-models/                    # Modelo local (model.joblib, encoder.joblib)
+models/                    # geometric_model_bone_group.joblib, geometric_encoder_bone_group.joblib,
+                            # geometric_feature_columns_bone_group.joblib, geometric_pca_pipeline.joblib
+                            # (todos gitignored, regenerables con train_geometric.py)
 models/bone_filter/         # Pesos del filtro (bone_filter_resnet18.pt, labels.json)
-params.yaml                # Configuración de dataset/entrenamiento/modelo
-dvc.yaml / dvc.lock         # Pipeline reproducible de DVC
+params.yaml                # Configuración de dataset/entrenamiento/modelo geométrico
+dvc.yaml                   # Pipeline reproducible de DVC (dvc.lock se regenera con `dvc repro`)
 ```
 
-## Dataset esperado
+## Dataset
 
-```text
-data/raw/bones/
-	craneo/
-	femur/
-	humero/
+No hay un `data/raw/<clase>/` local: las imágenes viven como renders en el repo
+hermano `base_datos_osea` (`renders/<especie>/<hueso>/<espécimen>/*.png`, 24
+vistas por espécimen). Para (re)generar la tabla de entrenamiento después de
+añadir mallas/renders nuevos ahí:
+
+```bash
+python -m src.cv_extractor.build_dataset \
+  --renders-dir /root/dev/base_datos_osea/renders \
+  --out data/processed/bone_geometric_features.csv
+python -m src.training.train_geometric
 ```
 
-Versionado con DVC (`data/raw/bones.dvc`); usa `dvc pull` / `dvc repro` para sincronizar datos y reproducir el pipeline si tienes un remote de DVC configurado.
+`data/processed/bone_geometric_features.csv` sí se versiona en git (es una
+tabla de números, pequeña — no las imágenes en sí).

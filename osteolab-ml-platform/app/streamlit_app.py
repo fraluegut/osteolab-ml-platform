@@ -2,6 +2,8 @@ import base64
 import hashlib
 import os
 
+import pandas as pd
+import plotly.express as px
 import requests
 import streamlit as st
 
@@ -17,8 +19,7 @@ st.set_page_config(page_title="OsteoLab - Clasificador de huesos", page_icon="�
 def _reset_state():
     st.session_state.stage = "idle"  # idle -> clip_checked -> processed
     st.session_state.clip_result = None
-    st.session_state.cv_result = None
-    st.session_state.extra_result = None
+    st.session_state.classify_result = None
 
 
 if "file_id" not in st.session_state:
@@ -50,6 +51,16 @@ if file_id != st.session_state.file_id:
 
 def _file_payload():
     return {"file": (uploaded_file.name, file_bytes, uploaded_file.type)}
+
+
+@st.cache_data(ttl=3600)
+def _load_reference_points(api_url: str) -> pd.DataFrame:
+    """Las ~1300 vistas usadas para entrenar, en coordenadas PCA — no cambian
+    entre peticiones (solo si se re-entrena), así que se piden una vez por
+    hora como mucho, no en cada rerender de Streamlit."""
+    resp = requests.get(f"{api_url}/pca/reference", timeout=30)
+    resp.raise_for_status()
+    return pd.DataFrame(resp.json()["points"])
 
 
 # --- Paso 1: filtro CLIP zero-shot (endpoint /filter/clip), disparado a demanda ---
@@ -93,82 +104,20 @@ with st.container(border=True):
                     "más del análisis, no como resultado definitivo."
                 )
 
-# --- Contexto opcional del usuario + disparo del Paso 2 (OpenCV) ---
+# --- Disparo del Paso 2: medir con OpenCV + clasificar (un único endpoint) ---
 if st.session_state.stage == "clip_checked" and st.session_state.clip_result["is_bone"]:
-    with st.container(border=True):
-        st.subheader("¿Tienes datos del hueso?")
-        st.caption("Es opcional: si los rellenas se usarán, si no, se ignoran.")
-        with st.form("context_form"):
-            c1, c2, c3 = st.columns(3)
-            largo_cm = c1.text_input("Largo (cm)")
-            ancho_cm = c2.text_input("Ancho (cm)")
-            profundo_cm = c3.text_input("Profundidad (cm)")
+    if st.session_state.classify_result is None:
+        with st.spinner("Midiendo con OpenCV y comparando contra lo ya conocido..."):
+            resp = requests.post(f"{API_URL}/classify", files=_file_payload(), timeout=30)
+        if not resp.ok:
+            st.error(f"Error {resp.status_code}: {resp.text}")
+            st.stop()
+        st.session_state.classify_result = resp.json()
 
-            c4, c5, c6 = st.columns(3)
-            tipo_hueso = c4.text_input("Tipo de hueso (si lo sabes)")
-            peso_g = c5.text_input("Peso (g)")
-            color = c6.text_input("Color / tonalidad")
-
-            c7, c8 = st.columns(2)
-            estado_conservacion = c7.selectbox(
-                "Estado de conservación",
-                ["", "Completo", "Fragmentado", "Erosionado", "Desconocido"],
-            )
-            procedencia = c8.text_input("Procedencia / lugar del hallazgo")
-            notas = st.text_area("Notas adicionales")
-            submitted = st.form_submit_button("Continuar análisis", type="primary")
-
-        if submitted:
-            context_values = {
-                "largo_cm": largo_cm,
-                "ancho_cm": ancho_cm,
-                "profundo_cm": profundo_cm,
-                "tipo_hueso": tipo_hueso,
-                "peso_g": peso_g,
-                "color": color,
-                "estado_conservacion": estado_conservacion,
-                "procedencia": procedencia,
-                "notas": notas,
-            }
-            data = {k: v for k, v in context_values.items() if v}
-
-            with st.spinner("Localizando el hueso con OpenCV..."):
-                cv_resp = requests.post(
-                    f"{API_URL}/features/extract", files=_file_payload(), data=data, timeout=30
-                )
-            if not cv_resp.ok:
-                st.error(f"Error {cv_resp.status_code}: {cv_resp.text}")
-            else:
-                st.session_state.cv_result = cv_resp.json()
-
-                # Resultados adicionales (filtro ResNet18 entrenado + clasificador de
-                # tipo), calculados una sola vez aquí para no repetir llamadas en cada
-                # rerender de Streamlit.
-                extra = {}
-                filter_resp = requests.post(
-                    f"{API_URL}/filter/is-bone", files=_file_payload(), timeout=30
-                )
-                if filter_resp.ok:
-                    extra["filter"] = filter_resp.json()
-                    if extra["filter"]["is_bone"]:
-                        predict_resp = requests.post(
-                            f"{API_URL}/predict", files=_file_payload(), timeout=30
-                        )
-                        if predict_resp.ok:
-                            extra["predict"] = predict_resp.json()
-                        else:
-                            extra["predict_error"] = f"{predict_resp.status_code}: {predict_resp.text}"
-                else:
-                    extra["filter_error"] = f"{filter_resp.status_code}: {filter_resp.text}"
-
-                st.session_state.extra_result = extra
-                st.session_state.stage = "processed"
-                st.rerun()
-
-# --- Paso 2: resultado de OpenCV + resultados adicionales ---
-if st.session_state.stage == "processed":
-    cv_result = st.session_state.cv_result
-    features = cv_result["cv_features"]
+# --- Paso 2: medidas OpenCV + Paso 3: clasificación y posición en el espacio de features ---
+if st.session_state.classify_result is not None:
+    result = st.session_state.classify_result
+    features = result["cv_features"]
 
     with st.container(border=True):
         st.subheader("Paso 2 · Localización y medidas con OpenCV")
@@ -227,28 +176,50 @@ if st.session_state.stage == "processed":
             with st.expander("Ver todas las medidas (JSON, incluye momentos de Hu)"):
                 st.json(features)
 
-        if cv_result["context"]:
-            st.write("Contexto que aportaste:")
-            st.json(cv_result["context"])
-
-    with st.expander("Resultados adicionales (filtro ResNet18 entrenado + clasificador de tipo)"):
-        extra = st.session_state.extra_result
-        if "filter_error" in extra:
-            st.error(f"Error {extra['filter_error']}")
-        else:
-            filter_result = extra["filter"]
-            st.metric(
-                "Filtro ResNet18",
-                "Sí, es hueso" if filter_result["is_bone"] else "No es un hueso",
-                f"{filter_result['confidence'] * 100:.1f}% de confianza",
+    if features["found"]:
+        with st.container(border=True):
+            st.subheader("Paso 3 · ¿Qué tipo de hueso es?")
+            st.caption(
+                "El modelo compara las medidas de arriba contra las de ~1300 vistas de huesos ya "
+                "identificados (misma especie o no) y da una probabilidad por grupo morfológico — "
+                "cráneo, hueso largo, vértebra... no por hueso exacto ni por especie: con 1-2 "
+                "especímenes reales por hueso concreto el modelo no puede generalizar más allá de "
+                "\"reconozco este objeto\", así que se agrupa por forma general (ver HISTORIAL.md "
+                "en base_datos_osea para el porqué)."
             )
-            if "predict" in extra:
-                result = extra["predict"]
-                st.metric("Predicción", result["prediction"])
-                st.bar_chart(result["probabilities"])
-                st.json(result["probabilities"])
-            elif "predict_error" in extra:
-                st.error(f"Error {extra['predict_error']}")
+
+            probs = result["probabilities"]
+            probs_sorted = dict(sorted(probs.items(), key=lambda kv: -kv[1]))
+            top_group, top_prob = next(iter(probs_sorted.items()))
+
+            c1, c2 = st.columns([1, 2])
+            c1.metric("Grupo más probable", top_group, f"{top_prob * 100:.1f}%")
+            with c2:
+                st.bar_chart(probs_sorted)
+
+            st.markdown("#### Dónde cae esta imagen respecto a lo ya conocido")
+            st.caption(
+                "Proyección PCA (2 componentes) de las mismas medidas geométricas — cada punto de "
+                "fondo es una vista de un hueso ya identificado, coloreada por grupo; la estrella "
+                "negra es la imagen que acabas de subir."
+            )
+            try:
+                reference_df = _load_reference_points(API_URL)
+                fig = px.scatter(
+                    reference_df, x="pca_x", y="pca_y", color="bone_group",
+                    hover_data=["species", "bone", "specimen"],
+                    opacity=0.55,
+                )
+                fig.add_scatter(
+                    x=[result["pca_point"]["x"]], y=[result["pca_point"]["y"]],
+                    mode="markers", marker=dict(symbol="star", size=22, color="black",
+                                                 line=dict(width=1, color="white")),
+                    name="Tu imagen",
+                )
+                fig.update_layout(height=520, legend_title_text="Grupo morfológico")
+                st.plotly_chart(fig, width="stretch")
+            except requests.RequestException as e:
+                st.error(f"No se pudieron cargar los puntos de referencia: {e}")
 
     if st.button("Analizar otra imagen"):
         _reset_state()

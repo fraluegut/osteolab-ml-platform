@@ -1,7 +1,7 @@
 """Inferencia del filtro binario "es hueso / no es hueso".
 
 Módulo aislado: no comparte estado, modelo ni lógica con
-`src/inference/predict.py` (clasificador multi-clase craneo/femur/humero).
+`src/inference/predict_geometric.py` (clasificador de grupo morfológico).
 Se invoca de forma explícita desde el endpoint dedicado en `app/main.py`.
 """
 import json

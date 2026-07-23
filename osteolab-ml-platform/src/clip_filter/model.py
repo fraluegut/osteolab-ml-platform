@@ -32,12 +32,19 @@ NOT_BONE_DESCRIPTIONS = [
 ]
 
 # Descripciones para la sugerencia de tipo de hueso. Las claves deben coincidir
-# con las clases del clasificador multiclase (`models/encoder.joblib`):
-# craneo, femur, humero.
+# con las clases del clasificador geométrico (`models/geometric_encoder_bone_group.joblib`,
+# ver `src/training/train_geometric.py` y `BONE_GROUPS` en base_datos_osea/scripts/bones.py):
+# los 9 grupos morfológicos, no huesos ni especies concretas.
 BONE_TYPE_DESCRIPTIONS = {
-    "craneo": "a human skull bone",
-    "femur": "a human femur bone, the thigh bone",
-    "humero": "a human humerus bone, the upper arm bone",
+    "cranio": "a human skull or cranium",
+    "mandibula_maxilar": "a human jawbone or mandible",
+    "hueso_largo": "a long bone such as a femur, tibia, humerus, radius or ulna",
+    "hueso_plano": "a flat shoulder blade or scapula bone",
+    "pelvis": "a human pelvis or hip bone",
+    "sacro": "a human sacrum bone at the base of the spine",
+    "vertebra": "a single human vertebra bone from the spine",
+    "costilla": "a human rib bone",
+    "hueso_pequeno": "a small hand or foot bone such as a finger or toe bone",
 }
 
 # Umbral de confianza a partir del cual se considera que CLIP "lo tiene muy
