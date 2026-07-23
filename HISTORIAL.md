@@ -127,6 +127,26 @@ Dos repos involucrados: `base_datos_osea` (este, cataloga/descarga/renderiza) y
   con 3+. Pendiente re-ejecutar la evaluación `GroupKFold` con estos datos nuevos para confirmar si
   sube el recall de los 3 grupos débiles.
 
+### 3er espécimen para costilla/sacro/vértebra — resultado sorprendente
+- Se buscó y verificó un 3er espécimen para los 3 grupos débiles (costilla: 12ª costilla para dar
+  diversidad de forma real; sacro: autor independiente con cóccix; vértebra: torácica T5/T6 de otra
+  fuente). Total tras esto: **1056 imágenes**, todos los grupos con ≥2 especímenes.
+- **Se detectó un problema metodológico antes de fiarse del número**: `GroupKFold` de sklearn no
+  baraja por defecto — el reparto en folds depende del orden en que aparecen los especímenes en los
+  datos, no es aleatorio. Con solo 2-3 especímenes en varias clases, una sola partición podía ser
+  una muestra con mucha suerte o mala suerte. **Solución**: repetir la validación 10 veces con
+  `shuffle=True` y semilla distinta cada vez, y reportar la media ± desviación por clase en vez de
+  un único número.
+- **Resultado honesto (10 repeticiones)**: pasar de 2 a 3 especímenes **no arregló el problema** —
+  sacro incluso empeoró (0.4% de recall medio). Los grupos con muchos especímenes (`hueso_largo`:
+  9, `mandibula_maxilar`: 9) generalizan con desviación baja (≤0.04) — consistente y estable, no
+  ruido. Los grupos débiles (`costilla`: 0.18±0.12, `pelvis`: 0.19±0.03, `hueso_plano`: 0.32±0.11,
+  `vertebra`: 0.06±0.03, `sacro`: 0.004±0.006) siguen mal incluso con 3 especímenes.
+- **Conclusión práctica, más dura de lo esperado**: el umbral real para generalizar parece estar
+  hacia **6+ especímenes por grupo**, no 2-3. Añadir uno más no es suficiente para los grupos
+  anatómicamente más variables/complejos (sacro y vértebra en particular, que tienen mucha
+  variación de forma incluso dentro del mismo individuo según la posición vertebral/costal).
+
 ### Protección del trabajo con git
 - Ninguno de los dos repos tenía forma de recuperar el trabajo si algo fallaba (recordando el
   incidente de `/dev` vs `/root/dev` de la sesión anterior). Se inicializó git en `base_datos_osea`
