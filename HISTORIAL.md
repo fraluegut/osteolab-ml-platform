@@ -147,6 +147,30 @@ Dos repos involucrados: `base_datos_osea` (este, cataloga/descarga/renderiza) y
   anatómicamente más variables/complejos (sacro y vértebra en particular, que tienen mucha
   variación de forma incluso dentro del mismo individuo según la posición vertebral/costal).
 
+### Segunda ronda: empujar hacia 6+ especímenes — la hipótesis se confirma
+- Se buscaron y verificaron 11 especímenes más para los 4 grupos débiles: 2 costillas más (1ª y
+  2ª posición, formas muy distintas entre sí), 3 sacros más (incluido uno arqueológico
+  documentado, St. Nicolas Kirk), 3 vértebras más (incluida el atlas C1, forma de anillo sin
+  cuerpo vertebral — mucha diversidad de forma dentro de la clase), 3 escápulas más.
+  - **Pelvis se quedó en 2**: no se encontraron más modelos de pelvis bilateral completa en
+    Sketchfab que no llevaran fémures o vértebras lumbares fusionados en la misma malla (varios
+    candidatos de MRI/CT los incluían — rechazados por contaminar la clase con forma de otros
+    huesos). Los únicos "limpios" que había eran huesos coxales unilaterales (un solo lado), que
+    no es la misma clase que la pelvis bilateral ya usada.
+  - **Un modelo con las 2 escápulas (izquierda y derecha) en una sola malla se descartó** — no
+    encaja con la convención de "una malla = un hueso" del pipeline de render.
+- Total tras esto: **1320 imágenes**. Especímenes por grupo: `hueso_largo` 9, `mandibula_maxilar`
+  9, `hueso_pequeno` 7, `cranio` 6, `sacro` 6, `vertebra` 6, `costilla` 5, `hueso_plano` 5,
+  `pelvis` 2.
+- **Resultado (GroupKFold×10, espécimen fuera): la hipótesis se confirma con creces.**
+  `hueso_plano` (2→5 especímenes) pasó de 32% a **68% de recall medio** — ya está a la altura de
+  los grupos "buenos". `sacro` (2→6) pasó de 0.4% a 23%. `vertebra` (2→6) de 6% a 31%. `costilla`
+  (2→5) de 18% a 31%. La accuracy global bajó ligeramente (61%→58%), pero no por regresión: los
+  especímenes nuevos meten diversidad de forma real y más difícil (el anillo del atlas, la
+  costilla 1ª/12ª con curvatura atípica), así que es un dataset más honesto, no peor.
+  `pelvis` (sigue en 2) quedó como el eslabón claramente más débil (recall bajó a 9%) — siguiente
+  objetivo si aparece un 3er modelo de pelvis bilateral limpio.
+
 ### Protección del trabajo con git
 - Ninguno de los dos repos tenía forma de recuperar el trabajo si algo fallaba (recordando el
   incidente de `/dev` vs `/root/dev` de la sesión anterior). Se inicializó git en `base_datos_osea`
