@@ -110,25 +110,45 @@ def main():
     # espécimen nunca aparece a la vez en fit y en predict. Esto es lo que de
     # verdad responde "¿generaliza a un hueso que no ha visto nunca?", en vez
     # de "¿reconoce este objeto concreto desde otro ángulo?".
+    #
+    # GroupKFold sin shuffle reparte los folds según el orden en que aparecen
+    # los especímenes en los datos (no al azar) — con solo 2-3 especímenes en
+    # varias clases, una única partición así puede ser una muestra con mucha
+    # suerte o mala suerte, no un resultado estable. Se repite con varias
+    # semillas (shuffle=True + random_state distinto cada vez) y se promedia,
+    # para no sacar conclusiones de una partición concreta.
     n_groups = len(set(groups))
     n_splits = min(5, n_groups)
-    gkf = GroupKFold(n_splits=n_splits)
+    n_repeats = 10
     cv_model = RandomForestClassifier(
         n_estimators=model_params["n_estimators"],
         max_depth=model_params["max_depth"],
         random_state=training_params["random_state"],
     )
-    cv_preds = cross_val_predict(cv_model, X, y_encoded, groups=groups, cv=gkf)
-    cv_accuracy = accuracy_score(y_encoded, cv_preds)
-    cv_report = classification_report(
-        y_encoded, cv_preds, labels=range(len(le.classes_)), target_names=le.classes_,
-        output_dict=True, zero_division=0,
-    )
-    print(f"\n=== Evaluación con espécimen completo fuera (GroupKFold, {n_splits} folds) ===")
-    print(classification_report(
-        y_encoded, cv_preds, labels=range(len(le.classes_)), target_names=le.classes_, zero_division=0,
-    ))
-    print(f"Accuracy (espécimen fuera): {cv_accuracy:.4f}")
+
+    repeat_accuracies = []
+    per_class_recalls = {c: [] for c in le.classes_}
+    for seed in range(n_repeats):
+        gkf = GroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+        cv_preds = cross_val_predict(cv_model, X, y_encoded, groups=groups, cv=gkf)
+        repeat_accuracies.append(accuracy_score(y_encoded, cv_preds))
+        rep_report = classification_report(
+            y_encoded, cv_preds, labels=range(len(le.classes_)), target_names=le.classes_,
+            output_dict=True, zero_division=0,
+        )
+        for c in le.classes_:
+            per_class_recalls[c].append(rep_report[c]["recall"])
+
+    cv_accuracy = float(np.mean(repeat_accuracies))
+    cv_accuracy_std = float(np.std(repeat_accuracies))
+    print(f"\n=== Evaluación con espécimen completo fuera "
+          f"(GroupKFold×{n_repeats} barajados, {n_splits} folds cada uno) ===")
+    print(f"Accuracy por repetición: {[round(a, 3) for a in repeat_accuracies]}")
+    print("\nRecall medio ± desviación por grupo (a través de las 10 repeticiones):")
+    for c in le.classes_:
+        recalls = per_class_recalls[c]
+        print(f"  {c:<20} {np.mean(recalls):.3f} ± {np.std(recalls):.3f}  (min={min(recalls):.2f}, max={max(recalls):.2f})")
+    print(f"\nAccuracy (espécimen fuera): {cv_accuracy:.4f} ± {cv_accuracy_std:.4f}")
 
     with mlflow.start_run():
         mlflow.log_params({
@@ -150,7 +170,8 @@ def main():
         )
 
         mlflow.log_metric("accuracy", accuracy)
-        mlflow.log_metric("accuracy_specimen_held_out", cv_accuracy)
+        mlflow.log_metric("accuracy_specimen_held_out_mean", cv_accuracy)
+        mlflow.log_metric("accuracy_specimen_held_out_std", cv_accuracy_std)
         for class_name in le.classes_:
             mlflow.log_metric(f"precision_{class_name}", report[class_name]["precision"])
             mlflow.log_metric(f"recall_{class_name}", report[class_name]["recall"])
