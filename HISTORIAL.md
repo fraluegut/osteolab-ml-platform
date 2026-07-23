@@ -171,6 +171,29 @@ Dos repos involucrados: `base_datos_osea` (este, cataloga/descarga/renderiza) y
   `pelvis` (sigue en 2) quedó como el eslabón claramente más débil (recall bajó a 9%) — siguiente
   objetivo si aparece un 3er modelo de pelvis bilateral limpio.
 
+### De "modelo entrenado en un fichero" a "modelo servido de verdad"
+- Se descubrió que, aunque todo el trabajo de features geométricas + modelo por grupos estaba
+  hecho, **la API real (`/predict`) seguía sirviendo el modelo antiguo**: regresión logística
+  sobre píxeles 32×32 en gris, 3 clases (craneo/fémur/húmero), entrenado con un dataset de renders
+  de una sesión mucho anterior sin relación con el catálogo curado. Si un usuario subía la foto de
+  cualquier otro hueso, la API igualmente respondía "craneo", "fémur" o "húmero" porque no podía
+  devolver ninguna otra etiqueta.
+- **Se retiró el pipeline viejo por completo** (no solo se dejó de llamar): `src/inference/predict.py`,
+  `src/training/train.py`, `data/raw/bones.dvc`, `data/sanity_check.py`, el stage viejo de
+  `dvc.yaml`/`dvc.lock`, las secciones `dataset`/`training`/`model` de `params.yaml`, y los
+  `.joblib` del modelo viejo.
+- **Se conectó el modelo de grupos a la API de verdad**: `POST /classify` mide la imagen con
+  OpenCV, la clasifica con el Random Forest de 9 grupos, y además proyecta la misma medida en un
+  PCA 2D (ajustado sobre las ~1300 vistas de entrenamiento) para poder dibujarla junto a lo ya
+  conocido — `GET /pca/reference` expone esas coordenadas de fondo. La sugerencia de tipo de CLIP
+  (zero-shot, primera capa del pipeline) también se actualizó de los 3 huesos viejos a los 9 grupos,
+  para que no diera pistas inconsistentes con el clasificador real.
+- **Verificación**: probado de punta a punta con la API real corriendo (`uvicorn`) y un test con
+  `streamlit.testing.v1.AppTest` que simula subir una imagen real y pulsar "Procesar" contra la API
+  en marcha — sin excepciones, con la predicción y el punto PCA correctos. No se pudo comprobar
+  visualmente en un navegador real (no hay herramienta de navegador en este entorno) — se dijo
+  explícitamente en vez de asumir que se ve bien.
+
 ### Protección del trabajo con git
 - Ninguno de los dos repos tenía forma de recuperar el trabajo si algo fallaba (recordando el
   incidente de `/dev` vs `/root/dev` de la sesión anterior). Se inicializó git en `base_datos_osea`
