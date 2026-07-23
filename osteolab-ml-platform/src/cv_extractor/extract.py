@@ -61,6 +61,81 @@ def _largest_contour(binary: np.ndarray):
     return max(contours, key=cv2.contourArea)
 
 
+def _hole_features(binary: np.ndarray, contour_area: float) -> dict:
+    """Agujeros internos del contorno externo (forámenes, forámenes
+    nutricios...) — `_largest_contour` usa RETR_EXTERNAL a propósito para
+    quedarse solo con el contorno de fuera, así que esta información se
+    pierde por diseño en el resto del pipeline. Un hueso largo no tiene
+    ninguno; una vértebra tiene uno central (el foramen vertebral); un sacro
+    o una pelvis tienen varios — señal anatómica directa que Hu moments o
+    aspect ratio no capturan, y que sobrevive en la mayoría (no todas: solo se
+    ve un agujero pasante si el ángulo de cámara mira más o menos a través
+    del conducto) de las vistas de un mismo hueso.
+
+    Recalcula contornos con RETR_CCOMP (jerarquía de 2 niveles: externos +
+    sus huecos directos) sobre el mismo binario ya segmentado — barato, y
+    mantiene `_largest_contour` sin tocar para no afectar al resto de features.
+    """
+    contours, hierarchy = cv2.findContours(binary, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    if hierarchy is None or contour_area <= 0:
+        return {"n_holes": 0, "holes_area_ratio": 0.0, "largest_hole_area_ratio": 0.0}
+
+    areas = [cv2.contourArea(c) for c in contours]
+    outer_idx = int(np.argmax(areas))
+    # umbral relativo al tamaño del propio hueso en esta vista, no un nº de
+    # píxeles fijo: descarta ruido de segmentación sin descartar forámenes
+    # reales de huesos pequeños fotografiados de cerca.
+    min_hole_area = contour_area * 0.0005
+    hole_areas = [
+        areas[i] for i, h in enumerate(hierarchy[0])
+        if h[3] == outer_idx and areas[i] > min_hole_area
+    ]
+    total_hole_area = sum(hole_areas)
+
+    return {
+        "n_holes": len(hole_areas),
+        "holes_area_ratio": round(total_hole_area / contour_area, 4),
+        "largest_hole_area_ratio": round(max(hole_areas) / contour_area, 4) if hole_areas else 0.0,
+    }
+
+
+def _groove_features(contour: np.ndarray, size_ref: float) -> dict:
+    """Defectos de convexidad (cuánto se hunde el contorno respecto a su
+    envolvente convexa, en cada muesca) como proxy 2D de escotaduras,
+    trócleas y cóndilos articulares. `solidity`/`convexity` ya usan el hull
+    pero resumen toda la envolvente en un único número — no distinguen "una
+    muesca profunda" de "muchas muescas superficiales", que es justo la
+    diferencia entre, por ejemplo, un hueso con una superficie articular
+    marcada y uno sin ella.
+
+    `size_ref` normaliza la profundidad (viene en píxeles) por una medida
+    propia del hueso en esa vista (el lado largo del rectángulo rotado), para
+    que no dependa de la resolución de la imagen ni del tamaño real del hueso.
+    """
+    hull_indices = cv2.convexHull(contour, returnPoints=False)
+    if hull_indices is None or len(hull_indices) < 4 or size_ref <= 0:
+        return {"n_deep_grooves": 0, "max_groove_depth": 0.0, "mean_groove_depth": 0.0}
+
+    hull_indices = np.sort(hull_indices, axis=0)
+    try:
+        defects = cv2.convexityDefects(contour, hull_indices)
+    except cv2.error:
+        defects = None
+    if defects is None:
+        return {"n_deep_grooves": 0, "max_groove_depth": 0.0, "mean_groove_depth": 0.0}
+
+    # cv2.convexityDefects devuelve (N, 4) en OpenCV >=5 y (N, 1, 4) en
+    # versiones anteriores — reshape defensivo para que funcione con ambas.
+    depths = (defects.reshape(-1, 4)[:, 3].astype(np.float64) / 256.0) / size_ref
+    deep = depths[depths > 0.02]  # hundimiento >2% del lado largo del hueso
+
+    return {
+        "n_deep_grooves": int(len(deep)),
+        "max_groove_depth": round(float(depths.max()), 4),
+        "mean_groove_depth": round(float(deep.mean()), 4) if len(deep) else 0.0,
+    }
+
+
 def _elongation(contour: np.ndarray) -> float:
     """1 - (autovalor menor / autovalor mayor) de la nube de puntos del
     contorno: 0 para una forma compacta (círculo), cerca de 1 cuanto más
@@ -276,6 +351,8 @@ def extract_features(image_file) -> dict:
           "mean_width": float, "std_width": float, "max_width": float, "min_width": float,
           "curvature_mean": float, "curvature_max": float,   # de la línea central (1/px)
           "width_profile": [float] * 20,   # anchura en 20 cortes a lo largo del eje principal
+          "n_holes": int, "holes_area_ratio": float, "largest_hole_area_ratio": float,  # forámenes/agujeros internos
+          "n_deep_grooves": int, "max_groove_depth": float, "mean_groove_depth": float,  # muescas articulares (defectos de convexidad)
           "annotated_image_base64": str,   # imagen con las medidas pegadas a cada lado
           "mask_overlay_base64": str,      # imagen con la región detectada resaltada
         }
@@ -317,6 +394,8 @@ def extract_features(image_file) -> dict:
         "convexity": round(float(hull_perimeter / perimeter), 4) if perimeter > 0 else None,
     }
     width_stats = _width_profile_and_curvature(contour, box_points)
+    hole_stats = _hole_features(binary, contour_area)
+    groove_stats = _groove_features(contour, long_side)
 
     return {
         "found": True,
@@ -331,6 +410,8 @@ def extract_features(image_file) -> dict:
         **shape_stats,
         "hu_moments": _hu_moments(contour),
         **width_stats,
+        **hole_stats,
+        **groove_stats,
         "annotated_image_base64": _dimensioned_image(
             image, contour, box_points, (x, y, w, h), (long_side, short_side, angle), shape_stats
         ),
