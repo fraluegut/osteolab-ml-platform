@@ -42,6 +42,39 @@ TARGET_BONES = {
     "sesamoid": {"whole": [r"sesamoid bone"], "partial": []},
 }
 
+# Grupo morfológico general de cada hueso canónico: para el clasificador de
+# "tipo/grupo de hueso" (2ª etapa del pipeline, después de confirmar que la
+# imagen es un hueso) en vez de intentar acertar la especie o el hueso exacto
+# con 1 solo espécimen físico por clase. Decisión de agrupación (2026-07-23):
+# mandíbula/maxilar aparte de cráneo (arco dental vs bóveda craneal, formas muy
+# distintas), sacro aparte de vértebra (aunque sea vértebras fusionadas, el
+# perfil ya no es el de una vértebra suelta), clavícula con hueso largo (forma
+# de diáfisis+epífisis pese a la curva en S), rótula con hueso pequeño (forma
+# compacta irregular, no por función anatómica).
+BONE_GROUPS = {
+    "cranium": "cranio",
+    "mandible": "mandibula_maxilar",
+    "maxilla": "mandibula_maxilar",
+    "scapula": "hueso_plano",
+    "clavicle": "hueso_largo",
+    "humerus": "hueso_largo",
+    "radius": "hueso_largo",
+    "ulna": "hueso_largo",
+    "femur": "hueso_largo",
+    "tibia": "hueso_largo",
+    "fibula": "hueso_largo",
+    "patella": "hueso_pequeno",
+    "pelvis": "pelvis",
+    "sacrum": "sacro",
+    "vertebra": "vertebra",
+    "rib": "costilla",
+    "metacarpal_1": "hueso_pequeno",
+    "metatarsal_1": "hueso_pequeno",
+    "proximal_phalanx_1": "hueso_pequeno",
+    "trapezium": "hueso_pequeno",
+    "sesamoid": "hueso_pequeno",
+}
+
 # Categorías que aparecen en los datos pero no son "un hueso limpio": se
 # catalogan igualmente (para tener trazabilidad completa) pero nunca se
 # seleccionan para descarga automática.

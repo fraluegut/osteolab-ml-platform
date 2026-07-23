@@ -121,6 +121,22 @@ CURATED_CANDIDATES = [
         "species": "Homo sapiens",
         "notes": "Verificado completo (costilla central típica, cabeza a un extremo). UNCG Imaging Lab.",
     },
+    # --- 2º espécimen para los 2 grupos morfológicos que solo tenían 1 (ver
+    # BONE_GROUPS en bones.py): sin esto, el clasificador de grupo no puede
+    # distinguir "forma del hueso" de "forma de ESTE hueso concreto" para
+    # hueso_plano/pelvis.
+    {
+        "bone_canonical": "scapula",
+        "uid": "0745bbb368b4401db89e73babe440ee8",
+        "species": "Homo sapiens",
+        "notes": "2º espécimen (grupo hueso_plano tenía solo 1). Verificado completo (glenoides, acromion, coracoides). Eric Bauer, alta resolución (9.8M caras).",
+    },
+    {
+        "bone_canonical": "pelvis",
+        "uid": "35586f343d9c4c6eb813f9006f036595",
+        "species": "Homo sapiens",
+        "notes": "2º espécimen (grupo pelvis tenía solo 1). Verificado completo (ambos ilion + sacro, forámenes visibles). Oregon State University.",
+    },
 ]
 
 # Maxilar: 2 candidatos revisados (uid 47125f083e464d87b23ec748b2679983 y

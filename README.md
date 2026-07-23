@@ -63,9 +63,9 @@ de huesos).
      la carpeta) — al renderizarlo resultó ser un fragmento pequeño irreconocible, ni radio ni
      cúbito real. Metadatos de MorphoSource no fiables una vez más.
    Estas 5 mallas de naledi quedan en disco (`data/meshes/homo_naledi/...`) pero fuera del render;
-   sus huesos ya están cubiertos por el reemplazo de Sketchfab en *H. sapiens*. Quedan 3 carpetas de
-   `renders/` de una sesión previa con solo 12 vistas para los 2 especímenes de MorphoSource
-   excluidos + el húmero de naledi — obsoletas, pendiente decidir si se borran.
+   sus huesos ya están cubiertos por el reemplazo de Sketchfab en *H. sapiens*. Las 3 carpetas
+   obsoletas de `renders/` (12 vistas, sesión previa) ya se borraron — contaminaban la tabla de
+   features con fragmentos etiquetados como buenos (ver punto 6).
 
 5. **Render de Blender: hecho para las 39 mallas verificadas.** `blender/render_bone.py` ahora
    soporta `.glb`/`.gltf` además de `.stl`/`.ply`/`.obj` (el importador de glTF de Blender anida la
@@ -81,6 +81,41 @@ de huesos).
    - **Pendiente**: decidir qué hacer con maxilar — sigue siendo naledi (única opción tras
      rechazar los 2 candidatos de Sketchfab), sin verificación geométrica adicional del perfil de
      anchura (parece razonablemente completo a ojo, con arcada dental visible).
+
+6. **El entrenamiento real vive en `osteolab-ml-platform`, no aquí** — este repo solo cataloga,
+   descarga y renderiza. `src/cv_extractor/build_dataset.py` (en ese otro repo) recorre `renders/`
+   de aquí, pasa cada imagen por `extract_features()` (Hu moments, ratios, perfil de anchura) y
+   escribe `data/processed/bone_geometric_features.csv`. `src/training/train_geometric.py` entrena
+   sobre esa tabla.
+   - **Se abandonó clasificar por los 21 huesos finos**: con 1-2 especímenes físicos reales por
+     hueso, un clasificador de 21 clases no puede generalizar más allá de "reconozco este objeto
+     concreto desde otro ángulo" (confirmado empíricamente, ver debajo). Se pasó a clasificar por
+     **9 grupos morfológicos** (`BONE_GROUPS` en `scripts/bones.py`, duplicado en
+     `build_dataset.py` del otro repo — mantener ambos en sync): `cranio`, `mandibula_maxilar`,
+     `hueso_largo` (fémur/tibia/fíbula/húmero/radio/cúbito/clavícula), `hueso_plano` (escápula),
+     `pelvis`, `sacro`, `vertebra`, `costilla`, `hueso_pequeno` (metacarpiano I/metatarsiano
+     I/falange proximal I/trapecio/sesamoideo/rótula). Decisiones no obvias: mandíbula/maxilar
+     aparte de cráneo (forma muy distinta), sacro aparte de vértebra (aunque sean vértebras
+     fusionadas), clavícula con hueso largo (no con la cintura escapular), rótula con hueso pequeño
+     (por forma, no por función).
+   - **2 grupos solo tenían 1 espécimen físico** (`hueso_plano`/escápula y `pelvis`) — se buscó y
+     verificó visualmente un 2º espécimen en Sketchfab para cada uno: escápula de Eric Bauer
+     (`0745bbb368b4401db89e73babe440ee8`, 9.8M caras) y pelvis de Oregon State University
+     (`35586f343d9c4c6eb813f9006f036595`, ambos ilion + sacro). Ya descargados y renderizados
+     (`renders/` ahora tiene **984 imágenes**, no 936).
+   - **Hallazgo clave (por qué importa el nº de especímenes)**: un split aleatorio por fila da
+     83.8% de accuracy en 9 clases, pero reparte vistas del MISMO espécimen entre train y test —
+     mide sobre todo memorización de objetos concretos. Con `GroupKFold` dejando **especímenes
+     completos** fuera (nunca el mismo hueso físico en train y test a la vez), la accuracy real cae
+     a **65.5%**, y los grupos con solo 2 especímenes (`costilla`, `sacro`, `vertebra`) se
+     desploman a **0% de recall** en algunos folds — el modelo nunca vio ningún ejemplo de esa
+     clase al entrenar ese fold. Los grupos con más especímenes (`hueso_largo`: 9, `mandibula_maxilar`:
+     9, `hueso_pequeno`: 7, `cranio`: 6) sí generalizan razonablemente incluso en esta evaluación
+     honesta (F1 0.67–0.87).
+   - **Pendiente / próximo paso claro**: buscar un 3º+ espécimen en Sketchfab para `costilla`,
+     `sacro` y `vertebra` (0% recall honesto) y luego `pelvis`/`hueso_plano` (2 especímenes, algo
+     mejor pero aún pocos) — mismo proceso de siempre (buscar → mirar miniatura → verificar
+     completo). Sin esto, la accuracy de esos 3 grupos no significa nada todavía.
 
 No se scrapea ninguna web directamente (varias tienen protección anti-bot). Todo pasa por APIs
 oficiales:
