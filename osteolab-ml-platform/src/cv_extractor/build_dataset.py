@@ -23,6 +23,34 @@ from src.cv_extractor.extract import extract_features
 DEFAULT_RENDERS_DIR = Path("/root/dev/base_datos_osea/renders")
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / "data/processed/bone_geometric_features.csv"
 
+# Grupo morfológico general de cada hueso canónico — debe mantenerse igual
+# que `BONE_GROUPS` en base_datos_osea/scripts/bones.py (fuente de verdad de
+# la taxonomía; se duplica aquí en vez de importar entre repos/venvs
+# distintos). Ver ese fichero para el razonamiento de cada caso dudoso.
+BONE_GROUPS = {
+    "cranium": "cranio",
+    "mandible": "mandibula_maxilar",
+    "maxilla": "mandibula_maxilar",
+    "scapula": "hueso_plano",
+    "clavicle": "hueso_largo",
+    "humerus": "hueso_largo",
+    "radius": "hueso_largo",
+    "ulna": "hueso_largo",
+    "femur": "hueso_largo",
+    "tibia": "hueso_largo",
+    "fibula": "hueso_largo",
+    "patella": "hueso_pequeno",
+    "pelvis": "pelvis",
+    "sacrum": "sacro",
+    "vertebra": "vertebra",
+    "rib": "costilla",
+    "metacarpal_1": "hueso_pequeno",
+    "metatarsal_1": "hueso_pequeno",
+    "proximal_phalanx_1": "hueso_pequeno",
+    "trapezium": "hueso_pequeno",
+    "sesamoid": "hueso_pequeno",
+}
+
 VIEW_RE = re.compile(r"_view(\d+)\.png$")
 
 # Claves que van dentro de un dict anidado en el resultado de extract_features
@@ -87,6 +115,7 @@ def main():
         row = {
             "species": species,
             "bone": bone,
+            "bone_group": BONE_GROUPS.get(bone, "sin_grupo"),
             "specimen": specimen,
             "view": view,
             "source_path": str(img_path),
@@ -107,6 +136,9 @@ def main():
     print(f"Filas: {len(df)}  Columnas: {len(df.columns)}")
     print("\nImágenes por hueso:")
     print(df.groupby("bone").size().sort_values(ascending=False).to_string())
+    print("\nImágenes y especímenes por grupo morfológico:")
+    grp = df.groupby("bone_group").agg(imagenes=("bone", "size"), especimenes=("specimen", "nunique"))
+    print(grp.sort_values("especimenes").to_string())
 
 
 if __name__ == "__main__":
