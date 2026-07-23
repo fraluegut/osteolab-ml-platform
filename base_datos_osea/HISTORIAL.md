@@ -202,3 +202,33 @@ Dos repos involucrados: `base_datos_osea` (este, cataloga/descarga/renderiza) y
   (2.6GB+ de binarios regenerables desde los scripts); los `.joblib` de modelos entrenados también
   quedan fuera (regenerables desde el CSV de features, que sí se versiona). Sin `push` a ningún
   remoto todavía — solo local.
+
+---
+
+## 2026-07-23 (cont.) — Consolidación: fusión de los dos repos en uno
+
+- El usuario pidió aplanar y fusionar: `base_datos_osea` debía pasar a vivir dentro de
+  `osteolab-ml-platform`, todo en un único repo, y subido a GitHub.
+- **Aplanado previo necesario**: `osteolab-ml-platform` tenía un anidamiento redundante
+  (`osteolab-ml-platform/osteolab-ml-platform/`, la raíz real del repo git y una subcarpeta con el
+  mismo nombre conteniendo el proyecto de verdad). Se movió todo un nivel arriba con `git mv`
+  (detectado como renames 100%, historial intacto).
+- **Fusión con `git subtree add --prefix=base_datos_osea`** (no un simple copy-paste): trae el
+  historial completo de los 7 commits de `base_datos_osea` encadenado dentro del historial de
+  `osteolab-ml-platform`, en vez de perderlo.
+- **Lo que git subtree NO trae** (por diseño, solo mueve lo trackeado): `data/meshes/` (3.0GB),
+  `renders/` (327MB) y `venv/` (188MB), todos gitignorados. Se copiaron a mano a la nueva ubicación
+  y se verificó recuento de ficheros idéntico origen/destino antes de dar el movimiento por bueno.
+- **Se encontró y arregló un problema arrastrado de la primera mudanza** (`/dev` → `/root/dev`,
+  documentado en el punto 1 de este historial): el `venv/` copiado tenía shebangs apuntando a
+  `/dev/base_datos_osea/venv/bin/python3` — una ruta que ya no existía ni siquiera antes de la
+  fusión de hoy, nunca se había verificado a fondo (solo se probó `python -c "import ..."`, que no
+  pasa por el shebang). Se recreó el venv desde cero en la ubicación nueva en vez de arrastrar el
+  problema una vez más.
+- **Rutas absolutas actualizadas**: `build_dataset.py` tenía `/root/dev/base_datos_osea/renders`
+  quemado como ruta por defecto — se cambió a relativa (`Path(__file__).resolve().parents[2] /
+  "base_datos_osea" / "renders"`), portable si alguien más clona el repo. Se regeneró la tabla de
+  features y se reentrenó para que `source_path` reflejase la ruta nueva (mismos resultados que
+  antes, mismos datos, solo cambia dónde se buscan).
+- Contenedores Docker parados antes de mover directorios (tenían bind mounts activos a las rutas
+  viejas) y reconstruidos después.

@@ -1,15 +1,16 @@
-"""Recorre los renders de `base_datos_osea` y construye una tabla (CSV) con
-las features geométricas de `extract.extract_features()` de cada imagen: una
-fila por vista, columnas = las métricas numéricas (Hu moments, ratios, perfil
-de anchura...), más la clase (hueso canónico) y metadatos de procedencia
-(especie, espécimen, nº de vista).
+"""Recorre los renders de `base_datos_osea/` (subcarpeta de este mismo repo)
+y construye una tabla (CSV) con las features geométricas de
+`extract.extract_features()` de cada imagen: una fila por vista, columnas =
+las métricas numéricas (Hu moments, ratios, perfil de anchura...), más la
+clase (hueso canónico) y metadatos de procedencia (especie, espécimen, nº de
+vista).
 
-No copia ni modifica las imágenes: `base_datos_osea` sigue siendo la única
+No copia ni modifica las imágenes: `base_datos_osea/` sigue siendo la única
 fuente de verdad para las mallas/renders, este script solo lee de ahí.
 
 Uso:
     python -m src.cv_extractor.build_dataset \\
-        --renders-dir /root/dev/base_datos_osea/renders \\
+        --renders-dir base_datos_osea/renders \\
         --out data/processed/bone_geometric_features.csv
 """
 import argparse
@@ -20,8 +21,9 @@ import pandas as pd
 
 from src.cv_extractor.extract import extract_features
 
-DEFAULT_RENDERS_DIR = Path("/root/dev/base_datos_osea/renders")
-DEFAULT_OUT = Path(__file__).resolve().parents[2] / "data/processed/bone_geometric_features.csv"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_RENDERS_DIR = REPO_ROOT / "base_datos_osea" / "renders"
+DEFAULT_OUT = REPO_ROOT / "data/processed/bone_geometric_features.csv"
 
 # Grupo morfológico general de cada hueso canónico — debe mantenerse igual
 # que `BONE_GROUPS` en base_datos_osea/scripts/bones.py (fuente de verdad de

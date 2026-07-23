@@ -4,9 +4,9 @@ Plataforma de machine learning para clasificar imágenes de huesos por **grupo m
 (cráneo, mandíbula/maxilar, hueso largo, hueso plano, pelvis, sacro, vértebra, costilla, hueso
 pequeño de mano/pie), con tracking de experimentos, versionado de datos y una API + UI de demo.
 
-Las mallas 3D, el render multi-vista y el dataset base vienen del repo hermano
-`base_datos_osea` (ver su `HISTORIAL.md` para el porqué de la taxonomía de 9 grupos y de por qué
-se abandonó clasificar por hueso exacto o por especie).
+Las mallas 3D, el render multi-vista y el dataset base vienen de la subcarpeta
+`base_datos_osea/` de este mismo repo (ver su `HISTORIAL.md` para el porqué de la taxonomía de
+9 grupos y de por qué se abandonó clasificar por hueso exacto o por especie).
 
 ## Stack
 
@@ -331,6 +331,8 @@ con un mensaje explícito si no existen todavía (hay que entrenar primero).
 ## Estructura del proyecto
 
 ```text
+base_datos_osea/           # Repo hijo (git subtree): catálogo, descarga y render de las mallas 3D.
+                            # Ver su README.md/HISTORIAL.md — no se toca desde aquí salvo para leer renders/.
 app/
   main.py                    # API FastAPI (/health, /version, /classify, /pca/reference, /filter/clip, /features/extract, /filter/is-bone)
   streamlit_app.py           # UI de demo (sube imagen -> CLIP -> medir+clasificar+PCA)
@@ -362,15 +364,14 @@ dvc.yaml                   # Pipeline reproducible de DVC (dvc.lock se regenera 
 
 ## Dataset
 
-No hay un `data/raw/<clase>/` local: las imágenes viven como renders en el repo
-hermano `base_datos_osea` (`renders/<especie>/<hueso>/<espécimen>/*.png`, 24
-vistas por espécimen). Para (re)generar la tabla de entrenamiento después de
-añadir mallas/renders nuevos ahí:
+No hay un `data/raw/<clase>/` local: las imágenes viven como renders en
+`base_datos_osea/renders/<especie>/<hueso>/<espécimen>/*.png` (subcarpeta de
+este repo, 24 vistas por espécimen). Para (re)generar la tabla de
+entrenamiento después de añadir mallas/renders nuevos ahí (rutas por defecto,
+no hace falta pasarlas si se ejecuta desde la raíz del repo):
 
 ```bash
-python -m src.cv_extractor.build_dataset \
-  --renders-dir /root/dev/base_datos_osea/renders \
-  --out data/processed/bone_geometric_features.csv
+python -m src.cv_extractor.build_dataset
 python -m src.training.train_geometric
 ```
 

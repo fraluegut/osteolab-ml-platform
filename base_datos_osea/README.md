@@ -2,19 +2,27 @@
 
 Catálogo y descarga ordenada de mallas 3D de huesos desde varias fuentes abiertas, pensado como
 fuente de datos para `osteolab-ml-platform` (renders en Blender → entrenamiento del clasificador
-de huesos).
+de huesos). **Vive como subcarpeta dentro del repo `osteolab-ml-platform`** (fusionado el
+2026-07-23 vía `git subtree`, historial completo preservado — ver `HISTORIAL.md`), no como repo
+independiente.
 
 ## Estado y próximos pasos (última sesión: 2026-07-23)
 
 **Léeme primero si retomas esto.** Resumen de por dónde íbamos:
 
-1. **El repo se movió de sitio.** Antes vivía en `/dev/base_datos_osea` — un error mío: `/dev` es
-   `devtmpfs` (sistema de ficheros de dispositivos del kernel), **no persiste tras reiniciar WSL**.
-   Ahora vive en `/root/dev/base_datos_osea` (disco real, junto a `osteolab-ml-platform` y el resto
-   de proyectos). Si algo referencia la ruta vieja, está obsoleto.
-   - **Verificado 2026-07-23**: el `venv/` sobrevivió el `mv` desde `/dev` sin problemas
-     (`venv/bin/python -c "import morphosource"` funciona).
-   - Blender vive en `/opt/blender` (disco real, no se movió, no debería tener problemas).
+0. **Consolidación final: este repo ahora vive dentro de `osteolab-ml-platform/base_datos_osea/`**,
+   no en `/root/dev/base_datos_osea` (esa ruta ya no existe). Se fusionó con `git subtree` para
+   preservar el historial de commits, y los datos grandes gitignorados (`data/meshes/`, `renders/`,
+   `venv/`) se copiaron a mano a la nueva ubicación (no viajan con git). El `venv/` se recreó desde
+   cero en el proceso (el que había arrastraba una ruta rota del movimiento anterior, `/dev/...`, que
+   nunca se había verificado a fondo). Si algo referencia `/root/dev/base_datos_osea` a secas, está
+   obsoleto — la ruta correcta ahora es `/root/dev/osteolab-ml-platform/base_datos_osea`.
+
+1. **El repo se movió de sitio (histórico, ya superado por el punto 0).** Antes vivía en
+   `/dev/base_datos_osea` — un error mío: `/dev` es `devtmpfs` (sistema de ficheros de dispositivos
+   del kernel), **no persiste tras reiniciar WSL**. Luego vivió en `/root/dev/base_datos_osea`
+   (disco real) como repo independiente, y ahora vive dentro de `osteolab-ml-platform` (punto 0).
+   - Blender vive en `/opt/blender` (disco real, no se ha movido, no debería tener problemas).
 
 2. **Se encontró un problema serio de calidad de datos.** El fémur de *Homo sapiens* descargado de
    MorphoSource (`000031310`) resultó ser un **fragmento** (cabeza + diáfisis, sin cóndilos
