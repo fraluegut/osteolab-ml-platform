@@ -159,6 +159,77 @@ CURATED_CANDIDATES = [
         "species": "Homo sapiens",
         "notes": "3er espécimen (grupo vertebra tenía solo 2). Vértebra torácica (T5/T6) completa, cuerpo+apófisis espinosa+transversas+carillas. Eric Bauer, alta resolución.",
     },
+    # --- Ronda 2: empujar costilla/sacro/vertebra/hueso_plano hacia 6+
+    # especímenes (con 3 seguían sin generalizar de forma estable en
+    # GroupKFold repetido — ver HISTORIAL.md). Pelvis se queda en 2: no se
+    # encontró más modelos de pelvis bilateral completa que no llevaran
+    # fémures/vértebras pegados (rechazados por mezclar huesos en una malla).
+    {
+        "bone_canonical": "rib",
+        "uid": "6d4c1e0e0bc042ec8c36d3ec16ccaf62",
+        "species": "Homo sapiens",
+        "notes": "4º espécimen. Segunda costilla izquierda, completa. UNCG Imaging Lab.",
+    },
+    {
+        "bone_canonical": "rib",
+        "uid": "6e9f7dc6d7cb4b9ab343ca95ea3459d2",
+        "species": "Homo sapiens",
+        "notes": "5º espécimen. Primera costilla izquierda (forma ancha/aplanada característica), completa. UNCG Imaging Lab.",
+    },
+    {
+        "bone_canonical": "sacrum",
+        "uid": "c7628ff7a69643af9dc7493f799a68e2",
+        "species": "Homo sapiens",
+        "notes": "4º espécimen. Completo, forámenes visibles. Andreas Kontny, autor independiente.",
+    },
+    {
+        "bone_canonical": "sacrum",
+        "uid": "654aceb8ffd44e0896760d4ed8465dd8",
+        "species": "Homo sapiens",
+        "notes": "5º espécimen. Completo (algo erosionado, espécimen real), forámenes visibles.",
+    },
+    {
+        "bone_canonical": "sacrum",
+        "uid": "5c725158053a4e26adc2d283175cdf38",
+        "species": "Homo sapiens",
+        "notes": "6º espécimen. Espécimen arqueológico documentado (St. Nicolas Kirk SK697), completo con forámenes. CC-BY-NoDerivs.",
+    },
+    {
+        "bone_canonical": "vertebra",
+        "uid": "29b6bb536df84df08fa0ad444c3b01d1",
+        "species": "Homo sapiens",
+        "notes": "4º espécimen. Vértebra cervical (C3/C4), completa. Eric Bauer.",
+    },
+    {
+        "bone_canonical": "vertebra",
+        "uid": "03657338956d41158be94cf19b150402",
+        "species": "Homo sapiens",
+        "notes": "5º espécimen. Atlas (C1) — forma de anillo muy distinta al resto (sin cuerpo vertebral), buena diversidad de forma dentro de la clase. Eric Bauer.",
+    },
+    {
+        "bone_canonical": "vertebra",
+        "uid": "7c5e902085294a6fa9fda5cc775e0e17",
+        "species": "Homo sapiens",
+        "notes": "6º espécimen. Cuarta vértebra cervical, completa. UNCG Imaging Lab.",
+    },
+    {
+        "bone_canonical": "scapula",
+        "uid": "da38f448a06749daa09859d767971088",
+        "species": "Homo sapiens",
+        "notes": "3er espécimen. Completo (glenoides, acromion, coracoides), baja resolución pero forma correcta.",
+    },
+    {
+        "bone_canonical": "scapula",
+        "uid": "3a749164f2ef479093cc5e92abefec0d",
+        "species": "Homo sapiens",
+        "notes": "4º espécimen. Completo, alta resolución. Eric Bauer (espécimen distinto al ya usado del mismo autor). CC-BY-NC-ND.",
+    },
+    {
+        "bone_canonical": "scapula",
+        "uid": "33b0fbce3b634fa7bba801b142b9aeb6",
+        "species": "Homo sapiens",
+        "notes": "5º espécimen. Completo. Ualde, autor independiente.",
+    },
 ]
 
 # Maxilar: 2 candidatos revisados (uid 47125f083e464d87b23ec748b2679983 y
