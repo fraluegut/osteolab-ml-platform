@@ -137,6 +137,28 @@ CURATED_CANDIDATES = [
         "species": "Homo sapiens",
         "notes": "2º espécimen (grupo pelvis tenía solo 1). Verificado completo (ambos ilion + sacro, forámenes visibles). Oregon State University.",
     },
+    # --- 3er espécimen para costilla/sacro/vértebra: con GroupKFold (espécimen
+    # completo fuera) estos 3 grupos caían a 0% de recall en algunos folds al
+    # tener solo 2 especímenes — con 2 no hay margen para que el modelo vea la
+    # clase en train Y en test a la vez en una partición de 5 folds.
+    {
+        "bone_canonical": "rib",
+        "uid": "4d0e5894afdd4a0b8a327c45e905859f",
+        "species": "Homo sapiens",
+        "notes": "3er espécimen (grupo costilla tenía solo 2). Duodécima costilla — forma muy distinta (corta, poco curvada) a la costilla central ya usada, buena diversidad de forma dentro de la clase. UNCG Imaging Lab.",
+    },
+    {
+        "bone_canonical": "sacrum",
+        "uid": "c606367c21f64fe6b6d6f8f2b3ec4da4",
+        "species": "Homo sapiens",
+        "notes": "3er espécimen (grupo sacro tenía solo 2). Sacro con cóccix articulado, forámenes sacros visibles. Autor independiente (Ualde), no UNCG/Eric Bauer.",
+    },
+    {
+        "bone_canonical": "vertebra",
+        "uid": "abd1b3a2116a449f94bccb86d1e17f54",
+        "species": "Homo sapiens",
+        "notes": "3er espécimen (grupo vertebra tenía solo 2). Vértebra torácica (T5/T6) completa, cuerpo+apófisis espinosa+transversas+carillas. Eric Bauer, alta resolución.",
+    },
 ]
 
 # Maxilar: 2 candidatos revisados (uid 47125f083e464d87b23ec748b2679983 y

@@ -1,0 +1,137 @@
+# Historial del proyecto
+
+Relato cronológico de decisiones, problemas encontrados y cómo se resolvieron. A diferencia del
+README (que describe el *estado actual* y se reescribe), este documento **se añade, no se
+reescribe** — es el guión completo de cómo se ha llegado hasta aquí, pensado para reconstruir el
+razonamiento al final del proyecto sin tener que releer toda la conversación.
+
+Dos repos involucrados: `base_datos_osea` (este, cataloga/descarga/renderiza) y
+`osteolab-ml-platform` (entrena el clasificador a partir de lo que este repo produce).
+
+---
+
+## 2026-07-22 — Arranque del catálogo (sesión previa, resumido)
+
+- Se construyó el pipeline MorphoSource + Smithsonian: `catalog.py` (clasifica y cataloga una
+  especie), `gap_check.py` (arbitra un ganador por hueso entre especies), `download.py` (descarga
+  lo seleccionado). 21 huesos objetivo definidos en `scripts/bones.py::TARGET_BONES`.
+- **Problema encontrado**: el repo vivía en `/dev/base_datos_osea` — `/dev` es `devtmpfs`, no
+  sobrevive a un reinicio de WSL. **Solución**: mover todo a `/root/dev/base_datos_osea` (disco
+  real).
+- **Problema encontrado**: el fémur de *H. sapiens* de MorphoSource (`000031310`) resultó ser un
+  fragmento (cabeza + diáfisis, sin cóndilos distales), etiquetado simplemente `"femur"` sin ningún
+  indicio de fragmento en el texto — el flag `is_partial` de MorphoSource no lo detectó. Se verificó
+  midiendo el perfil de anchura a lo largo del eje principal (crece por un lado y se corta, en vez
+  de ensanchar por los dos extremos). **Conclusión**: los metadatos de texto de MorphoSource no son
+  fiables para detectar fragmentos sin avisar.
+- **Solución adoptada**: pivotar a **Sketchfab** como fuente principal para huesos humanos —
+  permite ver una miniatura de cada modelo *antes* de descargar, así que cada candidato se verifica
+  visualmente (mirando la miniatura) antes de aceptarlo. Se dejaron 3 candidatos verificados
+  (fémur, húmero, cráneo) pero sin descargar al cortar la sesión.
+
+---
+
+## 2026-07-23 — Continuación: completar Sketchfab, corregir el render, primer lote
+
+### Descarga y verificación visual de Sketchfab (14 huesos)
+- Se ejecutó `catalog`/`download` de los 3 candidatos pendientes, y se buscó/verificó uno a uno el
+  resto de huesos de *H. sapiens* que venían de naledi/MorphoSource: mandíbula, escápula,
+  clavícula, radio, cúbito, tibia, fíbula, rótula, sacro, vértebra, costilla — 11 más, 14 en total.
+- **Maxilar sin reemplazo**: los 2 candidatos de Sketchfab revisados resultaron fragmentos
+  unilaterales (falta un lado de la arcada) — rechazados, se mantuvo la malla de naledi.
+
+### Bug en `render_bone.py`: mallas glTF invisibles o mal encuadradas
+- **Problema**: al probar el primer `.glb` de Sketchfab, el render salía en blanco. El importador
+  de glTF de Blender anida la malla bajo Empties con escala (~0.009) y traslación no triviales
+  (Sketchfab exporta con su propio sistema de unidades) — el código leía `obj.data.vertices`
+  asumiendo que ya estaban en espacio del mundo, así que el centrado/encuadre calculaba mal la
+  posición y el radio.
+- **Solución**: tras importar, aplanar el transform con `parent_clear(type="CLEAR_KEEP_TRANSFORM")`
+  + `transform_apply()` antes de leer los vértices — corrige tanto glTF como cualquier otro formato.
+  Verificado que no rompe el pipeline `.ply`/`.stl` existente (mismo resultado que antes).
+
+### Auditoría geométrica de las 46 mallas descargadas
+- Se renderizó 1 vista rápida de cada malla y se revisó visualmente. Se encontraron **7
+  fragmentos/mallas mal etiquetadas** que ni MorphoSource ni el clasificador de texto habían
+  avisado:
+  - `homo_sapiens/cranium/000678985` y `homo_sapiens/femur/000031310` — ya documentados arriba.
+  - `homo_naledi/scapula/000026236` — el nombre de fichero ya decía "fragment"; confirmado (blob
+    irregular, sin glenoides/acromion reconocibles).
+  - `homo_naledi/fibula/000100688` — carpeta decía "Distal"; confirmado fragmento distal only.
+  - `homo_naledi/humerus/000026234` y `homo_naledi/tibia/000014985` — fragmentos (cabeza proximal
+    suelta / diáfisis sin epífisis), confirmados con varios ángulos de cámara adicionales.
+  - `homo_naledi/radius/000026239` (fichero literalmente llamado `uw-102-025-ulna-...`, ya
+    sospechoso) — al renderizarlo era un fragmento pequeño irreconocible, ni radio ni cúbito.
+- Las 5 mallas de naledi se dejaron en disco pero fuera del render (sus huesos ya estaban cubiertos
+  por el reemplazo de Sketchfab en *H. sapiens*).
+
+### Bug en el script de render por lotes: `cut -d/` con el índice de campo mal
+- **Problema**: el primer lote (39 huesos) se guardó todo bajo `renders/meshes/<especie>/<hueso>/`
+  en vez de `renders/<especie>/<hueso>/<espécimen>/` — el script usaba `cut -d/ -f2,3,4` sobre una
+  ruta que empezaba por `data/meshes/...`, así que el campo 2 era literalmente la palabra "meshes",
+  no la especie. Se detectó al revisar la estructura de carpetas resultante.
+- **Solución**: corregir a `-f3,4,5`, borrar el árbol mal generado y volver a lanzar (rápido, ~30s
+  por hueso). Resultado: **39/39 huesos, 936 imágenes**, sin fallos.
+
+### Contaminación por carpetas de render obsoletas
+- Al construir la tabla de features en `osteolab-ml-platform` por primera vez, salieron 972
+  imágenes en vez de 936 — 3 carpetas de una sesión anterior (12 vistas, para los 2 fragmentos de
+  MorphoSource ya excluidos + el húmero fragmentado de naledi) seguían en `renders/` y se colaron.
+  **Solución**: borrarlas y regenerar.
+
+---
+
+## 2026-07-23 (continuación) — De "21 huesos finos" a "9 grupos morfológicos"
+
+### Por qué se abandonó clasificar por hueso exacto
+- Con el pipeline de features geométricas de OpenCV (`extract_features()`: Hu moments, ratios,
+  perfil de anchura) montado y entrenado sobre las 21 clases finas, la accuracy en un split
+  aleatorio por fila era razonable (76%), **pero** casi todos los huesos solo tenían 1 espécimen
+  físico real (24 vistas del mismo objeto) — un split por fila reparte vistas del MISMO hueso entre
+  train y test, así que la accuracy medía sobre todo "reconozco este objeto concreto desde otro
+  ángulo", no generalización real.
+- **Decisión del usuario**: no tiene sentido perseguir 21 clases finas por especie/edad — mejor
+  agrupar en categorías morfológicas generales, que es como realmente se identifica un hueso
+  encontrado en la práctica (cráneo, costilla, vértebra, hueso largo, hueso plano, pelvis, hueso
+  pequeño de mano/pie...). Esto además soluciona de rebote el problema de fuga: un grupo "hueso
+  largo" con 6-9 especímenes distintos (fémur+tibia+húmero+radio+cúbito+fíbula+clavícula) da mucha
+  más señal de generalización que un hueso individual con 1 espécimen.
+- **Taxonomía acordada** (`BONE_GROUPS` en `scripts/bones.py`, duplicada en `build_dataset.py` del
+  otro repo): 9 grupos. Decisiones no obvias, todas confirmadas explícitamente por el usuario:
+  mandíbula/maxilar aparte de cráneo (forma muy distinta), sacro aparte de vértebra (aunque sean
+  vértebras fusionadas), clavícula con hueso largo (no con la cintura escapular), rótula con hueso
+  pequeño (por forma, no por función anatómica).
+
+### Evaluación honesta: `GroupKFold` con espécimen completo fuera
+- Entrenando sobre los 9 grupos con un split aleatorio por fila: **83.8%** de accuracy. Pero el
+  mismo problema de fuga seguía ahí a nivel de espécimen.
+- Se añadió una evaluación con `GroupKFold` (agrupando por `specimen`, no por fila) que garantiza
+  que un hueso físico nunca está a la vez en train y test. Resultado: la accuracy real cae a
+  **65.5%**, y los 3 grupos con solo 2 especímenes (`costilla`, `sacro`, `vertebra`) se desploman a
+  **0% de recall** en algunos folds — en esas particiones el modelo entrena sin haber visto nunca
+  un ejemplo de esa clase (los 2 especímenes caen en el mismo fold de test, o el modelo solo ve 1
+  espécimen en train, señal demasiado débil).
+- **Por qué importa esto y qué NO lo arregla**: renderizar más vistas del mismo hueso no ayuda —
+  son más copias de la misma forma, no variación real. Lo que enseña a generalizar es tener
+  especímenes físicos *distintos*.
+
+### 2º y 3er espécimen para los grupos más débiles
+- `hueso_plano` (escápula) y `pelvis` solo tenían 1 espécimen — se buscó y verificó visualmente un
+  2º en Sketchfab para cada uno (escápula de Eric Bauer, pelvis de Oregon State University).
+- `costilla`, `sacro` y `vertebra` tenían 2 especímenes (el mínimo que sigue dando 0% de recall en
+  algunos folds) — se buscó y verificó un 3º para cada uno, buscando además diversidad de forma
+  real dentro de la clase, no solo "otro ejemplo cualquiera": una costilla 12ª (forma muy distinta
+  a la costilla central ya usada), un sacro con cóccix de un autor independiente, una vértebra
+  torácica (T5/T6) de un autor distinto al ya usado.
+- Estado tras esto: **1056 imágenes renderizadas**, todos los grupos con ≥2 especímenes, la mayoría
+  con 3+. Pendiente re-ejecutar la evaluación `GroupKFold` con estos datos nuevos para confirmar si
+  sube el recall de los 3 grupos débiles.
+
+### Protección del trabajo con git
+- Ninguno de los dos repos tenía forma de recuperar el trabajo si algo fallaba (recordando el
+  incidente de `/dev` vs `/root/dev` de la sesión anterior). Se inicializó git en `base_datos_osea`
+  (no lo tenía) y se comiteó el trabajo pendiente en `osteolab-ml-platform` (sí lo tenía, con
+  remoto en GitHub, pero cambios sin comitear). `data/meshes/` y `renders/` quedan fuera de git
+  (2.6GB+ de binarios regenerables desde los scripts); los `.joblib` de modelos entrenados también
+  quedan fuera (regenerables desde el CSV de features, que sí se versiona). Sin `push` a ningún
+  remoto todavía — solo local.

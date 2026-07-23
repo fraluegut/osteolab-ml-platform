@@ -5,3 +5,5 @@ __pycache__/
 data/meshes/
 renders/
 .env
+
+.claude/
