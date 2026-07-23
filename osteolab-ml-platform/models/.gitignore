@@ -1,2 +1,4 @@
 /model.joblib
 /encoder.joblib
+/geometric_model.joblib
+/geometric_encoder.joblib

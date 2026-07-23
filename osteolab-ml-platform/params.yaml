@@ -18,3 +18,15 @@ model:
 
 inference:
   model_version: baseline_v1
+
+geometric_dataset:
+  path: data/processed/bone_geometric_features.csv
+
+geometric_training:
+  test_size: 0.2
+  random_state: 42
+
+geometric_model:
+  name: random_forest
+  n_estimators: 300
+  max_depth: null
