@@ -296,6 +296,113 @@ usuario elija cómo seguir):
 
 ---
 
+## 2026-07-24 (cont.) — Banco de fotos reales, bug de NaN, segmentación combinada, y arranque de renders con ruido para CNN (EN CURSO, cortado a mitad a petición del usuario — se va a dormir)
+
+**Motivación**: tras desplegar el modelo de la Ronda 3 (commit `4ce41f9`), el usuario probó la app
+con una foto real suya (cráneo de resina) y la segmentación falló (solo detectó ~40% del cráneo
+como hueso). Esto llevó a construir un banco de evaluación nuevo con fotos reales, y de ahí a la
+conclusión de que hace falta un enfoque combinado CNN + geométrico entrenado con datos que se
+parezcan más a fotos reales.
+
+### 1. Banco de fotos reales (`data/real_world_benchmark/`, no versionado — ver `.gitignore`)
+- 3 agentes en paralelo buscaron fotos reales (Wikimedia Commons, verificadas visualmente una a
+  una) para los 9 grupos morfológicos. **Solo 1 de los 3 completó** (25 fotos: cranio, mandíbula,
+  hueso_largo) — los otros 2 (hueso_pequeño/plano/pelvis, y sacro/vértebra/costilla) murieron por
+  límite de sesión de la API antes de guardar nada. **Pendiente: relanzarlos** para completar los
+  6 grupos que faltan.
+- Nuevo script `src/training/evaluate_real_photos.py`: a diferencia de `evaluate.py` (que lee
+  features ya extraídas de un CSV), este vuelve a correr `extract_features` desde la imagen cruda
+  — prueba la segmentación de verdad, no solo el clasificador. Loguea en MLflow, experimento
+  `osteolab-benchmark-real-photos`.
+- **Resultado**: 28% accuracy (vs 75-87% en los bancos sintéticos). `hueso_largo` a 0% recall
+  (0 de 9), `cranio` a 25% (confundido con `hueso_plano`, el mismo fallo que vio el usuario en
+  vivo). Con texto/marca de agua superpuesto: 17% vs 38% sin texto. Fondo tipo "estudio con
+  degradado" (el más común en las fotos de huesos largos, de colecciones osteológicas reales):
+  0% accuracy en las 8 imágenes con ese fondo.
+
+### 2. Bug real encontrado y arreglado: crash por NaN en producción
+`ellipse_ratio` (y otras features con división guardada: `extent`, `solidity`, `circularity`,
+`convexity`, `aspect_ratio`) pueden salir `None` si el contorno detectado es degenerado (pocos
+puntos, lado corto ~0) — nunca pasa en los renders limpios de entrenamiento (verificado: 0 NaN en
+`bone_geometric_features.csv`) pero sí en 2 de 25 fotos reales, y el `/classify` de la API real
+habría devuelto un 500 sin control. **Arreglado** en `src/inference/predict_geometric.py`: se
+precalcula la media de cada columna sobre la tabla de entrenamiento (`_fallback_means`) y se usa
+para imputar cualquier `None`/NaN antes de pasar la fila al modelo/PCA.
+
+### 3. Segmentación combinada (Otsu + adaptativo) — mejora real pero insuficiente
+`_segment()` en `src/cv_extractor/extract.py` ahora combina umbral global (Otsu, bueno en renders
+limpios) con umbral adaptativo local (capta variación de sombreado real) + cierre morfológico
+agresivo (25×25) + relleno del contorno externo con huecos reales restaurados. Verificado sin
+regresión: mismo accuracy en banco de renders (0.7361→0.7384 CV, 0.75 banco fijo, ambos estables).
+**Pero no mejoró el banco de fotos reales (sigue en 0.28)** — dos causas nuevas descubiertas:
+- El cierre agresivo puede fusionar dos huesos separados en la misma foto (ej. "dos fémures" de
+  una colección) a través de un fondo con degradado luminoso, inventando una forma falsa (un
+  "puente" entre ambos) — nunca pasa en renders (siempre 1 hueso por imagen).
+- Incluso con buena segmentación, la silueta de una foto real (ángulo de cámara, perspectiva)
+  sigue sin parecerse lo bastante a un render limpio como para que el clasificador la reconozca.
+- Conclusión: el cuello de botella no es el umbral de segmentación, es que el modelo (geométrico
+  o cualquier CNN futura) solo ha visto renders de estudio — confirma con datos la sospecha de
+  ayer sobre necesitar renders con ruido.
+
+### 4. Decisión: CNN + geométrico combinado, entrenado con renders "ruidosos"
+El usuario decidió pasar a un modelo combinado (CNN con backbone moderno preentrenado + features
+geométricas), comparando escenarios en MLflow, en vez de seguir puliendo solo la segmentación.
+Se avisó del riesgo: una CNN entrenada con los mismos renders limpios de hoy probablemente
+memorizaría igual de mal las peculiaridades del render — el orden acordado fue **primero generar
+renders con ruido realista, luego entrenar la CNN sobre eso**. DVC se deja para después (está a
+medio montar: `dvc.yaml`/`.dvc/config` existen pero el paquete no está instalado y el remoto
+apunta a una ruta de otra máquina que no existe aquí).
+
+Lista de ideas de ruido que dio el usuario, con las decididas para la v2 del render:
+- ✅ Fondo con foto real compuesta (no procedural) — en curso, ver más abajo.
+- ✅ Sombra de contacto real (shadow catcher de Cycles sobre un plano) — en curso.
+- ✅ Encuadre no siempre centrado (jitter de cámara) — en curso.
+- ✅ Dominantes de color / temperatura de luz variada — ya en v1, se amplía en v2.
+- ⏸️ Degradación de calidad (reducir y volver a ampliar resolución, simular compresión JPEG) —
+  decidido hacerlo como post-proceso en Python (barato), no en Blender. Pendiente de implementar.
+- ⏸️ Objetos distractores en la escena (martillo, piedras, pelota) para forzar a segmentar solo
+  el hueso — con buen criterio (primitivas procedurales en Blender, sin assets externos), pero
+  **pospuesto**: más esfuerzo/riesgo que el resto, prioridad menor.
+- ⏸️ Deformación del propio hueso (tipo Substance Painter: desgaste, óxido) — **pospuesto
+  explícitamente**: riesgo de corromper la forma real que el modelo (sobre todo el geométrico)
+  necesita aprender correctamente; si se hace, debe ser un desplazamiento muy sutil, no una
+  distorsión de forma.
+- 📝 Muestreo aleatorio de un subconjunto de vistas por espécimen (no las 24 completas) +
+  barajar el orden al entrenar, para evitar que el modelo aprenda patrones de la secuencia de
+  ángulos — es una decisión del script de entrenamiento de la CNN (dataloader), no del render;
+  pendiente de aplicar cuando se escriba ese script.
+
+**Progreso técnico de la v2** (`base_datos_osea/blender/render_bone_noisy.py`, commiteado tal cual
+está, incompleto):
+- v1 (fondo procedural sólido/degradado + luz solar direccional aleatoria + tono de hueso
+  aleatorio) se probó sobre un fémur, se veía bien, pero el usuario pidió la ampliación de arriba
+  antes de lanzar el lote completo — **se abortó el lote de v1 a mitad** (solo 2 especímenes
+  parciales, `renders_noisy/` se borró por completo, no queda nada a medio hacer en disco).
+- Se lanzó un agente para buscar ~20-25 fotos de fondo genéricas (mesa, tierra, mármol, tela,
+  taller, hierba, hormigón, alfombra) en `data/backgrounds/` (no versionado) — **se paró a mitad**
+  (0 fotos conseguidas todavía) para no dejar trabajo sin supervisión mientras el usuario dormía.
+
+### Pendiente para retomar mañana (cortado aquí a petición del usuario)
+1. Relanzar el agente de fondos genéricos (`data/backgrounds/`, ~20-25 fotos, ver categorías
+   arriba) — no se guardó nada, hay que repetirlo desde cero.
+2. Terminar la v2 de `render_bone_noisy.py`: falta el plano `shadow catcher`, el jitter de
+   encuadre/cámara, ampliar los presets de temperatura de color, y el render con
+   `film_transparent=True` + canal alpha para poder componer sobre las fotos de fondo reales.
+3. Escribir el script de composición en Python (RGBA del render + fondo real elegido al azar →
+   imagen final RGB) — incluir ahí la degradación de calidad (resize down/up) como paso barato.
+4. Lanzar el lote completo sobre los 122 especímenes (10 vistas ruidosas cada uno, ~1h estimada
+   según la prueba de v1: ~25s/espécimen con 6 vistas).
+5. Relanzar los 2 agentes de fotos reales que fallaron ayer por límite de sesión (hueso_pequeño/
+   plano/pelvis, sacro/vertebra/costilla) para completar el banco de 9 grupos (hoy solo hay 3).
+6. Diseñar y escribir el script de entrenamiento de la CNN (backbone preentrenado vía `timm`,
+   no instalado todavía; hay GPU CUDA disponible) + combinación con las features geométricas +
+   logging de "escenarios" comparables en MLflow.
+7. Redesplegar el contenedor `app` (`docker compose up --build -d app`) — sigue sirviendo el
+   modelo de hace 2 horas, anterior al fix de NaN y a la segmentación combinada.
+8. DVC sigue pendiente (decisión explícita de dejarlo para después).
+
+---
+
 ## 2026-07-24 — Ampliación grande de especímenes vía Sketchfab (Ronda 3) + banco sin naledi
 
 **Continuación de la sesión anterior**: se retomó el pendiente de ayer (reentrenar contra MLflow

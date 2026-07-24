@@ -7,3 +7,5 @@ venv/
 .env
 dist/
 build/
+data/real_world_benchmark/
+data/backgrounds/

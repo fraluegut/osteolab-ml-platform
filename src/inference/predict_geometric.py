@@ -28,6 +28,7 @@ ENCODER_PATH = MODEL_DIR / f"geometric_encoder_{TARGET}.joblib"
 COLUMNS_PATH = MODEL_DIR / f"geometric_feature_columns_{TARGET}.joblib"
 PCA_PATH = MODEL_DIR / "geometric_pca_pipeline.joblib"
 REFERENCE_PATH = BASE_DIR / "data/processed/bone_geometric_pca_reference.csv"
+TRAINING_TABLE_PATH = BASE_DIR / "data/processed/bone_geometric_features.csv"
 
 _MISSING_MODEL_MSG = (
     f"No se encontró el modelo geométrico en {MODEL_PATH}. "
@@ -45,7 +46,18 @@ def _load():
     return model, encoder, feature_cols, pca_pipeline
 
 
+def _load_fallback_means(feature_cols) -> dict:
+    """Media por columna en la tabla de entrenamiento, para imputar features
+    que a veces salen `None` en fotos reales (contornos degenerados: muy
+    pocos puntos para `cv2.fitEllipse`, lado corto ~0, etc. — nunca pasa en
+    los renders limpios de entrenamiento, donde el contorno siempre es
+    grande y bien formado)."""
+    df = pd.read_csv(TRAINING_TABLE_PATH, usecols=feature_cols)
+    return df.mean(numeric_only=True).to_dict()
+
+
 _model, _encoder, _feature_cols, _pca_pipeline = _load()
+_fallback_means = _load_fallback_means(_feature_cols)
 
 
 @lru_cache(maxsize=1)
@@ -75,7 +87,10 @@ def classify_image(image_file) -> dict:
         return {"found": False, "cv_features": raw_features}
 
     flat = flatten_features(raw_features)
-    row = [[flat[col] for col in _feature_cols]]
+    row = [[
+        flat[col] if flat[col] is not None else _fallback_means[col]
+        for col in _feature_cols
+    ]]
 
     probs = _model.predict_proba(row)[0]
     class_probabilities = {

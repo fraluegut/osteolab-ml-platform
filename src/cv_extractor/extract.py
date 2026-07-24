@@ -39,17 +39,55 @@ _FONT = _load_font()
 
 
 def _segment(gray: np.ndarray) -> np.ndarray:
+    """Combina un umbral global (Otsu) con uno local (adaptativo) antes de
+    aislar el hueso.
+
+    Motivación (2026-07-24, banco de fotos reales): Otsu solo funciona si el
+    objeto tiene un tono uniforme distinto del fondo — cierto en los renders
+    de entrenamiento (iluminación de estudio, fondo blanco liso) pero falso
+    en una foto real, donde el propio hueso tiene sombreado/textura desigual
+    y Otsu deja fuera media pieza (confirmado con fotos de usuario: solo
+    ~45% del área real detectada). El umbral adaptativo sí capta esa
+    variación local, pero por sí solo reacciona a cualquier micro-contraste
+    (incluida la textura fina de la superficie del hueso) y sobre un render
+    limpio, sin apenas contraste interno, solo marca el borde exterior, no
+    el interior — por eso no sustituye a Otsu sin más, se combina con él.
+    """
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, otsu = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # Otsu no sabe si el objeto es la región clara o la oscura; asumimos que
     # el fondo ocupa más superficie que el objeto y, si el umbral deja más
     # píxeles "encendidos" que "apagados", el objeto es la región oscura.
-    if cv2.countNonZero(binary) > binary.size / 2:
-        binary = cv2.bitwise_not(binary)
+    if cv2.countNonZero(otsu) > otsu.size / 2:
+        otsu = cv2.bitwise_not(otsu)
+
+    adaptive = cv2.adaptiveThreshold(
+        blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 35, 5
+    )
+    combined = cv2.bitwise_or(otsu, adaptive)
+
+    # Cierre agresivo: en fotos reales, lo que aporta el adaptativo suele ser
+    # un patrón disperso (textura de la superficie), no un bloque sólido —
+    # hace falta un kernel grande para fusionarlo en una silueta continua.
+    big_kernel = np.ones((25, 25), np.uint8)
+    closed = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, big_kernel)
+
+    contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return closed
+    largest = max(contours, key=cv2.contourArea)
+    filled = np.zeros_like(closed)
+    cv2.drawContours(filled, [largest], -1, 255, thickness=-1)
+
+    # Dentro de esa silueta rellena, restauramos como hueco (0) las zonas que
+    # NI Otsu NI el adaptativo habían marcado — huecos anatómicos reales
+    # (cuencas oculares, forámenes), no ruido de fondo, porque ya están
+    # dentro del contorno externo detectado.
+    holes = cv2.bitwise_and(filled, cv2.bitwise_not(combined))
+    binary = cv2.bitwise_and(filled, cv2.bitwise_not(holes))
 
     kernel = np.ones((5, 5), np.uint8)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
     binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
     return binary
 
