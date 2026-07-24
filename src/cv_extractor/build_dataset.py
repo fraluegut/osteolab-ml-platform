@@ -53,6 +53,38 @@ BONE_GROUPS = {
     "sesamoid": "hueso_pequeno",
 }
 
+# Especímenes reservados como banco de evaluación fijo: nunca entran en el
+# CSV de entrenamiento, van a un CSV aparte (`--out-benchmark`) que no cambia
+# de un entrenamiento a otro — así se puede comparar el mismo examen contra
+# distintas versiones del modelo a lo largo del tiempo (logueado en MLflow,
+# ver `src/training/evaluate.py`).
+#
+# Revisión 2026-07-24 (tras la ampliación grande de especímenes vía Sketchfab):
+# el criterio original de "reservar el naledi donde lo haya" (ver git history
+# para la versión anterior) resultó ser injusto en la práctica — para
+# costilla/sacro/vertebra/mandíbula/hueso_pequeno el naledi reservado era el
+# ÚNICO espécimen de esa especie para ese hueso, así que el banco medía
+# "especie nunca vista" en vez de "espécimen nunca visto" (0-30% recall,
+# confirmado con evaluate.py). Con muchos más especímenes sapiens ya
+# disponibles por grupo, ahora se reserva un espécimen sapiens normal (banco =
+# generalización a espécimen nuevo, la pregunta que sí queríamos responder) y
+# el naledi liberado pasa a entrenamiento — añade la única diversidad
+# interespecífica real que tenemos para esos huesos. Cráneo sigue reservando
+# macaca (única especie no-sapiens con volumen suficiente ahí) y hueso_plano
+# sigue con el sapiens de peor calidad, sin cambios. `pelvis` entra ahora al
+# banco (antes fuera a propósito con solo 2 especímenes, ahora hay 4).
+BENCHMARK_SPECIMENS = {
+    ("macaca_radiata", "cranium", "nmnhvz_7049315"),          # cranio
+    ("homo_sapiens", "mandible", "sketchfab_acbe657d10164192b85a5737c41064d4"),  # mandibula_maxilar
+    ("homo_sapiens", "clavicle", "sketchfab_6e0e3695676e442c90efcdf71e491682"),  # hueso_largo
+    ("homo_sapiens", "scapula", "sketchfab_da38f448a06749daa09859d767971088"),  # hueso_plano
+    ("homo_sapiens", "sacrum", "sketchfab_eecdb1ffbeca440b87cb3ca9760e7dc8"),  # sacro
+    ("homo_sapiens", "vertebra", "sketchfab_f70c894e0d9440b9a77861d278e1c409"),  # vertebra
+    ("homo_sapiens", "rib", "sketchfab_cf67ae5ec5df432883667c34f29f7d6e"),  # costilla
+    ("homo_sapiens", "metatarsal_1", "sketchfab_ea217e8618ff4ee89b6a684ead3cec1d"),  # hueso_pequeno
+    ("homo_sapiens", "pelvis", "sketchfab_10f950afa4284019a1d744ac14b6cf90"),  # pelvis
+}
+
 VIEW_RE = re.compile(r"_view(\d+)\.png$")
 
 # Claves que van dentro de un dict anidado en el resultado de extract_features
@@ -84,10 +116,14 @@ def flatten_features(raw: dict) -> dict:
     return flat
 
 
+DEFAULT_OUT_BENCHMARK = REPO_ROOT / "data/processed/bone_geometric_benchmark.csv"
+
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--renders-dir", type=Path, default=DEFAULT_RENDERS_DIR)
     p.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    p.add_argument("--out-benchmark", type=Path, default=DEFAULT_OUT_BENCHMARK)
     return p.parse_args()
 
 
@@ -98,6 +134,7 @@ def main():
         raise SystemExit(f"No existe el directorio de renders: {renders_dir}")
 
     rows = []
+    benchmark_rows = []
     skipped_not_found = []
     image_paths = sorted(renders_dir.glob("*/*/*/*.png"))
     print(f"{len(image_paths)} imágenes encontradas bajo {renders_dir}")
@@ -123,7 +160,11 @@ def main():
             "source_path": str(img_path),
         }
         row.update(flatten_features(raw))
-        rows.append(row)
+
+        if (species, bone, specimen) in BENCHMARK_SPECIMENS:
+            benchmark_rows.append(row)
+        else:
+            rows.append(row)
 
     if skipped_not_found:
         print(f"AVISO: {len(skipped_not_found)} imágenes sin contorno detectado (descartadas):")
@@ -134,13 +175,28 @@ def main():
     args.out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(args.out, index=False)
 
-    print(f"\nTabla escrita en: {args.out}")
+    print(f"\nTabla de entrenamiento escrita en: {args.out}")
     print(f"Filas: {len(df)}  Columnas: {len(df.columns)}")
     print("\nImágenes por hueso:")
     print(df.groupby("bone").size().sort_values(ascending=False).to_string())
     print("\nImágenes y especímenes por grupo morfológico:")
     grp = df.groupby("bone_group").agg(imagenes=("bone", "size"), especimenes=("specimen", "nunique"))
     print(grp.sort_values("especimenes").to_string())
+
+    bench_df = pd.DataFrame(benchmark_rows)
+    args.out_benchmark.parent.mkdir(parents=True, exist_ok=True)
+    bench_df.to_csv(args.out_benchmark, index=False)
+    print(f"\nBanco de evaluación fijo escrito en: {args.out_benchmark}")
+    print(f"Filas: {len(bench_df)} ({len(BENCHMARK_SPECIMENS)} especímenes × 24 vistas, salvo descartes)")
+    if not bench_df.empty:
+        print(bench_df.groupby(["bone_group", "species", "bone", "specimen"]).size().to_string())
+
+    missing_benchmark = BENCHMARK_SPECIMENS - {
+        (r["species"], r["bone"], r["specimen"]) for r in benchmark_rows
+    }
+    if missing_benchmark:
+        print(f"\nAVISO: {len(missing_benchmark)} espécimen(es) del banco no se encontraron en "
+              f"{renders_dir} (¿renombrados o borrados?): {sorted(missing_benchmark)}")
 
 
 if __name__ == "__main__":

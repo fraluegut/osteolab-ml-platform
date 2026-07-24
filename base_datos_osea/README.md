@@ -6,7 +6,21 @@ de huesos). **Vive como subcarpeta dentro del repo `osteolab-ml-platform`** (fus
 2026-07-23 vía `git subtree`, historial completo preservado — ver `HISTORIAL.md`), no como repo
 independiente.
 
-## Estado y próximos pasos (última sesión: 2026-07-23)
+## Estado y próximos pasos (última sesión: 2026-07-24)
+
+> **Banco de evaluación fijo + MLflow: completado, y además ampliado.** El banco
+> (`data/processed/bone_geometric_benchmark.csv`) ahora reserva **9 especímenes** (uno por grupo
+> morfológico, `pelvis` incluido desde esta sesión) y `src/training/evaluate.py` loguea cada
+> corrida en el experimento `osteolab-benchmark` de MLflow. Al ejecutarlo por primera vez el banco
+> dio solo 0.43 de accuracy — diagnóstico: para varios grupos el espécimen reservado era el único
+> *H. naledi* del dataset para ese hueso, con 0 ejemplos de esa especie en entrenamiento (examen de
+> "especie nunca vista", no de "espécimen nunca visto"). Se resolvió con una ampliación grande vía
+> Sketchfab (+90 especímenes nuevos, sobre todo *Homo sapiens*) y cambiando qué espécimen se
+> reserva por grupo (ahora sapiens donde antes era naledi, liberando el naledi hacia
+> entrenamiento). Resultado: banco fijo 0.43 → **0.75** de accuracy. Detalle completo en
+> `HISTORIAL.md` → sección "2026-07-24 — Ampliación grande de especímenes vía Sketchfab (Ronda 3)
+> + banco sin naledi". Los números de especímenes por hueso en el resto de este README (secciones
+> de más abajo) son de antes de esa ampliación — ver `HISTORIAL.md` para las cifras actuales.
 
 **Léeme primero si retomas esto.** Resumen de por dónde íbamos:
 

@@ -1,0 +1,91 @@
+"""Evalúa el modelo ya entrenado contra el banco de imágenes fijo
+(`data/processed/bone_geometric_benchmark.csv`, especímenes que
+`build_dataset.py` reserva y NUNCA mete en el CSV de entrenamiento — ver
+`BENCHMARK_SPECIMENS` ahí) y loguea el resultado como una corrida de MLflow.
+
+Pensado para ejecutarse cada vez que cambie el modelo (nuevas features, más
+especímenes de entrenamiento, otro algoritmo...) y comparar en la UI de
+MLflow (http://localhost:5000, experimento `osteolab-benchmark`) si el nuevo
+modelo mejora o empeora sobre el MISMO examen — a diferencia del accuracy que
+imprime `train_geometric.py`, que cambia de valor cada vez que cambian los
+datos de entrenamiento y no es comparable entre corridas.
+
+Uso:
+    python -m src.training.evaluate
+    MLFLOW_TRACKING_URI=http://localhost:5000 python -m src.training.evaluate
+"""
+import os
+import subprocess
+from pathlib import Path
+
+import joblib
+import mlflow
+import pandas as pd
+from sklearn.metrics import accuracy_score, classification_report
+
+BASE_DIR = Path(__file__).resolve().parents[1].parent
+MODEL_DIR = BASE_DIR / "models"
+BENCHMARK_PATH = BASE_DIR / "data/processed/bone_geometric_benchmark.csv"
+TARGET = "bone_group"
+
+NON_FEATURE_COLS = {"species", "bone", "bone_group", "specimen", "view", "source_path", "found"}
+
+
+def _git_commit() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=BASE_DIR, text=True
+        ).strip()
+    except Exception:
+        return "desconocido"
+
+
+def main():
+    if not BENCHMARK_PATH.exists():
+        raise SystemExit(
+            f"No existe {BENCHMARK_PATH}. Generarlo con "
+            "`python -m src.cv_extractor.build_dataset` primero."
+        )
+
+    model = joblib.load(MODEL_DIR / f"geometric_model_{TARGET}.joblib")
+    encoder = joblib.load(MODEL_DIR / f"geometric_encoder_{TARGET}.joblib")
+    feature_cols = joblib.load(MODEL_DIR / f"geometric_feature_columns_{TARGET}.joblib")
+
+    df = pd.read_csv(BENCHMARK_PATH)
+    X = df[feature_cols].to_numpy()
+    y = df[TARGET].to_numpy()
+    y_encoded = encoder.transform(y)
+
+    preds = model.predict(X)
+    accuracy = accuracy_score(y_encoded, preds)
+    report = classification_report(
+        y_encoded, preds, labels=range(len(encoder.classes_)), target_names=encoder.classes_,
+        output_dict=True, zero_division=0,
+    )
+
+    print(f"Banco de evaluación: {len(df)} imágenes, {df['specimen'].nunique()} especímenes "
+          f"nunca vistos en entrenamiento")
+    print(classification_report(
+        y_encoded, preds, labels=range(len(encoder.classes_)), target_names=encoder.classes_,
+        zero_division=0,
+    ))
+    print(f"Accuracy (banco fijo): {accuracy:.4f}")
+
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
+    mlflow.set_experiment("osteolab-benchmark")
+    with mlflow.start_run():
+        mlflow.log_param("git_commit", _git_commit())
+        mlflow.log_param("n_benchmark_images", len(df))
+        mlflow.log_param("n_benchmark_specimens", int(df["specimen"].nunique()))
+        mlflow.log_param("n_train_features", len(feature_cols))
+        mlflow.log_metric("accuracy", accuracy)
+        for class_name in encoder.classes_:
+            mlflow.log_metric(f"recall_{class_name}", report[class_name]["recall"])
+            mlflow.log_metric(f"precision_{class_name}", report[class_name]["precision"])
+            mlflow.log_metric(f"f1_{class_name}", report[class_name]["f1-score"])
+        print(f"\nCorrida logueada en MLflow (experimento 'osteolab-benchmark'), "
+              f"run_id={mlflow.active_run().info.run_id}")
+
+
+if __name__ == "__main__":
+    main()

@@ -232,3 +232,133 @@ Dos repos involucrados: `base_datos_osea` (este, cataloga/descarga/renderiza) y
   antes, mismos datos, solo cambia dónde se buscan).
 - Contenedores Docker parados antes de mover directorios (tenían bind mounts activos a las rutas
   viejas) y reconstruidos después.
+
+---
+
+## 2026-07-23 (cont.) — Banco de evaluación fijo + MLflow persistente (EN CURSO, cortado a mitad)
+
+**Motivación del usuario**: quiere un set de imágenes conocidas para evaluar el flujo de forma
+comparable a lo largo del tiempo, con los resultados guardados en MLflow — en parte para tener
+esa comparación, en parte como ejercicio de aprender la herramienta.
+
+- **Diseño**: `build_dataset.py` ahora reparte las imágenes en dos CSV en vez de uno:
+  `bone_geometric_features.csv` (entrenamiento) y `bone_geometric_benchmark.csv` (banco fijo,
+  nunca se usa para entrenar). El banco reserva **1 espécimen completo por grupo** (8 de 9 —
+  `pelvis` se deja fuera a propósito, solo tiene 2 especímenes y ya sabemos que es el más débil,
+  restarle uno lo dejaría en 1 solo). Especímenes elegidos (`BENCHMARK_SPECIMENS` en
+  `build_dataset.py`): el de *H. naledi* donde lo hay (mide "generaliza a la otra especie del
+  dataset", más honesto que un ejemplo cualquiera de sapiens), y donde no hay naledi (cráneo,
+  hueso_plano) el primate menos representado o el espécimen de peor calidad.
+- **Nuevo script `src/training/evaluate.py`**: carga el modelo ya entrenado + el banco fijo,
+  calcula accuracy/precision/recall por grupo, y **loguea una corrida de MLflow** en un experimento
+  aparte (`osteolab-benchmark`, distinto de `osteolab-bone-classification-geometric-bone_group`
+  donde ya se logueaba cada entrenamiento) — pensado para ejecutarse cada vez que cambie el modelo
+  y comparar en la UI de MLflow (`http://localhost:5000`) si mejora o empeora sobre el mismo examen.
+- **Se regeneró la tabla** con el reparto nuevo: 1128 filas de entrenamiento (antes 1320) + 192 del
+  banco (8 especímenes × 24 vistas, ninguno perdido).
+
+### Pendiente para retomar mañana (cortado aquí a petición del usuario)
+1. **Reentrenar contra el MLflow real** (no el sqlite temporal que se usó y se borraba todo el
+   rato durante la sesión de hoy): `MLFLOW_TRACKING_URI=http://localhost:5000
+   python -m src.training.train_geometric` — los contenedores de Docker (`postgres`, `mlflow`, `app`,
+   `ui`) deberían seguir arriba, comprobar con `docker ps`. **Importante**: el modelo que hay ahora
+   mismo en `models/geometric_model_bone_group.joblib` (y el que sirve el contenedor `app`) se
+   entrenó con la tabla VIEJA de 1320 filas (antes de separar el banco) — no está roto, pero está
+   desactualizado respecto al CSV de entrenamiento actual (1128 filas). Hay que reentrenar antes de
+   confiar en el número que dé `evaluate.py` la primera vez.
+2. **Ejecutar `python -m src.training.evaluate`** contra ese modelo recién entrenado — primera
+   entrada de referencia en el experimento `osteolab-benchmark` de MLflow.
+3. **Mirar la UI de MLflow** (`http://localhost:5000`) juntos — parte del objetivo es que el
+   usuario aprenda a leer/comparar corridas ahí, no solo que el número exista.
+4. Tras esto, **redesplegar el contenedor `app`** (`docker compose up --build -d app` desde
+   `osteolab-ml-platform/docker/`) para que sirva el modelo reentrenado — como ya pasó una vez hoy,
+   un `restart` normal no basta, hace falta rebuild porque el código no está en un volumen.
+5. Commitear `build_dataset.py`, `evaluate.py`, y los dos CSV regenerados (están sin comitear
+   ahora mismo, `git status` limpio lo confirma).
+
+### Pregunta abierta sin resolver (el usuario la lanzó, no se ha decidido)
+El usuario preguntó si es buen momento para generar renders con más ruido (fondos/iluminación
+variados) y entrenar una CNN con un backbone grande. Recomendación dada (pendiente de que el
+usuario elija cómo seguir):
+- **Ruido/aumento de datos: sí, más urgente de lo que parece.** La segmentación actual
+  (`_segment()` en `extract.py`, umbral de Otsu) está calibrada para render limpio sobre fondo
+  blanco — una foto real de usuario (fondo de mesa, sombras) probablemente rompe la segmentación
+  antes de llegar siquiera al clasificador. Cuello de botella distinto y anterior al de "cuántos
+  especímenes hay".
+- **CNN: todavía no, como decisión de ingeniería** — toda la sesión de hoy demostró (con
+  `GroupKFold` y espécimen fuera) que lo que limita la generalización es el nº de especímenes
+  físicos, no la potencia del modelo; una CNN no arregla eso y con pocos especímenes por clase
+  puede memorizar peor (textura/iluminación de un render concreto) que las features geométricas
+  actuales, que ya ignoran color/textura por diseño.
+- Sí se ofreció como **ejercicio de aprendizaje aparte** (no sustituyendo lo actual): fine-tuning
+  de un backbone pequeño, comparado de forma justa contra el modelo actual sobre el mismo banco
+  fijo de MLflow en vez de a ciegas.
+
+---
+
+## 2026-07-24 — Ampliación grande de especímenes vía Sketchfab (Ronda 3) + banco sin naledi
+
+**Continuación de la sesión anterior**: se retomó el pendiente de ayer (reentrenar contra MLflow
+real + `evaluate.py`) y, al ver el resultado (0.43 accuracy en el banco fijo, con `sacro`/`costilla`
+en 0-8% de recall), el usuario decidió ir a la raíz del problema en vez de solo medirlo: "quitar
+los de naledi y buscar más huesos de sapiens/otras especies... ampliemos mucho con Sketchfab".
+
+- **Diagnóstico previo (con el usuario)**: el 43% no era "modelo malo" sino un examen
+  injusto — para `sacro`/`vertebra`/`costilla`/`hueso_pequeno` el espécimen del banco era
+  *H. naledi* y había **0 especímenes naledi en entrenamiento** de esos huesos (confirmado
+  contando especímenes por `bone_group`/`species` en el CSV). El banco medía "especie nunca
+  vista", no "espécimen nunca visto".
+- **Búsqueda de candidatos**: 4 agentes en paralelo (uno por subconjunto de grupos) buscaron en la
+  Sketchfab Data API v3, verificaron cada candidato por miniatura (mismo método manual que rondas
+  anteriores — ver docstring de `scripts/sketchfab.py`) y propusieron ~90 especímenes nuevos.
+  Descubrieron 2 colecciones institucionales grandes sin explotar: **Andreas Kontny / Medical
+  University Varna** (cubre casi todo `hueso_largo` + sacro/costilla/patella/pelvis) y **Oregon
+  State University eCampus** (columna vertebral completa C1-L5 + sacros + metacarpianos/
+  metatarsianos). Un agente se quedó colgado 600s y hubo que relanzarlo con timeouts más cortos.
+  Se excluyeron 2 candidatos dudosos (un cráneo de bonobo que resultó ser un molde/`moulage`, y un
+  maxilar que parecía un modelo didáctico retopologizado) — el resto (90 candidatos) se añadió a
+  `CURATED_CANDIDATES` en `scripts/sketchfab.py`.
+- **Descarga y render**: `sketchfab.py download` (16 de 90 fallaron por rate-limit 429 la primera
+  vez, reintento automático los completó todos) + render en Blender (`/opt/blender/blender`, no
+  está en el PATH) de las 90 mallas nuevas, 24 vistas cada una (~1 min/espécimen). Un primer
+  intento del script de batch tenía un bug de índices (`cut -d/ -f2/f3` en vez de `f3/f4`, por el
+  path extra de `data/meshes/`) que escribió una carpeta `renders/meshes/` corrupta — se detectó
+  al momento por el nombre de carpeta raro en el log, se abortó y se borró antes de que avanzara
+  más, sin pérdida de datos real.
+- **Resultado en specimen-count**: hueso_largo 7→28 especímenes, hueso_pequeno 6→15, vertebra
+  5→12, mandibula_maxilar 8→11, sacro 6→10, costilla 5→10, cranio 6→9, hueso_plano 5→8, pelvis 2→4.
+- **Reentrenamiento (mismo banco, para medir solo el efecto de más datos)**: accuracy
+  espécimen-fuera (GroupKFold) subió de **0.6285 → 0.7715**. Pero el banco fijo (todavía con
+  especímenes naledi reservados) solo subió de 0.43 → 0.45 — confirmó que el naledi seguía siendo
+  el cuello de botella real para sacro/costilla (0% recall persistente), no el volumen de datos.
+- **Cambio de `BENCHMARK_SPECIMENS`** (en `osteolab-ml-platform/src/cv_extractor/build_dataset.py`,
+  no en este repo): se sustituyó el espécimen naledi reservado en mandíbula/clavícula/sacro/
+  vértebra/costilla/patella por un espécimen sapiens (ahora sobran, hay 10+ en varios grupos), y el
+  naledi liberado pasa a entrenamiento — primera vez que esos huesos ven un naledi en train. Se
+  eligió `metatarsal_1` (no `patella`) como reserva de `hueso_pequeno` porque patella solo tiene 2
+  especímenes sapiens y perder uno para el banco lo habría dejado en 1. `pelvis` entra al banco por
+  primera vez (antes excluido a propósito con solo 2 especímenes, ahora hay 4).
+- **Resultado final tras el cambio de banco**: accuracy del banco fijo **0.4531 → 0.7454**. Sacro
+  0%→88% recall, costilla 4-8%→54%, vertebra 17-29%→92%. Pelvis queda como el grupo más débil
+  (21% recall, solo 3 especímenes en train tras reservar 1) — se sabía ya que era el más débil,
+  sigue siéndolo, pero ahora al menos está medido en el banco en vez de excluido.
+- **Redeploy**: `docker compose up --build -d app` (postgres/mlflow/app/ui habían quedado parados
+  desde el reinicio de la máquina, se levantaron todos primero con `docker compose up -d`).
+
+### Nota suelta: inconsistencia de nombre de especie
+El fémur de gorila nuevo (`sketchfab_3fbe6a09153b4a0cb38d15005726d8ff`) quedó en
+`data/meshes/gorilla_gorilla/` (slug de "Gorilla gorilla", 2 palabras) mientras el resto de mallas
+de gorila del dataset usan `gorilla_gorilla_gorilla/` (trinomial, 3 palabras). No afecta al
+entrenamiento (el clasificador usa `bone_group`, no la columna de especie) pero si se quiere
+limpiar: renombrar la carpeta y el `species` en el CSV a `gorilla_gorilla_gorilla` para
+consistencia.
+
+### Pendiente / próximos pasos
+- Comitear todo lo de esta sesión (`sketchfab.py`, `catalog/sketchfab_media.csv`, HISTORIAL.md,
+  README.md de este repo; `build_dataset.py`, `evaluate.py`, los CSV regenerados en
+  `osteolab-ml-platform`).
+- `pelvis` sigue siendo el grupo más débil (21% recall) — sin más mallas de pelvis bilateral
+  completa disponibles en Sketchfab tras 2 búsquedas, el siguiente paso ahí sería buscar en otra
+  fuente (MorphoSource/Smithsonian) o aceptar el límite actual.
+- Sigue pendiente la pregunta abierta de la sesión anterior (ruido/aumento de datos + CNN como
+  ejercicio aparte) — no se ha tocado hoy.
