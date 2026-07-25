@@ -85,7 +85,7 @@ BENCHMARK_SPECIMENS = {
     ("homo_sapiens", "pelvis", "sketchfab_10f950afa4284019a1d744ac14b6cf90"),  # pelvis
 }
 
-VIEW_RE = re.compile(r"_view(\d+)\.png$")
+VIEW_RE = re.compile(r"_view(\d+)\.\w+$")
 
 # Claves que van dentro de un dict anidado en el resultado de extract_features
 # y se aplanan a columnas con este prefijo (p.ej. bbox_x, bbox_y...).
@@ -122,6 +122,7 @@ DEFAULT_OUT_BENCHMARK = REPO_ROOT / "data/processed/bone_geometric_benchmark.csv
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--renders-dir", type=Path, default=DEFAULT_RENDERS_DIR)
+    p.add_argument("--ext", default="png", help="extensión de las imágenes a procesar (p.ej. jpg para renders_noisy_composited)")
     p.add_argument("--out", type=Path, default=DEFAULT_OUT)
     p.add_argument("--out-benchmark", type=Path, default=DEFAULT_OUT_BENCHMARK)
     return p.parse_args()
@@ -136,7 +137,7 @@ def main():
     rows = []
     benchmark_rows = []
     skipped_not_found = []
-    image_paths = sorted(renders_dir.glob("*/*/*/*.png"))
+    image_paths = sorted(renders_dir.glob(f"*/*/*/*.{args.ext}"))
     print(f"{len(image_paths)} imágenes encontradas bajo {renders_dir}")
 
     for img_path in image_paths:

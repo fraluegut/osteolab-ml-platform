@@ -3,7 +3,9 @@ venv/
 __pycache__/
 *.pyc
 data/meshes/
+data/backgrounds/
 renders/
+renders_noisy/
 .env
 
 .claude/

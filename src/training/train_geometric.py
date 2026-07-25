@@ -14,8 +14,20 @@ Pasar `--target bone` para entrenar el clasificador fino en su lugar.
 No toca el pipeline de `train.py` (dataset, modelo y outs distintos: éste
 guarda en `models/geometric_*.joblib` y usa su propio experimento de MLflow),
 para no romper el stage de DVC ya existente.
+
+Trazabilidad dataset→modelo→evaluación (2026-07-25): con `--dataset-path` es
+fácil entrenar sobre variantes del dataset (p.ej. limpio vs limpio+ruido) sin
+que quede constancia de cuál se usó en cada run de MLflow más allá del
+accuracy — dos runs con el mismo `n_features` son indistinguibles en la UI.
+Aquí se loguea `dataset_path`/`n_train_rows`/`n_train_specimens` como params
+y se escribe además `models/geometric_training_meta_<target>.json` con esos
+mismos datos + el `run_id` — así `evaluate.py`/`evaluate_real_photos.py`
+pueden leer ese fichero y loguear en SU PROPIA run de qué entrenamiento viene
+el modelo que están evaluando, sin tener que adivinarlo por la fecha.
 """
 import argparse
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 import os
 import joblib
@@ -36,13 +48,23 @@ MODEL_DIR = BASE_DIR / "models"
 MODEL_DIR.mkdir(exist_ok=True, parents=True)
 PARAMS_PATH = BASE_DIR / "params.yaml"
 
-NON_FEATURE_COLS = {"species", "bone", "bone_group", "specimen", "view", "source_path", "found"}
+# img_width/img_height excluidas (2026-07-25): constantes exactas (512x512) en todos los renders
+# de entrenamiento, así que su desviación típica es ~0 — cualquier foto real de otra resolución
+# produce un z-score enorme en esas dos columnas sin que la forma del hueso tenga nada que ver
+# (ver HISTORIAL.md, bug de escala del híbrido). No aportan nada en entrenamiento (son constantes,
+# ningún split puede usarlas para discriminar) y arriesgan mucho fuera de él.
+NON_FEATURE_COLS = {"species", "bone", "bone_group", "specimen", "view", "source_path", "found",
+                     "img_width", "img_height"}
 
 
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--target", default="bone_group", choices=["bone_group", "bone"],
                    help="Columna a clasificar: bone_group (9 grupos, por defecto) o bone (21 huesos finos)")
+    p.add_argument("--dataset-path", type=Path, default=None,
+                   help="CSV alternativo a geometric_dataset.path de params.yaml (p.ej. para probar un dataset aumentado sin tocar el archivo de params)")
+    p.add_argument("--tag", action="append", default=[], metavar="KEY=VALUE",
+                   help="tag de MLflow para identificar esta run luego en la UI (repetible), p.ej. --tag dataset_variant=combined_with_noise")
     return p.parse_args()
 
 
@@ -69,7 +91,7 @@ def main():
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
     mlflow.set_experiment(f"osteolab-bone-classification-geometric-{args.target}")
 
-    csv_path = BASE_DIR / dataset_params["path"]
+    csv_path = args.dataset_path if args.dataset_path is not None else BASE_DIR / dataset_params["path"]
     X, y, groups, feature_cols, df = load_dataset(csv_path, args.target)
 
     if len(X) == 0:
@@ -152,6 +174,12 @@ def main():
         print(f"  {c:<20} {np.mean(recalls):.3f} ± {np.std(recalls):.3f}  (min={min(recalls):.2f}, max={max(recalls):.2f})")
     print(f"\nAccuracy (espécimen fuera): {cv_accuracy:.4f} ± {cv_accuracy_std:.4f}")
 
+    n_train_specimens = int(df["specimen"].nunique())
+    try:
+        dataset_path_display = str(csv_path.relative_to(BASE_DIR))
+    except ValueError:
+        dataset_path_display = str(csv_path)
+
     with mlflow.start_run():
         mlflow.log_params({
             "n_features": len(feature_cols),
@@ -160,7 +188,15 @@ def main():
             "model_name": model_params["name"],
             "n_estimators": model_params["n_estimators"],
             "max_depth": model_params["max_depth"],
+            "dataset_path": dataset_path_display,
+            "n_train_rows": len(df),
+            "n_train_specimens": n_train_specimens,
         })
+        for tag in args.tag:
+            if "=" not in tag:
+                raise SystemExit(f"--tag mal formado (esperaba KEY=VALUE): {tag!r}")
+            key, value = tag.split("=", 1)
+            mlflow.set_tag(key, value)
 
         model.fit(X_train, y_train)
 
@@ -201,8 +237,28 @@ def main():
         mlflow.log_artifact(str(model_path), artifact_path="artifacts")
         mlflow.log_artifact(str(encoder_path), artifact_path="artifacts")
 
+        run_id = mlflow.active_run().info.run_id
         print(f"\nModelo guardado en: {MODEL_DIR}")
-        print(f"Run ID: {mlflow.active_run().info.run_id}")
+        print(f"Run ID: {run_id}")
+
+        # Deja constancia en disco (no solo en MLflow) de qué dataset/run produjo
+        # el .joblib que hay ahora mismo en MODEL_DIR — evaluate.py y
+        # evaluate_real_photos.py lo leen para loguear en su propia run de qué
+        # entrenamiento viene el modelo que están evaluando.
+        meta = {
+            "target": args.target,
+            "dataset_path": dataset_path_display,
+            "n_train_rows": len(df),
+            "n_train_specimens": n_train_specimens,
+            "mlflow_run_id": run_id,
+            "mlflow_experiment": mlflow.get_experiment(mlflow.active_run().info.experiment_id).name,
+            "accuracy_specimen_held_out_mean": cv_accuracy,
+            "trained_at": datetime.now(timezone.utc).isoformat(),
+            "tags": {t.split("=", 1)[0]: t.split("=", 1)[1] for t in args.tag},
+        }
+        meta_path = MODEL_DIR / f"geometric_training_meta_{args.target}.json"
+        meta_path.write_text(json.dumps(meta, indent=2))
+        print(f"Metadatos de entrenamiento guardados en: {meta_path}")
 
     # PCA de referencia (solo para bone_group: es lo que se enseña en la UI
     # como "dónde cae esta foto respecto a lo que ya conocemos"). Se

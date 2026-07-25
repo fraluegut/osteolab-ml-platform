@@ -69,7 +69,7 @@ def get_reference_points() -> list[dict]:
     return df.to_dict(orient="records")
 
 
-def classify_image(image_file) -> dict:
+def classify_image(image_file, backend: str = "classic") -> dict:
     """Mide la imagen con OpenCV, clasifica por grupo morfológico y proyecta
     la misma medida en el espacio PCA de referencia.
 
@@ -82,7 +82,7 @@ def classify_image(image_file) -> dict:
           "cv_features": {...},                  # el dict completo de extract_features, para mostrar en la UI
         }
     """
-    raw_features = extract_features(image_file)
+    raw_features = extract_features(image_file, backend=backend)
     if not raw_features.get("found"):
         return {"found": False, "cv_features": raw_features}
 

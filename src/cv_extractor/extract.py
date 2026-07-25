@@ -1,5 +1,12 @@
 """Localización del hueso en la imagen y extracción de medidas geométricas
-con OpenCV (segmentación clásica, sin aprendizaje).
+con OpenCV (momentos de Hu, perfil de anchura, agujeros...) — la MEDICIÓN
+sigue siendo clásica, sin aprendizaje.
+
+La SEGMENTACIÓN (aislar el hueso del fondo, paso previo a medir) sí admite un
+backend aprendido desde el 2026-07-25 (`backend="fastsam"`, ver
+`_segment_fastsam`) además del clásico (`backend="classic"`, Otsu+adaptativo,
+sigue siendo el que se usa por defecto en `app/main.py`) — ver HISTORIAL.md
+para la comparación entre los dos sobre el banco de fotos reales.
 
 Módulo aislado: no depende de `src/clip_filter`, `src/bone_filter` ni
 `src/inference`, y no comparte estado con ellos. Se invoca de forma explícita
@@ -14,12 +21,23 @@ mezclarse con estas features.
 """
 import base64
 import io
+from functools import lru_cache
 
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 MIN_CONTOUR_AREA_RATIO = 0.001  # por debajo de esto, se considera "no encontrado"
+
+# Resolución de los renders de entrenamiento (ver base_datos_osea/blender/render_bone_noisy.py
+# --resolution, siempre 512x512). Bug encontrado el 2026-07-25: ~37 de las 57 columnas de
+# features son medidas en píxeles absolutos (área, bbox, perfil de anchura...), nunca ratios —
+# sobre una foto real de varios miles de píxeles, esas columnas salen a decenas o miles de
+# desviaciones típicas de lo visto en entrenamiento (llegó a medirse z=4096), sin que la FORMA
+# real del hueso tenga nada que ver. Reescalar aquí, antes de medir nada, hace que "cuántos
+# píxeles mide la foto" deje de colarse como señal — es un no-op sobre los renders de
+# entrenamiento (ya son 512x512 exactos) así que no hace falta reextraer ni reentrenar nada.
+CANONICAL_LONG_SIDE = 512
 
 FONT_SIZE = 18
 BOX_COLOR = (0, 170, 255, 255)  # bounding box vertical (ancho/alto)
@@ -90,6 +108,40 @@ def _segment(gray: np.ndarray) -> np.ndarray:
     kernel = np.ones((5, 5), np.uint8)
     binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
     return binary
+
+
+FASTSAM_CHECKPOINT = "models/FastSAM-s.pt"
+
+
+@lru_cache(maxsize=1)
+def _load_fastsam():
+    from ultralytics import FastSAM
+    return FastSAM(FASTSAM_CHECKPOINT)
+
+
+def _segment_fastsam(image_bgr: np.ndarray) -> np.ndarray:
+    """Segmentación aprendida (2026-07-25): en vez de un umbral de intensidad
+    (frágil ante sombras/textura de una foto real, ver `_segment`), usa
+    FastSAM con un único prompt de punto en el centro de la imagen — asume
+    que el hueso está más o menos centrado, cierto tanto en los renders de
+    entrenamiento (encuadre de cámara fijo) como en la inmensa mayoría de
+    fotos reales del banco. No requiere ninguna clase concreta ("hueso"): se
+    limita a segmentar el objeto saliente bajo el punto, que es justo lo que
+    hace falta después de que CLIP ya confirmó que hay un hueso en la imagen.
+    Devuelve una máscara binaria (0/255) en el mismo formato que `_segment`.
+    """
+    import torch
+
+    model = _load_fastsam()
+    h, w = image_bgr.shape[:2]
+    device = 0 if torch.cuda.is_available() else "cpu"
+    results = model(image_bgr, points=[[w // 2, h // 2]], labels=[1], device=device, verbose=False)
+    r = results[0]
+    if r.masks is None or len(r.masks.data) == 0:
+        return np.zeros((h, w), dtype=np.uint8)
+    mask = r.masks.data[0].detach().cpu().numpy()
+    mask_resized = cv2.resize(mask.astype(np.uint8), (w, h), interpolation=cv2.INTER_NEAREST)
+    return (mask_resized * 255).astype(np.uint8)
 
 
 def _largest_contour(binary: np.ndarray):
@@ -369,8 +421,27 @@ def _mask_overlay_image(image_bgr, binary_mask) -> str:
     return _encode_png(composed)
 
 
-def extract_features(image_file) -> dict:
-    """Devuelve:
+def _resize_to_canonical(image: np.ndarray, target_long_side: int = CANONICAL_LONG_SIDE) -> np.ndarray:
+    """Reescala conservando proporción (sin recortar ni deformar) para que el lado mayor mida
+    `target_long_side` px, en ambas direcciones (fotos más grandes O más pequeñas que el
+    objetivo) — ver el porqué en `CANONICAL_LONG_SIDE`. Deformar el aspect ratio distorsionaría
+    los momentos de Hu/elongación/etc (se calculan sobre las coordenadas del contorno), por eso
+    aquí se escala igual en X e Y en vez de forzar un lienzo cuadrado."""
+    h, w = image.shape[:2]
+    scale = target_long_side / max(h, w)
+    if scale == 1.0:
+        return image
+    new_w, new_h = max(1, round(w * scale)), max(1, round(h * scale))
+    interpolation = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_CUBIC
+    return cv2.resize(image, (new_w, new_h), interpolation=interpolation)
+
+
+def extract_features(image_file, backend: str = "classic") -> dict:
+    """`backend`: "classic" (Otsu+adaptativo, por defecto, el que sirve
+    `app/main.py` hoy) o "fastsam" (segmentación aprendida, ver
+    `_segment_fastsam`).
+
+    Devuelve:
         {
           "found": bool,
           "image_size": {"width": int, "height": int},
@@ -399,12 +470,16 @@ def extract_features(image_file) -> dict:
     image = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if image is None:
         raise ValueError("No se pudo decodificar la imagen")
+    image = _resize_to_canonical(image)
 
     img_h, img_w = image.shape[:2]
     img_area = img_h * img_w
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    binary = _segment(gray)
+    if backend == "fastsam":
+        binary = _segment_fastsam(image)
+    else:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        binary = _segment(gray)
     contour = _largest_contour(binary)
 
     if contour is None or cv2.contourArea(contour) < img_area * MIN_CONTOUR_AREA_RATIO:

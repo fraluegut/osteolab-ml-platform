@@ -10,12 +10,23 @@ deje la superficie del propio hueso con sombreado desigual (justo lo que
 rompió la segmentación con la foto real de un cráneo). Este script genera
 ADEMÁS de los renders limpios (no los sustituye) un set con esa variedad,
 para entrenar con algo más parecido a una foto de usuario real:
-  - Fondo: color sólido aleatorio o degradado de dos tonos, de una paleta
-    amplia (no solo blanco).
-  - Luz: una fuente direccional (sol) con ángulo/intensidad/temporatura de
-    color aleatorios por vista (shadows reales, sombreado desigual a
-    propósito) + una luz de relleno tenue para que el lado oscuro no quede
-    en negro absoluto.
+  - Fondo: `film_transparent=True` + canal alpha — el render en sí NO lleva
+    fondo "quemado", se compone después en Python sobre una foto de fondo
+    real (ver `compose_noisy.py`). El `World` de abajo (color sólido o
+    degradado) se mantiene solo por su efecto en la iluminación/reflejos,
+    nunca es visible en el PNG final (alpha=0 fuera del hueso y su sombra).
+  - Sombra de contacto real: un plano `is_shadow_catcher` bajo el hueso —
+    con `film_transparent=True`, Cycles deja ese plano invisible salvo por
+    la sombra que cae sobre él (alpha parcial), lista para componer sobre
+    cualquier fondo real sin que se note un "corte" limpio del recorte.
+  - Encuadre no siempre centrado: el punto al que apunta la cámara se
+    desplaza con un jitter aleatorio (hasta ~15% del radio del hueso) en
+    vez de apuntar siempre exactamente al centro de la bbox.
+  - Luz: una fuente direccional (sol) con ángulo/intensidad aleatorios y
+    color tomado de una paleta de temperaturas de color plausibles
+    (incandescente, halógeno, luz día, nublado, sombra abierta, hora
+    dorada, fluorescente, flash) + una luz de relleno tenue para que el
+    lado oscuro no quede en negro absoluto.
   - Material: tono de "hueso" aleatorio dentro de un rango plausible (blanco,
     beige, marrón, grisáceo), no siempre el mismo tono fijo.
 
@@ -56,6 +67,20 @@ BONE_COLOR_PALETTE = [
     (0.85, 0.82, 0.75), (0.62, 0.54, 0.42), (0.70, 0.60, 0.45),
     (0.45, 0.38, 0.30), (0.55, 0.52, 0.48), (0.75, 0.65, 0.50),
     (0.35, 0.28, 0.22), (0.80, 0.75, 0.68),
+]
+
+# Paleta de temperaturas de color de la luz clave, de cálida a fría —
+# aproximaciones RGB de fuentes reales (bombilla, luz día, sombra, flash),
+# no solo un jitter de "más o menos amarillo" sobre un único blanco.
+COLOR_TEMP_PRESETS = [
+    (1.00, 0.85, 0.70),  # incandescente cálida
+    (1.00, 0.93, 0.86),  # halógeno
+    (1.00, 1.00, 1.00),  # luz día neutra
+    (0.92, 0.96, 1.00),  # nublado frío
+    (0.80, 0.90, 1.00),  # sombra abierta azulada
+    (1.00, 0.78, 0.58),  # hora dorada / atardecer
+    (0.88, 1.00, 0.90),  # fluorescente verdosa
+    (0.95, 0.97, 1.00),  # flash de cámara neutro-frío
 ]
 
 
@@ -126,8 +151,9 @@ def add_lights(center, radius, rng):
     sun_data = bpy.data.lights.new("key_sun", type="SUN")
     sun_data.energy = rng.uniform(1.5, 4.5)
     sun_data.angle = math.radians(rng.uniform(2, 15))  # sombras más o menos duras
-    warmth = rng.uniform(-0.15, 0.15)
-    sun_data.color = (1.0, 1.0 - warmth * 0.5, 1.0 - warmth)
+    base_color = rng.choice(COLOR_TEMP_PRESETS)
+    jitter = lambda c: max(0.0, min(1.0, c + rng.uniform(-0.03, 0.03)))
+    sun_data.color = tuple(jitter(c) for c in base_color)
     sun_obj = bpy.data.objects.new("key_sun", sun_data)
     bpy.context.collection.objects.link(sun_obj)
     sun_obj.rotation_euler = (
@@ -148,6 +174,28 @@ def add_lights(center, radius, rng):
         light_obj.location = v
         direction = (center - v).normalized()
         light_obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+
+
+def bbox_bounds(obj):
+    xs = [v.co.x for v in obj.data.vertices]
+    ys = [v.co.y for v in obj.data.vertices]
+    zs = [v.co.z for v in obj.data.vertices]
+    return min(xs), max(xs), min(ys), max(ys), min(zs), max(zs)
+
+
+def add_shadow_catcher(obj, center, radius):
+    # Plano de suelo bajo el hueso, grande (12x el radio) para que la sombra
+    # nunca se corte en el encuadre. `is_shadow_catcher=True` + el
+    # `film_transparent=True` de la escena hace que Cycles deje el plano
+    # invisible salvo por la sombra real que cae sobre él (alpha parcial en
+    # esa zona) — es la sombra de contacto que compone bien sobre cualquier
+    # fondo real en vez de un recorte limpio sin apoyo visual.
+    _, _, _, _, min_z, _ = bbox_bounds(obj)
+    bpy.ops.mesh.primitive_plane_add(size=radius * 12, location=(center.x, center.y, min_z))
+    plane = bpy.context.active_object
+    plane.is_shadow_catcher = True
+    plane.name = "shadow_catcher"
+    return plane
 
 
 def clear_scene_lights_and_world():
@@ -173,7 +221,11 @@ def main():
     scene.render.resolution_x = args.resolution
     scene.render.resolution_y = args.resolution
     scene.render.image_settings.file_format = "PNG"
-    scene.render.film_transparent = False
+    scene.render.image_settings.color_mode = "RGBA"
+    # Sin fondo "quemado" en el PNG: el hueso + su sombra de contacto salen
+    # con alpha parcial/total y el resto a alpha=0, listos para componer en
+    # Python sobre una foto de fondo real (ver compose_noisy.py).
+    scene.render.film_transparent = True
     scene.view_settings.view_transform = "Standard"
     scene.cycles.samples = args.samples
     scene.cycles.use_denoising = True
@@ -189,6 +241,8 @@ def main():
     obj.data.materials.clear()
 
     center, radius = framing_target(obj)
+
+    add_shadow_catcher(obj, center, radius)
 
     fov_half = math.radians(args.fov_deg) / 2
     distance = radius / (args.fill * math.tan(fov_half))
@@ -206,7 +260,10 @@ def main():
         obj.data.materials.append(make_material(rng))
 
         cam.location = center + offset
-        point_at(cam, center)
+        # Encuadre no siempre centrado: desplaza el punto al que apunta la
+        # cámara (no la posición) un poco respecto al centro real de la bbox.
+        jitter = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.5, 0.5)))
+        point_at(cam, center + jitter * radius * 0.15)
         scene.render.filepath = str(out_dir / f"{args.prefix}_view{i:03d}.png")
         bpy.ops.render.render(write_still=True)
 

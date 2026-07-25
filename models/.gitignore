@@ -2,3 +2,10 @@
 /geometric_encoder_*.joblib
 /geometric_feature_columns_*.joblib
 /geometric_pca_pipeline.joblib
+/geometric_training_meta_*.json
+/cnn_model_*.pt
+/cnn_encoder_*.joblib
+/cnn_feature_columns_*.joblib
+/cnn_scaler_*.joblib
+/cnn_training_meta_*.json
+/FastSAM-s.pt

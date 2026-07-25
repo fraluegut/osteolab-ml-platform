@@ -16,6 +16,8 @@ Uso:
     python -m src.training.evaluate_real_photos
     MLFLOW_TRACKING_URI=http://localhost:5000 python -m src.training.evaluate_real_photos
 """
+import argparse
+import json
 import os
 import subprocess
 from collections import defaultdict
@@ -30,6 +32,23 @@ from src.inference.predict_geometric import classify_image
 BASE_DIR = Path(__file__).resolve().parents[1].parent
 BENCHMARK_DIR = BASE_DIR / "data/real_world_benchmark"
 MANIFEST_PATH = BENCHMARK_DIR / "manifest.csv"
+MODEL_DIR = BASE_DIR / "models"
+TARGET = "bone_group"
+
+
+def _training_meta_params():
+    """Ver la misma función en `evaluate.py`: params de qué entrenamiento
+    produjo el modelo que se está evaluando aquí, leídos de
+    `models/geometric_training_meta_<target>.json`."""
+    meta_path = MODEL_DIR / f"geometric_training_meta_{TARGET}.json"
+    if not meta_path.exists():
+        return {}
+    meta = json.loads(meta_path.read_text())
+    return {
+        "training_run_id": meta.get("mlflow_run_id", "desconocido"),
+        "training_dataset_path": meta.get("dataset_path", "desconocido"),
+        "training_n_rows": meta.get("n_train_rows", -1),
+    }
 
 
 def _git_commit() -> str:
@@ -62,7 +81,15 @@ def _iter_images():
                 yield path, group_dir.name, {}
 
 
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--segmenter", choices=["classic", "fastsam"], default="classic",
+                   help="backend de segmentación (ver src/cv_extractor/extract.py)")
+    return p.parse_args()
+
+
 def main():
+    args = parse_args()
     if not BENCHMARK_DIR.exists():
         raise SystemExit(f"No existe {BENCHMARK_DIR}.")
 
@@ -72,7 +99,7 @@ def main():
     for path, true_group, meta in _iter_images():
         with open(path, "rb") as fh:
             try:
-                result = classify_image(fh)
+                result = classify_image(fh, backend=args.segmenter)
             except Exception as exc:
                 print(f"AVISO: error clasificando {path.name}: {exc}")
                 result = {"found": False}
@@ -120,6 +147,9 @@ def main():
     with mlflow.start_run():
         mlflow.log_param("git_commit", _git_commit())
         mlflow.log_param("n_images", total)
+        mlflow.log_param("segmenter", args.segmenter)
+        mlflow.set_tag("segmenter", args.segmenter)
+        mlflow.log_params(_training_meta_params())
         mlflow.log_metric("accuracy", accuracy)
         mlflow.log_metric("not_found_rate", n_not_found / total)
         for class_name in labels:

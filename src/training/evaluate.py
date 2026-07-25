@@ -14,6 +14,7 @@ Uso:
     python -m src.training.evaluate
     MLFLOW_TRACKING_URI=http://localhost:5000 python -m src.training.evaluate
 """
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -38,6 +39,24 @@ def _git_commit() -> str:
         ).strip()
     except Exception:
         return "desconocido"
+
+
+def _training_meta_params():
+    """Params de qué entrenamiento produjo el modelo actual en MODEL_DIR (ver
+    `models/geometric_training_meta_<target>.json`, escrito por
+    `train_geometric.py`) — para poder ver en esta misma run de MLflow contra
+    qué dataset se entrenó el modelo evaluado, sin tener que adivinarlo por
+    fecha. Modelos entrenados antes de que esto existiera no tienen el
+    fichero: se evalúa igual, solo sin estos params."""
+    meta_path = MODEL_DIR / f"geometric_training_meta_{TARGET}.json"
+    if not meta_path.exists():
+        return {}
+    meta = json.loads(meta_path.read_text())
+    return {
+        "training_run_id": meta.get("mlflow_run_id", "desconocido"),
+        "training_dataset_path": meta.get("dataset_path", "desconocido"),
+        "training_n_rows": meta.get("n_train_rows", -1),
+    }
 
 
 def main():
@@ -78,6 +97,7 @@ def main():
         mlflow.log_param("n_benchmark_images", len(df))
         mlflow.log_param("n_benchmark_specimens", int(df["specimen"].nunique()))
         mlflow.log_param("n_train_features", len(feature_cols))
+        mlflow.log_params(_training_meta_params())
         mlflow.log_metric("accuracy", accuracy)
         for class_name in encoder.classes_:
             mlflow.log_metric(f"recall_{class_name}", report[class_name]["recall"])

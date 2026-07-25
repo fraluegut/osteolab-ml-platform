@@ -403,6 +403,447 @@ está, incompleto):
 
 ---
 
+## 2026-07-25 — Continuación: fondos reales + v2 de renders con ruido + composición
+
+Retoma los puntos 1-3 del pendiente de ayer.
+
+- **`render_bone_noisy.py` v2 terminado** (puntos 2 del pendiente): añadido un plano
+  `is_shadow_catcher` bajo el hueso (sombra de contacto real, alpha parcial donde cae sombra) +
+  `film_transparent=True` con salida `RGBA` (el render ya no lleva fondo "quemado", se compone
+  después) + jitter del punto al que apunta la cámara (~15% del radio, así el encuadre no está
+  siempre centrado) + paleta de temperaturas de color con 8 presets con nombre (incandescente,
+  halógeno, luz día, nublado, sombra abierta, hora dorada, fluorescente, flash) en vez del jitter
+  lineal de un solo tono blanco de la v1. Probado con un fémur (3 vistas, GPU CUDA): renderiza sin
+  error, alpha con zona parcial (sombra) + zona opaca (hueso) confirmado con PIL/numpy, y
+  verificado visualmente componiendo a mano sobre un color plano.
+- **Script de composición nuevo**: `scripts/compose_noisy.py` (punto 3 del pendiente). Por cada
+  render RGBA bajo `<renders-dir>/especie/hueso/especimen/*_viewNNN.png` (misma estructura que
+  `renders/`, la que espera `build_dataset.py` del repo padre): elige un fondo real al azar,
+  recorta una región cuadrada aleatoria de ese fondo (45%-100% del lado corto, para no repetir
+  siempre el mismo encuadre de fondo) y compone el render encima con `Image.alpha_composite`;
+  luego reduce y vuelve a ampliar la resolución (factor aleatorio 0.35-0.85, simula borrosidad de
+  cámara mediocre) y guarda como `.jpg` con calidad JPEG aleatoria (35-85) — la propia compresión
+  al guardar ya aporta los artefactos de bloque, sin necesidad de una doble pasada de recodificado.
+  Escribe en `<out-dir>` con la misma estructura de carpetas y nombre de fichero que la entrada
+  (solo cambia `.png`→`.jpg`), para que un futuro `--renders-dir` del entrenamiento pueda apuntar
+  directamente ahí. Probado de punta a punta con los renders de prueba del fémur + 3 fondos
+  sintéticos: genera los `.jpg`, tamaño y modo correctos, sombra y blur visibles al inspeccionar.
+- **`.gitignore`**: añadidas `data/backgrounds/` y `renders_noisy/` (no versionadas, igual que
+  `renders/` y `data/meshes/` — se habían quedado fuera del `.gitignore` original).
+- **Agente de fondos genéricos relanzado y completado** (punto 1 del pendiente): 25 fotos CC0
+  descargadas de Poly Haven (`api.polyhaven.com`/`dl.polyhaven.org`, escaneos de materiales
+  reales, 2048px, sin atribución requerida — Unsplash/Pexels bloquearon la descarga directa por
+  curl en esta sesión, requieren JS/login) a `data/backgrounds/`, verificadas magic bytes + PIL,
+  sin marca de agua/texto/gente/animales. Repartidas en las 8 categorías: mesa 4, tierra 3,
+  mármol 3, tela 3, taller 3, hierba 3, hormigón 3, alfombra 3 (78MB total). **Alfombra es la más
+  floja**: Poly Haven solo tiene un activo de alfombra real (`dirty_carpet`); las otras 2 son
+  texturas de tela suave (lana bouclé, borreguito) que leen como alfombra pero no lo son
+  literalmente — revisar con una búsqueda de stock dedicada si se necesita más realismo ahí.
+- **Lote completo lanzado** (nuevo script `scripts/render_noisy_batch.py`, un proceso Blender por
+  espécimen — evita el bug de índices por posición del intento anterior usando
+  `Path.relative_to(MESHES_DIR).parts[:3]`): 122/122 especímenes, 10 vistas c/u, **0 fallos**,
+  1220 PNG RGBA en `renders_noisy/` (138MB).
+- **Bug real encontrado y arreglado al revisar el resultado a ojo**: el color del hueso, la luz y
+  el fondo real se sortean cada uno por su lado (nada los coordina) — inspección visual de una
+  muestra encontró casos con el hueso casi invisible sobre el fondo (p.ej. tibia gris sobre tierra
+  marrón, sacro gris oscuro sobre baldosa). Medido con un script de contraste (diferencia de
+  luminancia media hueso-vs-fondo sobre 200 renders al azar): **25.3% por debajo de 25/255 de
+  contraste, 15.8% por debajo de 15/255** — no es "dificultad realista" a propósito, es señal
+  perdida en 1 de cada 4 imágenes. Arreglado en `compose_noisy.py` con `pick_background_crop`:
+  prueba hasta 6 candidatos de fondo/recorte y usa el primero que supere el contraste mínimo (o el
+  mejor visto si ninguno lo supera) — no descarta nunca el render, solo elige mejor entre
+  opciones. Recompuesto el dataset completo con el fix (rápido, no requiere Blender, solo
+  Python sobre los PNG ya renderizados): contraste bajo bajó de 25.3%→0.7%, contraste muy bajo de
+  15.8%→0%. Verificado visualmente que los dos casos peores detectados antes ahora se ven bien.
+- **Resultado final**: `renders_noisy_composited/` — 1220 `.jpg`, 30MB, misma estructura
+  especie/hueso/especimen que `renders/`, listo para que `build_dataset.py` (o una variante) lo
+  use como fuente adicional de entrenamiento.
+
+### Evaluación: ¿ayuda realmente el dataset con ruido? (osteolab-ml-platform, no este repo)
+
+El usuario pidió medir si todo lo de arriba mejora algo de verdad, no solo generar los datos.
+Metodología: recrear el `.venv` del repo padre (el que había estaba roto — `pyvenv.cfg` apuntaba
+a la ruta pre-aplanado `osteolab-ml-platform/osteolab-ml-platform/`, de antes del `flatten` — y sin
+`pip`), levantar los contenedores (`postgres`/`mlflow`/`app`/`ui` estaban parados desde el reinicio
+de la máquina), y regenerar `bone_geometric_features.csv` desde cero con el `extract.py` actual
+(el CSV existente databa de las 22:47 de ayer, ANTES del commit de las 23:07 que combinó Otsu +
+adaptativo — comparar contra el modelo viejo habría sido injusto en ambas direcciones).
+
+Se añadió `--dataset-path` a `train_geometric.py` (antes solo leía `params.yaml`, sin forma de
+apuntar a un CSV alternativo sin tocar el archivo de params) y `--ext`/regex genérico a
+`build_dataset.py` (antes solo aceptaba `.png`, hacía falta para leer los `.jpg` de
+`renders_noisy_composited`). Con eso: features del set con ruido extraídas igual que las limpias
+(excluye los mismos `BENCHMARK_SPECIMENS` automáticamente, misma estructura de carpetas — 98.2%
+de las 1220 imágenes se segmentaron bien, 1109 filas de entrenamiento) + concatenadas con las
+2544 limpias = 3653 filas combinadas.
+
+**Comparación ANTES (solo renders limpios) vs DESPUÉS (limpios + ruido), mismo código, dos
+entrenamientos consecutivos logueados en los mismos experimentos de MLflow para poder comparar
+en la UI**:
+
+| Métrica | Antes | Después |
+|---|---|---|
+| GroupKFold espécimen-fuera (interno) | 0.7384 | 0.6450 |
+| Banco fijo (renders limpios, especímenes nunca vistos) | 0.7500 | 0.7731 |
+| **Banco de fotos reales (25 fotos, 3 grupos)** | **0.2800** | **0.4000** |
+
+El accuracy interno (GroupKFold) BAJA con el dataset combinado — esperable, el set con ruido es
+genuinamente más difícil (esa es la idea), así que el promedio interno cae aunque el modelo
+generalice mejor a lo que de verdad importa. Las dos métricas externas (los exámenes que nunca
+entran en entrenamiento) mejoran, y la de fotos reales lo hace con fuerza: **+12 puntos (0.28→0.40,
++43% relativo)**. Desglose relevante:
+- `hueso_largo`: 0%→78% recall en fotos reales (0/9 → 7/9 correctas).
+- Fondo tipo **"estudio (fondo degradado)"** (el caso que en producción rompía la segmentación,
+  motivo original de todo este esfuerzo): **0%→87.5%** (0/8 → 7/8 correctas) — el problema
+  concreto que se quería arreglar, arreglado y medido.
+- `cranio` empeora: 50%→0% recall (4/8 antes, 0/8 después) — regresión real, aunque sobre una
+  muestra muy pequeña (8 fotos) como para sacar conclusiones fuertes todavía.
+- El banco de fotos reales solo cubre 3 de 9 grupos (`cranio`, `hueso_largo`,
+  `mandibula_maxilar` — ver pendiente de ayer sobre completarlo a 9), así que esta lectura es
+  parcial: no hay forma de saber todavía si sacro/costilla/pelvis (los grupos que peor iban)
+  mejoran o no con fotos reales.
+- Los `models/geometric_*.joblib` actuales en disco son los del entrenamiento CON ruido (el de
+  después) — el contenedor `app` los monta en vivo (`volumes: ../models:/app/models`) pero el
+  proceso ya en marcha tiene el modelo viejo cacheado en memoria desde el import, así que servir
+  el nuevo requiere reiniciar el contenedor, no solo que cambien los ficheros.
+
+### Trazabilidad MLflow + redeploy (mismo día, a petición del usuario)
+
+- **`train_geometric.py`** ahora loguea `dataset_path`/`n_train_rows`/`n_train_specimens` como
+  params y admite `--tag KEY=VALUE` (repetible) para etiquetar la run (p.ej.
+  `dataset_variant=combined_with_noise`); además escribe
+  `models/geometric_training_meta_<target>.json` (dataset, filas, `run_id`, experimento,
+  accuracy espécimen-fuera, timestamp) — es la fuente de verdad en disco de qué entrenamiento
+  produjo el `.joblib` que hay ahora mismo en `models/`.
+- **`evaluate.py`** y **`evaluate_real_photos.py`** leen ese JSON y loguean `training_run_id`/
+  `training_dataset_path`/`training_n_rows` en su propia run — así cualquier run de evaluación en
+  la UI de MLflow enlaza directamente a qué entrenamiento (y qué dataset) le dio el modelo que
+  evaluó, sin tener que adivinarlo por fecha.
+- Las 6 runs de la comparación de esta sesión (2 entrenamientos + 2×2 evaluaciones) se etiquetaron
+  a posteriori con `dataset_variant=clean_only` / `combined_with_noise` vía `MlflowClient.set_tag`,
+  y se repitió el entrenamiento+evaluación de la variante con ruido ya con el logging nuevo
+  (resultado idéntico: RandomForest con seed fija es determinista) para que el modelo que queda
+  desplegado tenga su `training_meta` completo.
+- **Redeploy**: `docker compose up --build -d app ui` (postgres/mlflow ya estaban al levantarlos
+  antes en la sesión) — el contenedor `app` ahora sirve el modelo entrenado con ruido (el que dio
+  0.40 en fotos reales). UI en `localhost:8501`, API en `localhost:8001/docs`, MLflow en
+  `localhost:5000`.
+- **Agentes relanzados** para completar el banco de fotos reales a los 9 grupos (pendiente de
+  ayer): uno para hueso_pequeño/hueso_plano/pelvis, otro para sacro/vertebra/costilla — en curso
+  al cortar esta entrada.
+
+### Corte de luz y recuperación (mismo día, más tarde)
+
+Se fue la luz mientras los 2 agentes de fotos reales corrían y con los contenedores Docker
+levantados; la máquina se reinició y los 4 contenedores (`postgres`/`mlflow`/`app`/`ui`) quedaron
+parados. Al recuperar la sesión: los agentes **sí habían terminado** antes del corte (el manifest
+del banco quedó completo, 75 fotos en los 9 grupos, último fichero escrito a las 13:45) — no se
+perdió trabajo, solo quedó pendiente el paso de evaluación. Se relevantaron los contenedores
+(`docker compose up -d postgres mlflow app ui`) y se completó el pendiente #1: correr
+`evaluate_real_photos.py` contra el banco ya completo, con el mismo modelo en producción
+(`combined_with_noise`, el de las 12:02).
+
+**Resultado con el banco completo (75 fotos, 9 grupos) vs. la lectura parcial de antes (3/9
+grupos, accuracy 0.40)**: **accuracy 0.2667** — baja porque los 6 grupos nuevos añadidos son
+justo los que peor rendían ya en el banco fijo interno:
+
+| Grupo | Recall | Precision |
+|---|---|---|
+| `hueso_largo` | 0.78 | 0.29 |
+| `mandibula_maxilar` | 0.38 | 0.75 |
+| `hueso_plano` | 0.50 | 0.29 |
+| `hueso_pequeno` | 0.44 | 0.17 |
+| `vertebra` | 0.25 | 1.00 |
+| `cranio` | 0.00 | 0.00 |
+| `costilla` | 0.00 | 0.00 |
+| `pelvis` | 0.00 | 0.00 |
+| `sacro` | 0.00 | 0.00 |
+
+`costilla`/`pelvis`/`sacro` en 0% recall confirma que el cuello de botella es el mismo de siempre
+(pocos especímenes en entrenamiento, `pelvis` con solo 4) y que la lectura parcial de 0.40 era
+optimista por casualidad de qué 3 grupos se midieron primero. El dato bueno se mantiene: el
+desglose por tipo de fondo vuelve a confirmar que **"estudio (fondo degradado)"** (el caso que
+rompía en producción) sale con 0.80 de accuracy (8/10) — el problema original que motivó todo
+este esfuerzo sigue arreglado, el problema nuevo que revela el banco completo es distinto (falta
+de especímenes en los grupos débiles, no ruido de fondo). Corrida logueada en MLflow
+(`osteolab-benchmark-real-photos`, run `28004d9e82a6421e89ad6a15d77b53f6`).
+
+### CNN vs. geométrico (pendiente #3, resuelto): ¿ayuda de verdad una CNN?
+
+Implementado en `osteolab-ml-platform` (no este repo): `src/training/cnn_dataset.py` (manifest =
+las mismas tablas de `build_dataset.py`, no hace falta recorrer `renders/` de nuevo),
+`src/training/train_cnn.py` (backbone `resnet18` de `timm`, 2 fases — cabeza congelada 8 épocas,
+luego fine-tune del backbone a LR bajo 15 épocas más —, class weights por el desbalance de
+`pelvis`), `src/inference/predict_cnn.py` + `evaluate_cnn.py` / `evaluate_cnn_real_photos.py`
+(mismos bancos que el geométrico, para comparar de verdad). Dos variantes:
+- **`cnn_only`**: aprende solo de píxeles, no necesita segmentación en absoluto.
+- **`hybrid`**: embedding del backbone concatenado con el mismo vector de features geométricas
+  del RandomForest (sí necesita segmentación) + cabeza MLP pequeña.
+
+Split especímen-fuera único (no 10×CV repetido como el geométrico — inviable en tiempo para una
+red; se acepta más varianza en el número a cambio de que entrenar sea viable). GPU RTX 4080,
+cada entrenamiento completo (23 épocas) tardó **~3-4 minutos**.
+
+**Resultado — misma tabla, tres exámenes, el geométrico es el `combined_with_noise` ya
+documentado arriba (0.6450 / 0.7731 / 0.2667):**
+
+| Modelo | CV interno (espécimen fuera) | Banco limpio (renders, especímenes nunca vistos) | **Fotos reales (75, 9 grupos)** |
+|---|---|---|---|
+| Geométrico (RandomForest) | 0.6450 | 0.7731 | 0.2667 |
+| **CNN sola** (`resnet18`) | 0.6830 | 0.7546 | **0.4933** |
+| Híbrido (CNN + geométrico) | 0.7009 | **0.8102** | **0.1333** |
+
+Lectura, y es la parte importante: **el híbrido gana claramente en los dos bancos sintéticos
+(interno y banco limpio) y luego se DESPLOMA en fotos reales — peor incluso que el geométrico
+solo**, casi siempre prediciendo `sacro` (recall 1.00 mecánico con precisión 0.14, el resto de
+grupos en 0.00). Hipótesis más probable: el modelo aprende en entrenamiento a fiarse mucho de las
+features geométricas (allí son una señal limpia y fiable, vienen de renders bien segmentados) y
+en una foto real esas mismas features salen distorsionadas (segmentación real, con sombras/fondo,
+nunca es tan limpia como un render) — el modelo las sigue creyendo y la fusión ingenua las
+arrastra a una predicción degenerada, en vez de dejar que la señal de textura de la CNN compense.
+Es la misma lección que ya dejó esta sesión con el banco de fotos reales completo: **el banco
+limpio sintético puede ser activamente engañoso** — aquí no solo "optimista", sino que ordena los
+3 modelos justo al revés que el examen que de verdad importa.
+
+**La CNN sola es la que de verdad ayuda**: 0.2667→0.4933 en fotos reales (+85% relativo), y a
+diferencia del geométrico (`costilla`/`pelvis`/`sacro`/`cranio` en 0% recall) **ningún grupo cae a
+0%** — el peor es `hueso_pequeno` con 0.22. Contrapartida real: en el desglose por fondo, el caso
+`estudio (fondo degradado)` (el bug de producción original) baja de 0.80 (geométrico) a 0.40 (CNN
+sola) — la CNN generaliza mejor en conjunto pero no domina en todos los subcasos, y esa es
+justo el subcaso que motivó el esfuerzo inicial.
+
+**Conclusión para el pendiente**: sí, una CNN ayuda — pero la versión ingenua de "combinar todo"
+(el híbrido) es la peor opción de las tres en el examen que importa, pese a ganar en los dos que
+no importan tanto. Si se quiere seguir por aquí, el candidato razonable a explorar es CNN sola,
+no el híbrido tal cual está — y antes de considerar reemplazar el modelo en producción, estaría
+bien: (a) confirmar que 0.49 en 75 fotos no es ruido de muestra pequeña, y (b) si se insiste en
+combinar ambas señales, hacerlo de forma que el modelo pueda desconfiar de las features
+geométricas cuando huelan a fuera-de-distribución, no concatenarlas a ciegas.
+
+Artefactos: `models/cnn_model_{cnn_only,hybrid}_bone_group.pt` + encoder/scaler/columnas,
+`models/cnn_training_meta_{cnn_only,hybrid}_bone_group.json`. MLflow: experimento nuevo
+`osteolab-bone-classification-cnn-bone_group` para las runs de entrenamiento; las de evaluación
+reusan `osteolab-benchmark` / `osteolab-benchmark-real-photos` (mismo sitio que el geométrico, con
+`model_type` como param/tag) para poder comparar las tres filas una al lado de otra en la UI.
+No se ha desplegado ningún modelo CNN a producción — el `app`/`ui` en Docker siguen sirviendo el
+geométrico, esto ha sido solo el experimento de medición que pedía el pendiente.
+
+### Auditoría manual del banco de fotos reales: un tercio estaba contaminado
+
+El usuario revisó a ojo las fotos del banco e identificó el problema con precisión: varias
+imágenes tienen **más de un hueso** (p.ej. `costilla` con una foto de la caja torácica entera, o
+varias costillas sueltas fotografiadas juntas; `mandibula_maxilar` con un cráneo completo en vez
+de solo la mandíbula) — el clasificador (y su segmentación) miden ahí un objeto que no es "un
+hueso aislado", ensuciando cualquier lectura de accuracy/recall. Revisadas las 75 fotos una a una:
+
+- **24 de 75 (32%) tenían más de un elemento** o eran un montaje de varias imágenes: cajas
+  torácicas/costillas sueltas en grupo (`costilla`: 6 de 8), manos/pies articulados o láminas con
+  varios huesos de la mano bajo un mismo texto (`hueso_pequeno`: 6 de 9), un cráneo con mandíbula
+  (`mandibula_maxilar`: 1 de 8), 4 cráneos en fila (`cranio`: 1 de 8), pares de fémur/tibia/radio
+  fotografiados juntos (`hueso_largo`: 5 de 9), 2 escápulas + un montaje de 5 fases de
+  descomposición (`hueso_plano`: 2 de 8), un pelvis+vértebras+hueso extra del mismo museo de Hong
+  Kong que ya había dado problemas en costilla, duplicado en 2 ficheros (`pelvis`: 2 de 9), 2
+  diagramas con 2 sacros cada uno (`sacro`: 2 de 8), y un montaje de 3 vértebras (`vertebra`: 1 de
+  8).
+- **6 de esas 24 se pudieron recuperar recortando**, no solo descartar: 3 pares de huesos
+  (`hueso_largo_femur_01`, `hueso_largo_tibia_02`, `hueso_plano_03`) tenían los dos objetos
+  separados y sin solape de caja delimitadora — detectados por contorno (Otsu + cierre morfológico,
+  el mismo enfoque que `extract.py`) y recortados automáticamente a 1 hueso por imagen, verificado
+  visualmente. El resto (costillas en abanico, pares de huesos que sí se solapan en su caja
+  delimitadora, fotos con texto ocupando todo el encuadre) no se pudo separar de forma fiable sin
+  arriesgarse a crear recortes igual de contaminados, así que se descartaron sin más — quedaron
+  movidos a `/tmp/.../removed_benchmark_images/` (fuera del repo, no se borraron por si hacen
+  falta) en vez de borrados.
+- **Resultado**: banco de 75 → 55 fotos. `costilla` queda en solo 2 imágenes y `hueso_pequeno` en
+  3 — demasiado pocas para una lectura de recall fiable por sí solas, pero ya no mezclan señal de
+  "un hueso" con señal de "varios huesos a la vez".
+
+**Los 3 modelos mejoran solo por limpiar el examen, sin tocar el modelo**:
+
+| Modelo | Antes (75, contaminado) | Después (55, limpio) |
+|---|---|---|
+| Geométrico | 0.2667 | **0.3273** |
+| CNN sola | 0.4933 | **0.5273** |
+| Híbrido (bug de escala aún sin arreglar) | 0.1333 | 0.2000 |
+
+El híbrido sigue roto (sube un poco pero sigue pegado al azar, 0.11) — el bug de escala de las
+features geométricas no tiene nada que ver con la limpieza de imágenes, sigue pendiente si se
+quiere arreglar. Geométrico y CNN sola sí ganan de verdad: no cambiaron nada del modelo, solo
+dejó de penalizárseles por acertar "razonablemente" sobre una foto que en realidad tenía 2-5
+huesos y una sola etiqueta.
+
+**Recall por grupo, banco limpio (n pequeño en varios grupos, leer con cautela)**:
+
+| Grupo | n | Geométrico | CNN sola |
+|---|---|---|---|
+| costilla | 2 | 0.00 | 0.50 |
+| cranio | 7 | 0.00 | 0.57 |
+| hueso_largo | 8 | **0.88** | 0.38 |
+| hueso_pequeno | 3 | 0.67 | 0.67 |
+| hueso_plano | 8 | 0.62 | 0.62 |
+| mandibula_maxilar | 7 | 0.43 | **0.71** |
+| pelvis | 7 | 0.00 | 0.29 |
+| sacro | 6 | 0.00 | 0.33 |
+| vertebra | 7 | 0.14 | **0.71** |
+
+Nota honesta: no es "la CNN gana en todo" — en `hueso_largo` el geométrico (0.88) supera bastante
+a la CNN (0.38), al revés que en `cranio`/`mandibula_maxilar`/`vertebra`. Con `n` de 2-8 fotos por
+grupo cualquiera de estos números puede moverse mucho con una sola foto más o menos; sirven para
+ver la tendencia (CNN mejor en conjunto, 0.53 vs 0.33 global), no para afirmar diferencias grupo
+a grupo con confianza.
+
+### Arreglado el bug de escala del híbrido (el usuario insistió en que no podía quedar así)
+
+Dos cambios en `src/cv_extractor/extract.py` / `src/training/{train_geometric,cnn_dataset}.py`,
+sin re-extraer ni tocar los CSV de entrenamiento (los renders ya son 512×512, así que ambos
+cambios son no-op ahí — solo afectan a la medición de fotos reales):
+
+1. **`_resize_to_canonical()`**: antes de segmentar/medir nada, la imagen se reescala (conservando
+   proporción, sin deformar) para que su lado mayor mida 512px — la misma resolución de los
+   renders. Confirmado con el mismo script de diagnóstico de antes: el z-score máximo de las
+   features geométricas sobre las 55 fotos reales bajó de **4096 a 347**.
+2. **Excluir `img_width`/`img_height` del feature set**: con o sin el resize, estas dos columnas
+   son EXACTAMENTE 512 en el 100% de las filas de entrenamiento (desviación típica ≈0), así que
+   cualquier desviación por pequeña que sea revienta el z-score — no es una feature "ruidosa", es
+   una feature rota por diseño para cualquier imagen que no sea también 512×512 exacto. Se
+   añadieron a `NON_FEATURE_COLS` y se reentrenaron el geométrico y el híbrido (rápido: el
+   geométrico en segundos, el híbrido ~4 min en la RTX 4080).
+
+**Resultado en fotos reales (banco limpio de 55, mismo que arriba)**:
+
+| Modelo | Banco limpio sintético | Antes del fix | Después del fix |
+|---|---|---|---|
+| Geométrico | 0.7731 (sin cambios) | 0.3273 | 0.2727 |
+| CNN sola | 0.7546 (sin cambios, no usa geometría) | 0.5273 | 0.5273 (no afectada) |
+| **Híbrido** | 0.8056 (antes 0.8102, ruido) | 0.2000 | **0.3455** |
+
+El híbrido pasa de "prácticamente azar" (0.20, cerca del 0.11 de 9 clases al azar) a un
+clasificador que de verdad funciona (0.35) — sigue por debajo de la CNN sola (0.53), no se ha
+vuelto el mejor modelo, pero ya no está roto. El geométrico baja ligeramente (0.33→0.27): no es
+una regresión causada por el fix, es varianza normal de reentrenar un RandomForest con
+`random_state` fijo pero distinto número de columnas candidatas por split (las dos columnas
+quitadas eran inertes en entrenamiento — constantes, ningún árbol podía partir por ellas — así
+que en teoría no deberían cambiar nada, pero cambian qué índices caen en cada muestreo aleatorio
+de features por nodo). Con 55 fotos de banco, una diferencia de 3 aciertos ya mueve el % varios
+puntos — no se puede leer como "el geométrico empeoró de verdad".
+
+### Cascada geométrico→CNN: aprovechar el ratio de `hueso_largo` sin arrastrar el resto
+
+Pregunta del usuario: en vez de fusionar geométrico+CNN a ciegas (lo que falló hoy, ver arriba),
+¿por qué no usar la geometría solo donde de verdad es fiable (p.ej. `hueso_largo`, muy elongado
+por definición anatómica) y dejar la CNN para el resto? Está bien fundamentado en bibliografía:
+la fusión por concatenación es la forma más débil de combinar modalidades (tanto en fusión
+multimodal general como en imagen médica combinando radiómica+CNN); lo que mejor funciona es
+fusión tardía o, como aquí, una **cascada/"reject option"** (patrón clásico desde Jacobs et al.
+1991 "mixture of experts" y Chow 1970 sobre clasificación con opción de rechazo) — usar una señal
+barata y fiable cuando decide con confianza, delegar en el modelo caro el resto. Y en morfometría
+ósea los ratios de forma llevan décadas siendo un rasgo diagnóstico serio (osteología clásica), no
+un sustituto pobre de la CNN.
+
+**Antes de implementar nada, se puso a prueba la idea con los datos** (no solo con la teoría):
+- `elongation`/`aspect_ratio` para `hueso_largo`: un stump de 1 sola variable (umbral=0.900 en
+  `elongation`, ajustado SOLO con datos de entrenamiento) da 88% de accuracy binaria en
+  entrenamiento y **93% sobre las 55 fotos reales, con solo 1 falso positivo en 47 fotos de otras
+  categorías**. Generaliza de maravilla.
+- Se probó el mismo enfoque en otras categorías con features que parecían igual de prometedoras
+  en el banco limpio (`n_holes` para `sacro`/`vertebra`, `circularity`/`solidity` para
+  `cranio`/`hueso_plano`, todas 88-92% de accuracy binaria EN ENTRENAMIENTO) — **todas se rompen
+  en fotos reales** (16-80%, hasta 46 falsos positivos de 49 para `sacro`). Motivo: contar
+  agujeros o medir circularidad exacta depende de un contorno fino y limpio; la segmentación
+  sobre una foto real (sombras, textura, fondo) ensucia esos detalles finos mucho más que la
+  envolvente general del objeto (lo que mide `elongation`). **`hueso_largo` es un caso especial
+  por lo robusta que es esa métrica concreta, no la prueba de que "cualquier ratio geométrico
+  sirve de atajo"** — cualquier regla nueva de este tipo debe validarse igual, contra fotos
+  reales y mirando falsos positivos, no solo accuracy en el banco sintético.
+- También se probó usar la confianza (`predict_proba`) del propio RandomForest geométrico como
+  compuerta genérica en vez de una regla hecha a mano — no funcionó: la confianza del bosque
+  sobre fotos reales apenas se diferencia entre aciertos y fallos (0.34 vs 0.27 de media), y en
+  `sacro` está "confiadamente equivocado" (0.40 de confianza media cuando falla) — exigir
+  confianza>0.5 solo cubre el 7% de las fotos. La compuerta que funciona es la regla explícita
+  sobre una feature concreta y validada, no la confianza agregada del modelo multiclase.
+
+**Implementado**: `src/inference/predict_cascade.py` (si `elongation`>0.900 → `hueso_largo`
+directo, si no → `cnn_only`) + `src/training/evaluate_cascade_real_photos.py`.
+
+| Modelo | Banco limpio (216) | Fotos reales (55) |
+|---|---|---|
+| Geométrico | 0.7731 | 0.27-0.33 |
+| CNN sola | 0.7546 | 0.5273 |
+| Híbrido (con el fix de escala) | 0.8056 | 0.3455 |
+| **Cascada (elongación → `hueso_largo`, resto → CNN)** | **0.7963** | **0.6000** |
+
+La cascada es ahora el mejor modelo medido en fotos reales (+7 puntos sobre la CNN sola, +27
+sobre el geométrico) y también mejora en el banco limpio — `hueso_largo` sube de 0.38 a 0.88 de
+recall sin tocar nada del resto de categorías. No se ha desplegado a producción.
+
+### FastSAM como segmentador: mejor a ojo, peor (o igual) medido
+
+Propuesta del usuario: en vez de seguir buscando reglas geométricas sueltas, invertir en mejorar
+la SEGMENTACIÓN de base (Otsu+adaptativo, frágil con sombras/textura reales) — con un contorno
+limpio, un humano distinguiría la mayoría de huesos solo por la silueta. Instalado `ultralytics`
+(trae FastSAM y también YOLO-seg) y añadido `_segment_fastsam()` a `extract.py` como backend
+alternativo (prompt de un punto en el centro de la imagen, sin necesidad de conocer la clase) —
+`extract_features(..., backend="classic"|"fastsam")`, propagado por `predict_geometric.py`,
+`predict_cnn.py`, `predict_cascade.py` y los 3 `evaluate_*_real_photos.py` (`--segmenter`).
+
+Inspección visual de 3 fotos difíciles: las máscaras de FastSAM se ven claramente mejor que Otsu
+(contornos limpios, sin el ruido de sombras que rompía `n_holes`/`circularity`). **Medido en el
+banco de 55, el resultado es el contrario de lo esperado**:
+
+| Modelo | Segmentación clásica | FastSAM |
+|---|---|---|
+| Geométrico | 0.2727 | 0.2364 (peor) |
+| Híbrido | 0.3455 | 0.3636 (algo mejor) |
+| **Cascada** | **0.6000** | 0.5455 (peor) |
+
+Motivo (hipótesis, no confirmada a fondo): los modelos están calibrados sobre las medidas EXACTAS
+que produce Otsu sobre los renders de entrenamiento (ahí Otsu es casi perfecto — fondo plano,
+sin sombras) — cambiar de segmentador desplaza sutilmente bordes/extremos finos y por tanto la
+distribución de features, aunque el contorno sea "mejor" en un sentido absoluto. Una máscara más
+fiel no ayuda si el modelo se entrenó para esperar el sesgo particular de Otsu. Para que FastSAM
+pagara de verdad haría falta re-extraer features (también de los renders, para que train y test
+usen el MISMO segmentador) y reentrenar — no se ha hecho, es una inversión bastante mayor que
+cambiar el backend suelto. **Se mantiene la cascada con segmentación clásica (0.60) como mejor
+configuración medida** — FastSAM no se adopta por ahora.
+
+### Pendiente
+1. ~~Confirmar resultado de los 2 agentes de fotos reales y volver a correr `evaluate_real_photos.py`
+   con el banco completo~~ — hecho, ver arriba. Nuevo pendiente que deja: `costilla`/`pelvis`/
+   `sacro` en 0% recall en fotos reales — mismo problema de fondo que ya se sabía (pocos
+   especímenes), pero ahora medido también fuera del banco fijo sintético.
+2. Si se quiere reforzar "alfombra" con fotos reales de alfombra (no solo texturas de tela
+   similares), buscar en Unsplash/Pexels manualmente (bloquearon la descarga automática por curl).
+3. ~~Diseñar y escribir el entrenamiento de la CNN~~ — hecho. ~~Investigar y arreglar por qué el
+   híbrido colapsa~~ — hecho (resize a 512px + excluir `img_width`/`img_height`, ver arriba):
+   0.13→0.35 en fotos reales. Arreglo PARCIAL: solo se excluyeron las 2 columnas que eran
+   constantes exactas en entrenamiento; las otras ~35 columnas en píxeles absolutos (bbox, área,
+   perfil de anchura...) siguen ahí, mitigadas por el resize (z-score máximo bajó de 4096 a ~14)
+   pero no eliminadas del todo — si se quiere apurar más, convertirlas a ratios (p.ej. bbox_width
+   / img_width en vez de bbox_width a secas) sería el siguiente paso, sin falta de reentrenar en
+   caliente ya que cambiaría otra vez el nº de columnas. Sigue pendiente decidir si merece la pena
+   llevar `cnn_only` a producción (pierde la explicabilidad del PCA 2D que hoy se enseña en la UI,
+   que es geométrico-only) y **redesplegar** — los `.joblib`/`.pt` en `models/` ya son las
+   versiones nuevas pero el contenedor `app` sigue sirviendo las viejas hasta que se reinicie.
+4. DVC sigue pendiente (decisión explícita de dejarlo para después).
+5. Banco de fotos reales de `costilla` (2 fotos) y `hueso_pequeno` (3 fotos) quedó muy corto tras
+   quitar las contaminadas con varios huesos — buscar fotos nuevas de costillas y huesos de
+   mano/pie sueltos (no manos/pies articulados completos) para esos dos grupos.
+6. Pregunta abierta del usuario (2026-07-25, sin decidir ni implementar): ¿merece la pena deformar
+   las mallas 3D en el pipeline de render (estirar/comprimir de forma no uniforme, simular golpes/
+   melladuras con un modificador Displace o Boolean, variar el color base del material) para
+   cerrar más el hueco sim-to-real, además del ruido de fondo/luz/compresión que ya existe en
+   `render_bone_noisy.py`? Viable técnicamente en Blender/bpy; no evaluado si aporta tanto como
+   meter fotos reales directamente en el entrenamiento (ver conclusión de la sesión sobre qué
+   harían los mejores estudios de este tipo).
+7. La cascada (`predict_cascade.py`) es el mejor modelo medido hoy (0.60 en fotos reales) pero no
+   se ha desplegado ni se ha decidido si sustituye al geométrico en producción. Si se retoma:
+   probar si `costilla` (también elongado, ver tabla de `aspect_ratio` por grupo) se beneficia de
+   una segunda regla (p.ej. curvatura, para separar "recto" de "curvado" dentro del grupo
+   elongado) — no probado todavía, y con solo 2 fotos reales de costilla en el banco cualquier
+   lectura ahí sería poco fiable hasta ampliarlo (ver punto 5).
+
+---
+
 ## 2026-07-24 — Ampliación grande de especímenes vía Sketchfab (Ronda 3) + banco sin naledi
 
 **Continuación de la sesión anterior**: se retomó el pendiente de ayer (reentrenar contra MLflow
