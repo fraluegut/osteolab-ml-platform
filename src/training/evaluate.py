@@ -24,6 +24,8 @@ import mlflow
 import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report
 
+from src.training.metrics_utils import extra_metrics, format_confusion_matrix
+
 BASE_DIR = Path(__file__).resolve().parents[1].parent
 MODEL_DIR = BASE_DIR / "models"
 BENCHMARK_PATH = BASE_DIR / "data/processed/bone_geometric_benchmark.csv"
@@ -75,12 +77,14 @@ def main():
     y = df[TARGET].to_numpy()
     y_encoded = encoder.transform(y)
 
-    preds = model.predict(X)
+    proba = model.predict_proba(X)
+    preds = proba.argmax(axis=1)
     accuracy = accuracy_score(y_encoded, preds)
     report = classification_report(
         y_encoded, preds, labels=range(len(encoder.classes_)), target_names=encoder.classes_,
         output_dict=True, zero_division=0,
     )
+    extra = extra_metrics(y_encoded, preds, y_proba=proba, n_classes=len(encoder.classes_))
 
     print(f"Banco de evaluación: {len(df)} imágenes, {df['specimen'].nunique()} especímenes "
           f"nunca vistos en entrenamiento")
@@ -89,6 +93,11 @@ def main():
         zero_division=0,
     ))
     print(f"Accuracy (banco fijo): {accuracy:.4f}")
+    print(f"Balanced accuracy: {extra['balanced_accuracy']:.4f}")
+    if "top3_accuracy" in extra:
+        print(f"Top-3 accuracy: {extra['top3_accuracy']:.4f}")
+    print("\nMatriz de confusión:")
+    print(format_confusion_matrix(y_encoded, preds, list(encoder.classes_)))
 
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
     mlflow.set_experiment("osteolab-benchmark")
@@ -99,6 +108,9 @@ def main():
         mlflow.log_param("n_train_features", len(feature_cols))
         mlflow.log_params(_training_meta_params())
         mlflow.log_metric("accuracy", accuracy)
+        for metric_name, value in extra.items():
+            mlflow.log_metric(metric_name, value)
+        mlflow.log_text(format_confusion_matrix(y_encoded, preds, list(encoder.classes_)), "confusion_matrix.txt")
         for class_name in encoder.classes_:
             mlflow.log_metric(f"recall_{class_name}", report[class_name]["recall"])
             mlflow.log_metric(f"precision_{class_name}", report[class_name]["precision"])

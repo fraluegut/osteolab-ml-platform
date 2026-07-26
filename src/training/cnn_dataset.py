@@ -21,7 +21,7 @@ import torch
 from PIL import Image
 from sklearn.model_selection import GroupShuffleSplit
 from torch.utils.data import Dataset
-from torchvision import transforms
+from torchvision.transforms import v2
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -47,20 +47,34 @@ def resolve_source_path(raw_path: str) -> Path:
     return p if p.is_absolute() else (BASE_DIR / p)
 
 
-def build_transform(train: bool) -> transforms.Compose:
+def build_transform(train: bool) -> v2.Compose:
+    """Augmentations reforzadas (2026-07-26, propuesta del usuario): antes
+    solo había flip+rotación+color jitter — nada que simule cámara/compresión
+    real, así que la CNN nunca veía en entrenamiento el tipo de degradación
+    que sí tiene una foto de usuario real. Magnitudes deliberadamente
+    moderadas (no agresivas): esto sigue siendo una tarea de forma/silueta
+    sobre un recorte ya segmentado, un crop o rotación fuerte puede cortar
+    la parte anatómica que distingue un grupo de otro.
+    """
     if train:
-        return transforms.Compose([
-            transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(15),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+        return v2.Compose([
+            v2.RandomResizedCrop(IMAGE_SIZE, scale=(0.85, 1.0), ratio=(0.9, 1.1)),
+            v2.RandomHorizontalFlip(),
+            v2.RandomRotation(15),
+            v2.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.03),
+            v2.RandomApply([v2.GaussianBlur(kernel_size=5, sigma=(0.3, 2.0))], p=0.25),
+            v2.RandomApply([v2.JPEG(quality=(25, 90))], p=0.3),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.RandomApply([v2.GaussianNoise(sigma=0.04)], p=0.3),
+            v2.RandomErasing(p=0.25, scale=(0.02, 0.15), ratio=(0.3, 3.3)),
+            v2.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ])
-    return transforms.Compose([
-        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+    return v2.Compose([
+        v2.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        v2.ToImage(),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
     ])
 
 

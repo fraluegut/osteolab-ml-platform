@@ -16,9 +16,10 @@ from pathlib import Path
 
 import mlflow
 import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, classification_report, top_k_accuracy_score
 
 from src.inference.predict_cnn import classify_image
+from src.training.metrics_utils import format_confusion_matrix
 
 BASE_DIR = Path(__file__).resolve().parents[1].parent
 BENCHMARK_DIR = BASE_DIR / "data/real_world_benchmark"
@@ -59,6 +60,7 @@ def main():
         raise SystemExit(f"No existe {BENCHMARK_DIR}.")
 
     y_true, y_pred, rows = [], [], []
+    probas, proba_true = [], []
     n_not_found = 0
 
     for path, true_group, meta in _iter_images():
@@ -69,18 +71,35 @@ def main():
             pred = "sin_segmentar"
         else:
             pred = result["prediction"]
+            if result.get("probabilities"):
+                probas.append(result["probabilities"])
+                proba_true.append(true_group)
         y_true.append(true_group)
         y_pred.append(pred)
         rows.append({**meta, "bone_group": true_group, "prediction": pred, "correct": pred == true_group})
 
     classes = sorted(set(y_true) | set(y_pred))
     accuracy = accuracy_score(y_true, y_pred)
+    balanced_acc = balanced_accuracy_score(y_true, y_pred)
     report = classification_report(y_true, y_pred, labels=classes, output_dict=True, zero_division=0)
 
     print(f"Banco de fotos reales ({args.model_type}): {len(y_true)} imágenes, "
           f"{n_not_found} sin segmentar ({n_not_found / len(y_true) * 100:.1f}%)")
     print(classification_report(y_true, y_pred, labels=classes, zero_division=0))
     print(f"Accuracy (fotos reales, {args.model_type}): {accuracy:.4f}")
+    print(f"Balanced accuracy: {balanced_acc:.4f}")
+
+    top3_acc = None
+    if probas:
+        proba_labels = sorted({c for p in probas for c in p})
+        proba_matrix = [[p.get(c, 0.0) for c in proba_labels] for p in probas]
+        try:
+            top3_acc = top_k_accuracy_score(proba_true, proba_matrix, k=min(3, len(proba_labels)), labels=proba_labels)
+            print(f"Top-3 accuracy (sobre {len(probas)} imágenes segmentadas): {top3_acc:.4f}")
+        except ValueError:
+            pass
+    print("\nMatriz de confusión:")
+    print(format_confusion_matrix([classes.index(v) for v in y_true], [classes.index(v) for v in y_pred], classes))
 
     results_df = pd.DataFrame(rows)
     if "background" in results_df.columns:
@@ -98,6 +117,13 @@ def main():
         mlflow.set_tag("model_type", args.model_type)
         mlflow.set_tag("segmenter", args.segmenter)
         mlflow.log_metric("accuracy", accuracy)
+        mlflow.log_metric("balanced_accuracy", balanced_acc)
+        if top3_acc is not None:
+            mlflow.log_metric("top3_accuracy", top3_acc)
+        mlflow.log_text(
+            format_confusion_matrix([classes.index(v) for v in y_true], [classes.index(v) for v in y_pred], classes),
+            "confusion_matrix.txt",
+        )
         for class_name in set(y_true):
             if class_name in report:
                 mlflow.log_metric(f"recall_{class_name}", report[class_name]["recall"])

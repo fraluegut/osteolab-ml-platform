@@ -13,9 +13,10 @@ from pathlib import Path
 
 import mlflow
 import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, classification_report, top_k_accuracy_score
 
 from src.inference.predict_cascade import classify_image
+from src.training.metrics_utils import format_confusion_matrix
 
 BASE_DIR = Path(__file__).resolve().parents[1].parent
 BENCHMARK_DIR = BASE_DIR / "data/real_world_benchmark"
@@ -47,6 +48,7 @@ def main():
 
     df = pd.read_csv(MANIFEST_PATH)
     y_true, y_pred, n_gated = [], [], 0
+    probas, proba_true = [], []
 
     for _, row in df.iterrows():
         path = BENCHMARK_DIR / row["bone_group"] / row["filename"]
@@ -59,15 +61,32 @@ def main():
             n_gated += 1
         y_true.append(row["bone_group"])
         y_pred.append(result["prediction"] if result["found"] else "sin_segmentar")
+        if result["found"] and result.get("probabilities"):
+            probas.append(result["probabilities"])
+            proba_true.append(row["bone_group"])
 
     classes = sorted(set(y_true) | set(y_pred))
     accuracy = accuracy_score(y_true, y_pred)
+    balanced_acc = balanced_accuracy_score(y_true, y_pred)
     report = classification_report(y_true, y_pred, labels=classes, output_dict=True, zero_division=0)
 
     print(f"Banco de fotos reales (cascada elongación+{args.model_type}): {len(y_true)} imágenes, "
           f"{n_gated} capturadas por la regla de elongación")
     print(classification_report(y_true, y_pred, labels=classes, zero_division=0))
     print(f"Accuracy (fotos reales, cascada): {accuracy:.4f}")
+    print(f"Balanced accuracy: {balanced_acc:.4f}")
+
+    top3_acc = None
+    if probas:
+        proba_labels = sorted({c for p in probas for c in p})
+        proba_matrix = [[p.get(c, 0.0) for c in proba_labels] for p in probas]
+        try:
+            top3_acc = top_k_accuracy_score(proba_true, proba_matrix, k=min(3, len(proba_labels)), labels=proba_labels)
+            print(f"Top-3 accuracy: {top3_acc:.4f}")
+        except ValueError:
+            pass
+    print("\nMatriz de confusión:")
+    print(format_confusion_matrix([classes.index(v) for v in y_true], [classes.index(v) for v in y_pred], classes))
 
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
     mlflow.set_experiment("osteolab-benchmark-real-photos")
@@ -80,6 +99,13 @@ def main():
         mlflow.set_tag("model_type", f"cascade_elongation_{args.model_type}")
         mlflow.set_tag("segmenter", args.segmenter)
         mlflow.log_metric("accuracy", accuracy)
+        mlflow.log_metric("balanced_accuracy", balanced_acc)
+        if top3_acc is not None:
+            mlflow.log_metric("top3_accuracy", top3_acc)
+        mlflow.log_text(
+            format_confusion_matrix([classes.index(v) for v in y_true], [classes.index(v) for v in y_pred], classes),
+            "confusion_matrix.txt",
+        )
         for class_name in set(y_true):
             if class_name in report:
                 mlflow.log_metric(f"recall_{class_name}", report[class_name]["recall"])
