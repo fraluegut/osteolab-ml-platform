@@ -1402,9 +1402,47 @@ sigue siendo 100% sintético a día de hoy** — las fotos reales solo se usan p
 han entrado en `bone_geometric_features_combined.csv`.
 
 ### Pendiente
-19. Prioridad number one de ahora en adelante: construir el pipeline de ingesta de fotos reales
-    aceptadas hacia el entrenamiento (extraer features/segmentar igual que `build_dataset.py`,
-    fusionar en `combined.csv`) y curar las 95 candidatas pendientes en `data/real_photos_review/`
-    para tener más que 12 aceptadas antes de que el volumen sea significativo.
+19. ~~Construir el pipeline de ingesta de fotos reales aceptadas hacia entrenamiento~~ — hecho, ver
+    siguiente sección. Sigue pendiente curar las 95 candidatas en `data/real_photos_review/`.
 20. Investigar por qué el geométrico baja ligeramente (0.5185→0.4815) al combinar ambos ruidos —
     no bloqueante (el híbrido es el mejor modelo con diferencia), pero no explicado todavía.
+
+### Primera vez con fotos reales en entrenamiento: salto grande en los 4 modelos
+
+Nuevo `src/cv_extractor/build_dataset_real_photos.py`: mismo formato de fila que
+`build_dataset.py`/`build_dataset_bproc.py` (para poder concatenar directo en `combined.csv`), pero
+a partir de `data/real_photos_accepted/manifest.csv` en vez de renders — especie="real",
+hueso=`bone_group` (no hay hueso canónico fino en fotos ya clasificadas por grupo), especimen=nombre
+de fichero. Las 12 fotos aceptadas hasta ahora (4 cranio, 1 hueso_largo, 3 pelvis, 4 vertebra)
+pasaron todas la segmentación (`found=True`, ninguna descartada por `area_ratio`).
+
+`combined.csv` pasa a ser: 2419 limpio + 1043 ruido clásico + 381 ruido BlenderProc + **12 fotos
+reales** = 3855 filas — la primera vez en todo el proyecto que el entrenamiento deja de ser 100%
+sintético. Reentrenados los 3 modelos, reevaluados en fotos reales:
+
+| Modelo | Sin fotos reales (solo sintético) | Con 12 fotos reales |
+|---|---|---|
+| Geométrico | 0.5185 | **0.5926** |
+| cnn_only | 0.5741 | **0.6667** |
+| Híbrido | 0.6852 | **0.7593** |
+| Cascada | 0.6296 | **0.7222** |
+
+Sube en los 4 modelos, de forma consistente — no es ruido de un banco pequeño (el patrón está en
+los 4 a la vez, no es una casualidad de uno solo, a diferencia de los empates puntuales de sesiones
+anteriores). **12 fotos reales (0.3% del dataset combinado) mueven más el resultado que todo lo
+demás hecho en esta sesión junto** (Grounded-SAM, recorte segmentado, BlenderProc). Confirma de
+forma contundente la intuición del usuario: el domain gap sim-to-real no se cierra puliendo más el
+lado sintético, se cierra con datos reales de verdad, aunque sean pocos.
+
+Híbrido en 0.7593 es, con diferencia, el mejor resultado medido en todo el proyecto hasta ahora
+(el anterior mejor era la cascada a 0.60, hace dos sesiones).
+
+### Pendiente
+21. Curar las 95 fotos candidatas en `data/real_photos_review/` (11 costilla, 14 cranio, 23
+    hueso_largo, 3 hueso_pequeno, 9 hueso_plano, 13 mandibula_maxilar, 4 pelvis, 6 sacro, 12
+    vertebra) — con la señal de que 12 fotos ya mueven tanto, aceptar aunque sea una fracción de
+    las 95 debería seguir sumando. Máxima prioridad de la siguiente sesión.
+22. Con `data/real_photos_accepted/` ganando peso, plantearse separar una parte como banco de
+    evaluación adicional (no solo entrenamiento) para no depender únicamente de las 54 fotos
+    congeladas de `data/real_world_benchmark/` — no decidido todavía, el volumen actual (12) es
+    demasiado pequeño para plantearlo en serio.
