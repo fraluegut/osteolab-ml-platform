@@ -1312,21 +1312,99 @@ no vistas por especímen — mismo criterio que ya se estableció el 2026-07-23)
 `/tmp/render_noisy_bproc.log`.
 
 ### Pendiente (para retomar cuando el lote termine)
-15. Comprobar que `base_datos_osea/scripts/render_noisy_batch_bproc.sh` terminó (`grep BATCH_DONE
-    /tmp/render_noisy_bproc.log`), luego:
-    `python -m src.cv_extractor.build_dataset_bproc --renders-dir base_datos_osea/renders_noisy_bproc
-    --out data/processed/bone_geometric_features_noisy_bproc.csv`, recombinar con
-    `bone_geometric_features.csv` (limpio, sin tocar) en `bone_geometric_features_combined.csv`,
-    aplicar el filtro `area_ratio>0.02` de siempre, regenerar recortes segmentados
-    (`build_segmented_crops.py`), reentrenar geométrico + cnn_only + híbrido, reevaluar en los 3
-    bancos y comparar contra los números ya documentados hoy (geométrico 0.52, híbrido 0.63, cascada
-    0.57 en fotos reales) — todo con el mismo rigor de siempre, sin dar nada por sentado.
-16. Decidir si el nuevo `renders_noisy_bproc/` SUSTITUYE a `renders_noisy_composited/` (y por tanto
-    a `render_bone_noisy.py`+`render_noisy_batch.py`+`compose_noisy.py`) o convive con él — no
-    decidido todavía, pendiente de ver si los números justifican el reemplazo completo.
+15. ~~Comprobar que el lote terminó y re-extraer/reentrenar/reevaluar~~ — hecho, ver siguiente
+    sección. El lote acabó bastante antes de lo estimado (~15-20 min reales para 101/122
+    especímenes, no las 5-6h proyectadas — la estimación de 2.5-3 min/espécimen venía de la muestra
+    de prueba pequeña, con overhead de arranque no representativo del lote ya caliente).
+16. ~~Decidir si `renders_noisy_bproc/` sustituye o convive con `renders_noisy_composited/`~~ —
+    decidido: CONVIVEN, ver siguiente sección (sustituir del todo midió peor en fotos reales).
 17. Oclusiones/objetos de laboratorio (punto 5 de la propuesta original) sigue sin implementar —
     necesitaría una fuente de assets 3D CC0 que no se buscó en esta sesión.
 18. `blenderproc download haven`/`download cc_textures` colgaron o fueron poco fiables en este
     entorno — si se retoma esa vía en vez de la API de Poly Haven a mano, investigar por qué antes
     de asumir que es solo lentitud de red (la API REST de Poly Haven respondió en <1s en la misma
     sesión, así que no parece ser conectividad general).
+
+### Regeneración a escala terminada: 101/122 especímenes, un bug de fuga encontrado y arreglado
+El lote (`render_noisy_batch_bproc.sh`) terminó con 101/122 especímenes — los 21 restantes son
+todos `homo_naledi` sin malla utilizable bajo `data/meshes/` (`SIN MALLA` en el log), consistente
+con la limitación conocida desde el inicio del proyecto (esas mallas se catalogaron pero se
+excluyeron del render porque Sketchfab ya cubría esos huesos en *H. sapiens*) — no es un fallo
+nuevo del pipeline BlenderProc.
+
+**Bug de fuga de especímenes encontrado antes de reentrenar**: `build_dataset_bproc.py` no
+reservaba los 9 especímenes del banco de evaluación fijo (`BENCHMARK_SPECIMENS`, la misma
+constante que sí respeta `build_dataset.py`) — los 9 estaban en la tabla de entrenamiento nueva.
+Arreglado añadiendo la misma lógica de reserva + `--out-benchmark`
+(`bone_geometric_benchmark_noisy_bproc_excluded.csv`); confirmado 0 solapamiento tras el arreglo.
+De paso, otro bug menor: `train_geometric.py` y `evaluate.py` tienen cada uno su propia copia de
+`NON_FEATURE_COLS` (no comparten la de `cnn_dataset.py`) y ninguna incluía la columna
+`segmented_path` añadida en la sesión anterior — reventaba con `ValueError: could not convert
+string to float` al intentar usarla como feature numérica. Arreglado en los dos sitios.
+
+### Resultado: BlenderProc solo (sustituyendo) empeora en fotos reales pese a mejorar en sintético
+Primera medición, sustituyendo `renders_noisy_composited/` (clásico) por `renders_noisy_bproc/`
+(BlenderProc) del todo en `bone_geometric_features_combined.csv`:
+
+| Modelo | Antes (clásico+grounded_sam) | Solo BlenderProc (sustituyendo) |
+|---|---|---|
+| Geométrico, espécimen fuera (sintético) | 0.6588 | **0.7172** |
+| Híbrido, banco fijo (sintético) | 0.8241 | **0.8843** |
+| Geométrico, fotos reales | 0.5185 | 0.5185 (igual en bruto; balanced accuracy 0.5423→0.5046) |
+| cnn_only, fotos reales | 0.5370 | **0.4259** |
+| Híbrido, fotos reales | 0.6296 | **0.5370** |
+| Cascada, fotos reales | 0.5741 | **0.4815** |
+
+Mejora clara y consistente en el banco sintético, pero empeora (o se queda igual) en los 4 modelos
+sobre fotos reales — el patrón clásico de sobreajustar a la distribución sintética sin que se
+traslade a la distribución real, justo lo que esta sesión entera intenta evitar. Hipótesis principal
+(barata de comprobar, no llegó a probarse por separado): el volumen de datos "con ruido" se
+desplomó al sustituir — 1043 filas del pipeline clásico a solo 381 con BlenderProc (menos
+especímenes por el límite de tiempo, más el filtro `area_ratio`). Aunque las máscaras nuevas son
+más exactas, hay bastante menos variedad para que la CNN generalice. Reportado al usuario sin
+maquillar como si fuera una mejora — decisión explícita de no comittear esto como estado final.
+
+### Decisión del usuario: combinar ambos ruidos en vez de sustituir
+En vez de que BlenderProc reemplace al pipeline clásico, se suman las filas de los dos
+(`bone_geometric_features_noisy.csv` + `bone_geometric_features_noisy_bproc.csv`) en el
+`combined.csv`: 2419 limpias + 1043 ruido clásico + 381 ruido BlenderProc = 3843 filas. Reentrenados
+los 3 modelos sobre esto:
+
+| Modelo | Antes (clásico) | Solo BlenderProc | **Clásico + BlenderProc combinado** |
+|---|---|---|---|
+| Geométrico, fotos reales | 0.5185 | 0.5185 | 0.4815 (baja un poco) |
+| cnn_only, fotos reales | 0.5370 | 0.4259 | **0.5741** (máximo de la sesión) |
+| Híbrido, fotos reales | 0.6296 | 0.5370 | **0.6852** (máximo de la sesión) |
+| Cascada, fotos reales | 0.5741 | 0.4815 | **0.6296** (máximo de la sesión) |
+
+Combinar en vez de sustituir es un acierto claro para cnn_only, híbrido y cascada — recupera el
+volumen que faltaba y suma las máscaras exactas donde las hay. El geométrico es el único que baja
+ligeramente (0.5185→0.4815); no investigado por qué (podría ser simplemente ruido de un banco de
+54 fotos, o que el modelo geométrico sea más sensible a la distribución de features exactas del
+ruido nuevo) — pendiente si se quiere profundizar, pero no bloquea nada: el híbrido, que es el
+mejor modelo medido con diferencia, mejora con este cambio.
+
+**Estado final de esta sub-sesión**: `renders_noisy_bproc/` CONVIVE con `renders_noisy_composited/`
+(pendiente 16 resuelto así) — no se sustituye nada del pipeline clásico, se suma.
+
+### Giro de prioridad del usuario: fotos reales en entrenamiento pasa a ser lo fundamental
+Con BlenderProc solo (sustituyendo) empeorando en fotos reales pese a mejorar en sintético, el
+usuario concluyó — con razón — que es la prueba más directa de que seguir puliendo solo el lado
+sintético (más domain randomization, backbone nuevo, etc.) tiene un techo. Reformulado: meter fotos
+reales en el entrenamiento deja de ser "el siguiente paso cuando haya tiempo" y pasa a ser la
+prioridad, por delante de cualquier otro ajuste del lado sintético.
+
+Estado en el momento del giro: 12 fotos reales aceptadas en `data/real_photos_accepted/` (4 cranio,
+1 hueso_largo, 3 pelvis, 4 vertebra — 5 de los 9 grupos en cero), 95 candidatas pendientes de
+revisar en `data/real_photos_review/` (11 costilla, 14 cranio, 23 hueso_largo, 3 hueso_pequeno, 9
+hueso_plano, 13 mandibula_maxilar, 4 pelvis, 6 sacro, 12 vertebra) sin curar. **El entrenamiento
+sigue siendo 100% sintético a día de hoy** — las fotos reales solo se usan para evaluación, nunca
+han entrado en `bone_geometric_features_combined.csv`.
+
+### Pendiente
+19. Prioridad number one de ahora en adelante: construir el pipeline de ingesta de fotos reales
+    aceptadas hacia el entrenamiento (extraer features/segmentar igual que `build_dataset.py`,
+    fusionar en `combined.csv`) y curar las 95 candidatas pendientes en `data/real_photos_review/`
+    para tener más que 12 aceptadas antes de que el volumen sea significativo.
+20. Investigar por qué el geométrico baja ligeramente (0.5185→0.4815) al combinar ambos ruidos —
+    no bloqueante (el híbrido es el mejor modelo con diferencia), pero no explicado todavía.

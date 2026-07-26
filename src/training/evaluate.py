@@ -31,7 +31,7 @@ MODEL_DIR = BASE_DIR / "models"
 BENCHMARK_PATH = BASE_DIR / "data/processed/bone_geometric_benchmark.csv"
 TARGET = "bone_group"
 
-NON_FEATURE_COLS = {"species", "bone", "bone_group", "specimen", "view", "source_path", "found"}
+NON_FEATURE_COLS = {"species", "bone", "bone_group", "specimen", "view", "source_path", "found", "segmented_path"}
 
 
 def _git_commit() -> str:

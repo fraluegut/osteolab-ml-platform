@@ -1,19 +1,25 @@
 """Precalcula recortes segmentados (bounding box + fondo a gris neutro fuera
 de la máscara, ver `segment_and_crop`/`extract_features(..., include_crop=True)`
-en `extract.py`) para las 4 tablas de features geométricas ya construidas.
+en `extract.py`) para las tablas de features geométricas ya construidas.
 
 Decisión del 2026-07-26 (ver HISTORIAL.md): la CNN (cnn_only e híbrida)
 entrenaba y predecía siempre sobre la imagen completa sin segmentar — solo
 el vector de features geométricas pasaba por la máscara. Para que el fondo
 deje de influir del todo, la CNN pasa a entrenar sobre estos recortes.
 
-No vuelve a decidir qué imágenes "se encuentran" — reutiliza que cada fila
-de estas tablas ya tiene `found=True` con el backend `grounded_sam` (por
-construcción, vienen de `build_dataset.py`), así que solo genera el recorte
-correspondiente. Si al recomputar el recorte no aparece contorno (raro, sin
-aleatoriedad de por medio no debería cambiar respecto a cuando se construyó
-la tabla), esa fila se descarta de la tabla igual que ya se hace cuando
-`found=False` en `build_dataset.py`.
+Dos métodos según la tabla (ver `TABLES`): `"grounded_sam"` para renders sin
+máscara ground-truth (hay que adivinar el contorno, igual que en
+producción); `"mask"` para renders de BlenderProc (2026-07-26, migración a
+BlenderProc), que traen su propia máscara exacta exportada desde la
+geometría 3D — más barato y más fiel que volver a segmentar por CV.
+
+No vuelve a decidir qué imágenes "se encuentran" desde cero — reutiliza que
+cada fila de estas tablas ya tiene `found=True` (por construcción, vienen de
+`build_dataset.py`/`build_dataset_bproc.py`), así que solo genera el
+recorte correspondiente. Si al recomputar el recorte no aparece contorno
+(raro, sin aleatoriedad de por medio no debería cambiar respecto a cuando se
+construyó la tabla), esa fila se descarta igual que ya se hace cuando
+`found=False` en el script que generó la tabla.
 
 Añade una columna `segmented_path` (ruta relativa al repo) a cada tabla y
 las sobrescribe in place.
@@ -25,16 +31,21 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.cv_extractor.extract import extract_features
+from src.cv_extractor.extract import extract_features, extract_features_from_mask
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO_ROOT / "data/segmented_crops"
 
+# "grounded_sam": no hay máscara ground-truth (renders limpios de bpy sin ruido,
+# banco fijo) -- hay que adivinar el contorno igual que en producción.
+# "mask": renders de BlenderProc, cada vista trae su `<...>_mask.png` hermano
+# (ver render_bone_bproc.py) -- se usa esa máscara exacta, más barato y más
+# fiel que volver a segmentar con grounded_sam sobre el color ya renderizado.
 TABLES = [
-    "data/processed/bone_geometric_features.csv",
-    "data/processed/bone_geometric_features_noisy.csv",
-    "data/processed/bone_geometric_benchmark.csv",
-    "data/processed/bone_geometric_benchmark_noisy_excluded.csv",
+    ("data/processed/bone_geometric_features.csv", "grounded_sam"),
+    ("data/processed/bone_geometric_features_noisy_bproc.csv", "mask"),
+    ("data/processed/bone_geometric_benchmark.csv", "grounded_sam"),
+    ("data/processed/bone_geometric_benchmark_noisy_bproc_excluded.csv", "mask"),
 ]
 
 
@@ -43,13 +54,22 @@ def resolve_source_path(raw: str) -> Path:
     return p if p.is_absolute() else (REPO_ROOT / p)
 
 
+def extract_crop(src: Path, method: str):
+    if method == "mask":
+        mask_path = src.with_name(src.stem + "_mask.png")
+        with open(src, "rb") as f_img, open(mask_path, "rb") as f_mask:
+            return extract_features_from_mask(f_img, f_mask, include_crop=True)
+    with open(src, "rb") as fh:
+        return extract_features(fh, backend="grounded_sam", include_crop=True)
+
+
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for rel_table in TABLES:
+    for rel_table, method in TABLES:
         table_path = REPO_ROOT / rel_table
         df = pd.read_csv(table_path)
-        print(f"\n=== {rel_table}: {len(df)} filas ===")
+        print(f"\n=== {rel_table} ({method}): {len(df)} filas ===")
 
         segmented_paths = [None] * len(df)
         n_failed = 0
@@ -58,8 +78,7 @@ def main():
             rel_out = src.relative_to(REPO_ROOT).with_suffix(".png")
             out_path = OUT_DIR / rel_out
 
-            with open(src, "rb") as fh:
-                result = extract_features(fh, backend="grounded_sam", include_crop=True)
+            result = extract_crop(src, method)
 
             if not result.get("found"):
                 n_failed += 1

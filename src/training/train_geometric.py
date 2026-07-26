@@ -54,7 +54,7 @@ PARAMS_PATH = BASE_DIR / "params.yaml"
 # (ver HISTORIAL.md, bug de escala del híbrido). No aportan nada en entrenamiento (son constantes,
 # ningún split puede usarlas para discriminar) y arriesgan mucho fuera de él.
 NON_FEATURE_COLS = {"species", "bone", "bone_group", "specimen", "view", "source_path", "found",
-                     "img_width", "img_height"}
+                     "img_width", "img_height", "segmented_path"}
 
 
 def parse_args():
