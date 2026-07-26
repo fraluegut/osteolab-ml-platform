@@ -28,7 +28,11 @@ para entrenar con algo más parecido a una foto de usuario real:
     dorada, fluorescente, flash) + una luz de relleno tenue para que el
     lado oscuro no quede en negro absoluto.
   - Material: tono de "hueso" aleatorio dentro de un rango plausible (blanco,
-    beige, marrón, grisáceo), no siempre el mismo tono fijo.
+    beige, marrón, grisáceo), no siempre el mismo tono fijo — SOLO para
+    mallas sin textura/color de vértice de origen (ver `has_real_texture`,
+    2026-07-26: sobre una muestra de 15 mallas, ~la mitad SÍ traían
+    fotogrametría real que antes se tiraba sin comprobar con
+    `materials.clear()`; ahora se conserva tal cual cuando existe).
 
 Cada vista tiene su propia semilla derivada de (prefix, índice de vista), así
 que la aleatoriedad es reproducible pero distinta vista a vista.
@@ -97,6 +101,26 @@ def parse_args():
     p.add_argument("--fill", type=float, default=0.72)
     p.add_argument("--seed", type=int, default=0)
     return p.parse_args(argv)
+
+
+def has_real_texture(obj) -> bool:
+    """True si la malla importada trae textura de imagen o color por
+    vértice reales (fotogrametría de origen) — comprobado sobre una muestra
+    de 15 mallas del catálogo (2026-07-26): ~la mitad NO traen nada (mesh
+    "en blanco", solo `NORMAL`+`POSITION`) y para esas el color procedural
+    de `make_material` sigue haciendo falta, pero la otra mitad SÍ trae
+    textura de imagen o `COLOR_0` — hasta ahora se tiraba siempre con
+    `materials.clear()` sin comprobar. Si es True, el llamador debe dejar
+    el material tal cual (no limpiarlo ni sustituirlo)."""
+    if obj.data.color_attributes and len(obj.data.color_attributes) > 0:
+        return True
+    for mat in obj.data.materials:
+        if mat is None or not mat.use_nodes:
+            continue
+        for node in mat.node_tree.nodes:
+            if node.type == "TEX_IMAGE" and node.image is not None:
+                return True
+    return False
 
 
 def make_material(rng):
@@ -238,7 +262,9 @@ def main():
 
     obj = import_mesh(mesh_path)
     center_on_mass(obj)
-    obj.data.materials.clear()
+    keep_original_material = has_real_texture(obj)
+    if not keep_original_material:
+        obj.data.materials.clear()
 
     center, radius = framing_target(obj)
 
@@ -256,8 +282,9 @@ def main():
         clear_scene_lights_and_world()
         setup_world(rng)
         add_lights(center, radius, rng)
-        obj.data.materials.clear()
-        obj.data.materials.append(make_material(rng))
+        if not keep_original_material:
+            obj.data.materials.clear()
+            obj.data.materials.append(make_material(rng))
 
         cam.location = center + offset
         # Encuadre no siempre centrado: desplaza el punto al que apunta la
