@@ -1138,3 +1138,89 @@ banco (`data/real_world_benchmark/`, no versionado) y su fila de `manifest.csv`.
 12. `cranio_08.jpg` y similares (fotos de excavación in situ, primeros planos macro no
     representativos) siguen sin revisar/curar en el banco de fotos reales — quedó apuntado durante
     esta sesión pero no se llegó a hacer la pasada completa.
+
+---
+
+## 2026-07-26 (cont.) — La CNN pasa a entrenar y predecir sobre el recorte segmentado, no la foto completa
+
+### Hallazgo: la CNN nunca había visto una imagen segmentada
+Pregunta directa del usuario: "¿estamos segmentando todo?" — la respuesta, revisando el código, fue
+que NO. `extract_features()` (con el backend que fuera) solo alimentaba el vector de features
+geométricas (modelo geométrico, y el vector extra del híbrido); la rama de imagen de la CNN
+(`cnn_dataset.py`/`predict_cnn.py`) siempre abría el fichero original tal cual y solo le aplicaba
+resize+normalización — el fondo, real o sintético, llegaba intacto al backbone en el 100% de los
+casos, tanto en entrenamiento como en inferencia. Esto conecta con la conversación previa de esa
+misma sesión sobre domain gap (HDRIs, fondos reales, suciedad...): si el fondo nunca llega a la CNN,
+gran parte de ese esfuerzo de fotorrealismo del render deja de ser necesario.
+
+### Decisión y diseño
+El usuario pidió recortar al bounding box del contorno Y pintar de gris lo de fuera de la máscara
+(combinación de las dos opciones que se le plantearon), aplicado a AMBAS variantes (`cnn_only` e
+`hybrid`, no solo la híbrida) tanto en entrenamiento como en evaluación/inferencia. Si la
+segmentación falla en una fila de entrenamiento, esa fila se descarta (no se usa la imagen sin
+segmentar como fallback — decisión explícita del usuario, evita reintroducir el problema que se
+quería evitar).
+
+Implementado en `src/cv_extractor/extract.py`:
+- `_locate_bone()`: segmentación factorizada fuera de `extract_features` (antes duplicada), para
+  poder reutilizarla desde una función nueva sin correr el backend dos veces sobre la misma imagen.
+- `_crop_masked()` / `segment_and_crop()`: recorte al bounding box con fondo gris (128,128,128)
+  fuera de la máscara.
+- `extract_features(..., include_crop=True)`: añade una clave `"crop_image"` (PIL Image, no
+  serializable — se hace `pop()` antes de devolver la respuesta en `predict_cnn.py` para que nunca
+  llegue a un JSON) al resultado ya existente, reutilizando la MISMA pasada de segmentación en vez
+  de correrla dos veces (una para features, otra para el recorte) cuando hace falta lo uno y lo otro
+  (el modelo híbrido).
+
+Nuevo `src/cv_extractor/build_segmented_crops.py`: precalcula el recorte para las 4 tablas de
+features ya construidas (reutiliza que cada fila ya tiene `found=True` con `grounded_sam` por
+construcción — no vuelve a decidir qué imágenes "se encuentran"), guarda los PNG en
+`data/segmented_crops/` (mismo árbol relativo que `base_datos_osea/`, gitignored) y añade una
+columna `segmented_path` a cada tabla. Resultado: 0 filas descartadas, 0 fallos sobre 3758 imágenes
+(la segmentación es determinista, sin aleatoriedad, así que recomputar sobre las mismas imágenes que
+ya se sabían "encontradas" no iba a fallar).
+
+**Bug propio encontrado y arreglado**: la primera versión del script guardaba en `segmented_path` la
+ruta SIN el prefijo `data/segmented_crops/` (apuntando por error a la ubicación original con
+extensión `.png`, que nunca existe ahí — los renders con ruido son `.jpg`). Reventó el primer
+intento de entrenamiento con `FileNotFoundError` en el primer batch. Los ficheros en sí se habían
+guardado bien (el bug era solo en qué ruta se anotaba en el CSV); arreglado recalculando la columna
+sin tener que re-segmentar las 3758 imágenes otra vez.
+
+`src/training/cnn_dataset.py`: `BoneImageDataset` carga `segmented_path` en vez de `source_path`.
+`src/inference/predict_cnn.py`: `classify_image()` llama a `extract_features(..., include_crop=True)`
+SIEMPRE ahora (antes solo para `hybrid`) — `cnn_only` también pasa por segmentación por primera vez.
+
+### Reentreno y resultados
+
+| Modelo | Fotos reales (grounded_sam, imagen completa) | Fotos reales (grounded_sam, recorte segmentado) | Banco sintético fijo |
+|---|---|---|---|
+| cnn_only | — (no evaluado con grounded_sam+imagen completa, no se había reentrenado hasta ahora) | 0.5370 | 0.7685 |
+| Híbrido | 0.6296 | 0.6296 | 0.8241 |
+| Cascada | 0.5741 | 0.5741 | — |
+
+A primera vista parece que el recorte segmentado "no cambió nada" en fotos reales (mismo accuracy
+total en híbrido y cascada) — **es una coincidencia del total, no ausencia de efecto**: el
+`classification_report` completo por grupo es distinto entre las dos corridas (ej. híbrido: costilla
+0.50→0.00, cranio 0.43→0.57, sacro 0.83→0.50, mandíbula 0.57→0.71) — sube en unos grupos, baja en
+otros, y la cuenta total (34/54) cuadra igual por casualidad. Con 54 fotos repartidas en 9 grupos
+(2-8 por grupo), un empate exacto en el total agregado no es señal fiable de nada; hace falta un
+banco de fotos reales más grande para leer esto con confianza — mismo motivo por el que se está
+ampliando el banco de fotos reales para entrenamiento (ver pendientes de la sesión).
+
+En el banco sintético SÍ hay mejora clara y consistente (cnn_only 0.7685, híbrido 0.8241,
+recordando que antes de esta sesión ni siquiera se media esto con grounded_sam) — pero ese banco
+tiene fondos ya bastante triviales de por sí, así que es la lectura menos informativa de las dos.
+
+### Pendiente
+13. El resultado en fotos reales del recorte segmentado es inconcluyente con el tamaño de banco
+    actual (empate por coincidencia, per-grupo con ruido real) — repetir esta comparación cuando el
+    banco de fotos reales de entrenamiento/evaluación sea más grande.
+14. Propuesta del usuario (sin implementar, de acuerdo en el orden): probar DINOv3
+    (`transformers` ya trae `DINOv3ViTModel`/`DINOv3ConvNextModel`, confirmado disponible en este
+    entorno) como backbone alternativo a `resnet18` para `cnn_only`/`hybrid` — motivación: features
+    autosupervisadas suelen generalizar mejor que un ResNet supervisado en ImageNet cuando hay poco
+    dato real y mucho salto de dominio, que es justo la situación de este proyecto. Requiere cambiar
+    `train_cnn.py` de `timm` a `transformers` para el backbone (no es solo un flag). Se decidió
+    esperar a tener un número limpio del recorte segmentado antes de cambiar también el backbone, para
+    no mezclar dos variables a la vez.

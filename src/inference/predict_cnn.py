@@ -2,11 +2,14 @@
 `src/training/train_cnn.py` — análogo a `predict_geometric.py` pero cargando
 un backbone de `timm` en vez de un `RandomForestClassifier`.
 
-La variante `cnn_only` no necesita segmentación (aprende directamente de la
-imagen redimensionada); la `hybrid` sí necesita el vector de features
-geométricas, así que por debajo llama a la MISMA `extract_features` +
-`flatten_features` que usa el modelo geométrico (con el mismo fallback de
-medias de entrenamiento para features que salgan `None` en fotos reales).
+Desde el 2026-07-26, AMBAS variantes segmentan primero (ver HISTORIAL.md):
+la CNN nunca ve la imagen completa, solo el recorte al bounding box del
+hueso con el fondo pintado de gris (`extract_features(..., include_crop=True)`
+→ `"crop_image"`, mismo backend de segmentación que entrenamiento). La
+`hybrid`, además, usa el vector de features geométricas de esa misma
+llamada (con el mismo fallback de medias de entrenamiento para features que
+salgan `None`) — así que ambas comparten una única pasada de segmentación
+por imagen, no dos.
 """
 from functools import lru_cache
 from pathlib import Path
@@ -95,7 +98,7 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
 
     Devuelve:
         {
-          "found": bool,               # False solo si model_type="hybrid" y la segmentación falla
+          "found": bool,               # False si la segmentación no encuentra contorno
           "prediction": str,
           "probabilities": {grupo: float, ...},
           "cv_features": {...} | None,  # solo si model_type="hybrid"
@@ -103,12 +106,12 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
     """
     model, encoder, feature_cols, scaler, fallback_means = _load(model_type)
 
-    raw_features = None
+    raw_features = extract_features(image_file, backend=backend, include_crop=True)
+    if not raw_features.get("found"):
+        return {"found": False, "cv_features": raw_features if model_type == "hybrid" else None}
+
     geom_tensor = torch.zeros((1, 0), dtype=torch.float32)
     if model_type == "hybrid":
-        raw_features = extract_features(image_file, backend=backend)
-        if not raw_features.get("found"):
-            return {"found": False, "cv_features": raw_features}
         flat = flatten_features(raw_features)
         row = [[
             flat[col] if flat[col] is not None else fallback_means[col]
@@ -116,10 +119,8 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
         ]]
         scaled = scaler.transform(row)
         geom_tensor = torch.tensor(scaled, dtype=torch.float32)
-        if hasattr(image_file, "seek"):
-            image_file.seek(0)
 
-    image = Image.open(image_file).convert("RGB")
+    image = raw_features.pop("crop_image")  # nunca serializable/JSON-able, no debe salir en la respuesta
     image_tensor = _TRANSFORM(image).unsqueeze(0)
 
     with torch.no_grad():
@@ -136,5 +137,5 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
         "found": True,
         "prediction": prediction,
         "probabilities": class_probabilities,
-        "cv_features": raw_features,
+        "cv_features": raw_features if model_type == "hybrid" else None,
     }

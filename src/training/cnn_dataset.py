@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 # Mismo criterio que train_geometric.py: img_width/img_height son constantes (512x512) en
 # entrenamiento y explotan en z-score sobre fotos reales de otra resolución.
 NON_FEATURE_COLS = {"species", "bone", "bone_group", "specimen", "view", "source_path", "found",
-                     "img_width", "img_height"}
+                     "img_width", "img_height", "segmented_path"}
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
@@ -85,7 +85,9 @@ class BoneImageDataset(Dataset):
 
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
-        path = resolve_source_path(row["source_path"])
+        # Recorte segmentado (fondo a gris, ver extract.py/build_segmented_crops.py) en vez de
+        # la imagen completa: decisión del 2026-07-26 para que el fondo no influya en la CNN.
+        path = resolve_source_path(row["segmented_path"])
         image = Image.open(path).convert("RGB")
         image_tensor = self.transform(image)
 

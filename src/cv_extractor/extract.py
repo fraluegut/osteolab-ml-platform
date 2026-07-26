@@ -529,7 +529,65 @@ def _resize_to_canonical(image: np.ndarray, target_long_side: int = CANONICAL_LO
     return cv2.resize(image, (new_w, new_h), interpolation=interpolation)
 
 
-def extract_features(image_file, backend: str = "grounded_sam") -> dict:
+def _locate_bone(image: np.ndarray, backend: str):
+    """Segmenta `image` (ya en tamaño canónico) y devuelve `(binary, contour)`
+    — o `(None, None)` si no se encuentra nada por encima de
+    `MIN_CONTOUR_AREA_RATIO`. Compartido por `extract_features` y
+    `segment_and_crop` para no correr la segmentación dos veces sobre la
+    misma imagen en el mismo sitio."""
+    if backend == "fastsam":
+        binary = _segment_fastsam(image)
+    elif backend == "grounded_sam":
+        binary = _segment_grounded_sam(image)
+    else:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        binary = _segment(gray)
+    contour = _largest_contour(binary)
+    img_area = image.shape[0] * image.shape[1]
+    if contour is None or cv2.contourArea(contour) < img_area * MIN_CONTOUR_AREA_RATIO:
+        return None, None
+    return binary, contour
+
+
+CROP_BG_GRAY = 128  # gris neutro fuera de la máscara — mismo valor en los 3 canales
+
+
+def _crop_masked(image: np.ndarray, binary: np.ndarray, x: int, y: int, w: int, h: int,
+                  bg_gray: int = CROP_BG_GRAY) -> Image.Image:
+    """Recorte al bounding box `(x, y, w, h)` con los píxeles fuera de
+    `binary` pintados de gris neutro — pensada para alimentar la CNN sin que
+    el fondo (real o sintético) llegue a influir en absoluto (decisión del
+    2026-07-26, ver HISTORIAL.md: hasta ahora la CNN veía siempre la imagen
+    completa sin segmentar, solo el vector de features geométricas pasaba
+    por la máscara)."""
+    mask = binary > 0
+    bg = np.full_like(image, bg_gray)
+    masked = np.where(mask[..., None], image, bg)
+    crop = masked[y:y + h, x:x + w]
+    return Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
+
+
+def segment_and_crop(image_file, backend: str = "grounded_sam", bg_gray: int = CROP_BG_GRAY) -> Image.Image | None:
+    """Segmenta una imagen suelta y devuelve el recorte de `_crop_masked`, o
+    `None` si no se encuentra contorno — el llamador decide qué hacer
+    (descartar la fila, normalmente). Para cuando ya se tiene `extract_features(..., include_crop=True)`
+    corrido, usar el `"crop_image"` de su resultado en vez de llamar a esto
+    (evita segmentar dos veces la misma imagen)."""
+    data = np.frombuffer(image_file.read(), dtype=np.uint8)
+    image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("No se pudo decodificar la imagen")
+    image = _resize_to_canonical(image)
+
+    binary, contour = _locate_bone(image, backend)
+    if binary is None:
+        return None
+
+    x, y, w, h = cv2.boundingRect(contour)
+    return _crop_masked(image, binary, x, y, w, h, bg_gray)
+
+
+def extract_features(image_file, backend: str = "grounded_sam", include_crop: bool = False) -> dict:
     """`backend`: "grounded_sam" (segmentación aprendida por texto, por
     defecto desde 2026-07-26 — ver `_segment_grounded_sam` y HISTORIAL.md),
     "fastsam" (segmentación aprendida por punto central, ver
@@ -569,16 +627,8 @@ def extract_features(image_file, backend: str = "grounded_sam") -> dict:
     img_h, img_w = image.shape[:2]
     img_area = img_h * img_w
 
-    if backend == "fastsam":
-        binary = _segment_fastsam(image)
-    elif backend == "grounded_sam":
-        binary = _segment_grounded_sam(image)
-    else:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        binary = _segment(gray)
-    contour = _largest_contour(binary)
-
-    if contour is None or cv2.contourArea(contour) < img_area * MIN_CONTOUR_AREA_RATIO:
+    binary, contour = _locate_bone(image, backend)
+    if binary is None:
         return {"found": False, "image_size": {"width": img_w, "height": img_h}}
 
     contour_area = cv2.contourArea(contour)
@@ -625,4 +675,5 @@ def extract_features(image_file, backend: str = "grounded_sam") -> dict:
             image, contour, box_points, (x, y, w, h), (long_side, short_side, angle), shape_stats
         ),
         "mask_overlay_base64": _mask_overlay_image(image, binary),
+        **({"crop_image": _crop_masked(image, binary, x, y, w, h)} if include_crop else {}),
     }

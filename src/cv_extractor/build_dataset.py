@@ -96,7 +96,7 @@ NESTED_PREFIXES = {
 }
 # Claves que se descartan de la tabla: no son features numéricas de
 # entrenamiento, son solo para mostrar la imagen anotada en la UI/API.
-DROP_KEYS = {"annotated_image_base64", "mask_overlay_base64"}
+DROP_KEYS = {"annotated_image_base64", "mask_overlay_base64", "crop_image"}
 
 
 def flatten_features(raw: dict) -> dict:
