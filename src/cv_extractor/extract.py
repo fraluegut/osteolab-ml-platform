@@ -2,11 +2,13 @@
 con OpenCV (momentos de Hu, perfil de anchura, agujeros...) — la MEDICIÓN
 sigue siendo clásica, sin aprendizaje.
 
-La SEGMENTACIÓN (aislar el hueso del fondo, paso previo a medir) sí admite un
-backend aprendido desde el 2026-07-25 (`backend="fastsam"`, ver
-`_segment_fastsam`) además del clásico (`backend="classic"`, Otsu+adaptativo,
-sigue siendo el que se usa por defecto en `app/main.py`) — ver HISTORIAL.md
-para la comparación entre los dos sobre el banco de fotos reales.
+La SEGMENTACIÓN (aislar el hueso del fondo, paso previo a medir) admite tres
+backends: `"grounded_sam"` (Grounding DINO + SAM por texto, por defecto desde
+2026-07-26 — el que sirve `app/main.py` hoy, ver `_segment_grounded_sam`),
+`"fastsam"` (segmentación aprendida con un punto central, desde 2026-07-25,
+ver `_segment_fastsam`) y `"classic"` (Otsu+adaptativo, el backend original)
+— ver HISTORIAL.md para la comparación entre los tres sobre el banco de
+fotos reales.
 
 Módulo aislado: no depende de `src/clip_filter`, `src/bone_filter` ni
 `src/inference`, y no comparte estado con ellos. Se invoca de forma explícita
@@ -108,6 +110,97 @@ def _segment(gray: np.ndarray) -> np.ndarray:
     kernel = np.ones((5, 5), np.uint8)
     binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
     return binary
+
+
+GROUNDING_DINO_MODEL_ID = "IDEA-Research/grounding-dino-tiny"
+SAM_MODEL_ID = "facebook/sam-vit-base"
+GROUNDED_SAM_TEXT_PROMPT = "bone."
+GROUNDED_SAM_BOX_THRESHOLD = 0.25
+GROUNDED_SAM_TEXT_THRESHOLD = 0.2
+
+
+@lru_cache(maxsize=1)
+def _load_grounding_dino():
+    import torch
+    from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    processor = AutoProcessor.from_pretrained(GROUNDING_DINO_MODEL_ID)
+    model = AutoModelForZeroShotObjectDetection.from_pretrained(GROUNDING_DINO_MODEL_ID).to(device)
+    return processor, model
+
+
+@lru_cache(maxsize=1)
+def _load_sam():
+    import torch
+    from transformers import SamModel, SamProcessor
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    processor = SamProcessor.from_pretrained(SAM_MODEL_ID)
+    model = SamModel.from_pretrained(SAM_MODEL_ID).to(device)
+    return processor, model
+
+
+def _segment_grounded_sam(image_bgr: np.ndarray) -> np.ndarray:
+    """Segmentación por texto (2026-07-26): Grounding DINO detecta primero una
+    caja delimitadora para el texto "bone" y SAM segmenta dentro de esa caja
+    — a diferencia de `_segment_fastsam`, que asume que el hueso está
+    centrado, esta no depende de la posición. Motivación: en huesos con
+    hueco central (vértebra, sacro, pelvis), si el punto central de FastSAM
+    cae dentro del foramen, segmenta el hueco en vez del hueso (ver
+    HISTORIAL.md, caso `vertebra_05.jpg`) — encuadrar el objeto completo por
+    semántica evita ese fallo. Más lento que FastSAM (dos modelos en vez de
+    uno) pero, sobre GPU, sigue siendo ~0.5s/imagen.
+    """
+    import torch
+    from PIL import Image as PILImage
+
+    h, w = image_bgr.shape[:2]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    pil_image = PILImage.fromarray(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB))
+
+    dino_processor, dino_model = _load_grounding_dino()
+    inputs = dino_processor(images=pil_image, text=GROUNDED_SAM_TEXT_PROMPT, return_tensors="pt").to(device)
+    with torch.no_grad():
+        outputs = dino_model(**inputs)
+    detections = dino_processor.post_process_grounded_object_detection(
+        outputs, threshold=GROUNDED_SAM_BOX_THRESHOLD, text_threshold=GROUNDED_SAM_TEXT_THRESHOLD,
+        target_sizes=[(h, w)],
+    )[0]
+    if len(detections["boxes"]) == 0:
+        return np.zeros((h, w), dtype=np.uint8)
+
+    best_idx = int(detections["scores"].argmax())
+    box = detections["boxes"][best_idx].tolist()
+
+    sam_processor, sam_model = _load_sam()
+    sam_inputs = sam_processor(pil_image, input_boxes=[[box]], return_tensors="pt").to(device)
+    with torch.no_grad():
+        sam_outputs = sam_model(**sam_inputs)
+    masks = sam_processor.image_processor.post_process_masks(
+        sam_outputs.pred_masks.cpu(), sam_inputs["original_sizes"].cpu(), sam_inputs["reshaped_input_sizes"].cpu(),
+    )
+    # SAM devuelve 3 máscaras candidatas (distinta granularidad) con un
+    # iou_score que se autoasigna — NO usarlo para elegir: en fotos con fondo
+    # casi sin contraste y una caja que cubre casi toda la imagen (caso real,
+    # ver HISTORIAL.md 2026-07-26, `mandibula_01.jpg`), la máscara correcta
+    # (silueta completa del hueso) puntuó más bajo (0.93) que dos sub-partes
+    # erróneas (0.97 y 1.01) — SAM confía más en la lectura equivocada.
+    # Elegir la de mayor ÁREA en su lugar: coincide con la mejor máscara en
+    # todos los casos ya validados a ojo y evita ese fallo.
+    candidate_masks = masks[0][0].numpy()
+    best_mask_idx = int(candidate_masks.reshape(len(candidate_masks), -1).mean(axis=1).argmax())
+    mask = (candidate_masks[best_mask_idx].astype(np.uint8)) * 255
+
+    # Apertura morfológica: la máscara de SAM a veces trae un artefacto de
+    # upsampling — una tira falsa de 1px pegada al borde de la imagen (caso
+    # real, `hueso_plano_08.jpg`) que no cambia apenas el área en píxeles
+    # pero sí "engancha" el contorno externo al borde, inflando
+    # `cv2.contourArea` muy por encima del área real (0.52 → 0.98 medido).
+    # La apertura la elimina sin tocar la silueta real.
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    return mask
 
 
 FASTSAM_CHECKPOINT = "models/FastSAM-s.pt"
@@ -436,10 +529,11 @@ def _resize_to_canonical(image: np.ndarray, target_long_side: int = CANONICAL_LO
     return cv2.resize(image, (new_w, new_h), interpolation=interpolation)
 
 
-def extract_features(image_file, backend: str = "classic") -> dict:
-    """`backend`: "classic" (Otsu+adaptativo, por defecto, el que sirve
-    `app/main.py` hoy) o "fastsam" (segmentación aprendida, ver
-    `_segment_fastsam`).
+def extract_features(image_file, backend: str = "grounded_sam") -> dict:
+    """`backend`: "grounded_sam" (segmentación aprendida por texto, por
+    defecto desde 2026-07-26 — ver `_segment_grounded_sam` y HISTORIAL.md),
+    "fastsam" (segmentación aprendida por punto central, ver
+    `_segment_fastsam`) o "classic" (Otsu+adaptativo, el backend original).
 
     Devuelve:
         {
@@ -477,6 +571,8 @@ def extract_features(image_file, backend: str = "classic") -> dict:
 
     if backend == "fastsam":
         binary = _segment_fastsam(image)
+    elif backend == "grounded_sam":
+        binary = _segment_grounded_sam(image)
     else:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         binary = _segment(gray)

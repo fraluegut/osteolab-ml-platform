@@ -83,7 +83,7 @@ def _iter_images():
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--segmenter", choices=["classic", "fastsam"], default="classic",
+    p.add_argument("--segmenter", choices=["classic", "fastsam", "grounded_sam"], default="grounded_sam",
                    help="backend de segmentación (ver src/cv_extractor/extract.py)")
     return p.parse_args()
 

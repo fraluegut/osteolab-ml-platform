@@ -69,7 +69,7 @@ def get_reference_points() -> list[dict]:
     return df.to_dict(orient="records")
 
 
-def classify_image(image_file, backend: str = "classic") -> dict:
+def classify_image(image_file, backend: str = "grounded_sam") -> dict:
     """Mide la imagen con OpenCV, clasifica por grupo morfológico y proyecta
     la misma medida en el espacio PCA de referencia.
 

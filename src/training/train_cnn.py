@@ -163,6 +163,19 @@ def main():
     feature_cols = geometric_feature_columns(df) if args.model_type == "hybrid" else None
     n_geom_features = len(feature_cols) if feature_cols else 0
 
+    if feature_cols is not None:
+        # Un puñado de filas se quedan sin `ellipse_ratio` cuando el contorno
+        # tiene <5 puntos (ver `_ellipse_ratio` en extract.py). A diferencia
+        # de RandomForestClassifier (tolera NaN nativamente), el NaN llega tal
+        # cual al tensor de la CNN vía StandardScaler y colapsa el
+        # entrenamiento entero a loss=nan desde el primer batch que lo
+        # contenga. Imputar con la media de columna, igual que
+        # `_fallback_means` en inferencia.
+        col_means = df[feature_cols].mean(numeric_only=True)
+        df[feature_cols] = df[feature_cols].fillna(col_means)
+        if bench_df is not None:
+            bench_df[feature_cols] = bench_df[feature_cols].fillna(col_means)
+
     train_df, val_df = specimen_split(df, test_size=args.val_size, random_state=args.random_state)
     print(f"Train: {len(train_df)} filas / {train_df['specimen'].nunique()} especímenes  "
           f"Val: {len(val_df)} filas / {val_df['specimen'].nunique()} especímenes")

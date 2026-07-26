@@ -271,7 +271,16 @@ def main():
             ("scaler", StandardScaler()),
             ("pca", PCA(n_components=2, random_state=training_params["random_state"])),
         ])
-        coords = pca_pipeline.fit_transform(X)
+        # PCA no admite NaN (a diferencia de RandomForestClassifier, que sí
+        # los tolera de forma nativa) — un puñado de filas se quedan sin
+        # `ellipse_ratio` cuando el contorno tiene <5 puntos (ver
+        # `_ellipse_ratio` en extract.py). Imputar con la media de columna,
+        # igual que ya se hace en inferencia (`_fallback_means`).
+        col_means = np.nanmean(X, axis=0)
+        nan_rows, nan_cols = np.where(np.isnan(X))
+        X_pca = X.copy()
+        X_pca[nan_rows, nan_cols] = np.take(col_means, nan_cols)
+        coords = pca_pipeline.fit_transform(X_pca)
         explained = pca_pipeline.named_steps["pca"].explained_variance_ratio_
         print(f"\nPCA de referencia: {explained[0]*100:.1f}% + {explained[1]*100:.1f}% "
               f"= {explained.sum()*100:.1f}% de varianza explicada en 2D")

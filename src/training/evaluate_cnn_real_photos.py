@@ -48,7 +48,7 @@ def _iter_images():
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model-type", choices=["cnn_only", "hybrid"], default="hybrid")
-    p.add_argument("--segmenter", choices=["classic", "fastsam"], default="classic",
+    p.add_argument("--segmenter", choices=["classic", "fastsam", "grounded_sam"], default="grounded_sam",
                    help="backend de segmentación (solo afecta a 'hybrid', 'cnn_only' no usa geometría)")
     return p.parse_args()
 

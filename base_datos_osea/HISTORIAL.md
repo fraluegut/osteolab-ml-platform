@@ -1013,3 +1013,128 @@ revierten las entradas correspondientes de `.gitignore`.
 
 Cierra el pendiente 9 de la sesión anterior. El pendiente 8 (reextraer con FastSAM + reentrenar)
 sigue abierto y sin relación con esto.
+
+---
+
+## 2026-07-26 — Grounded-SAM: nuevo backend de segmentación, adoptado en todo el pipeline
+
+### Inspector visual de features (`scripts/inspect_features.py`)
+Para entender qué mide `extract_features()` exactamente y sobre qué superficie, se construyó un
+Streamlit (puerto 8503) que muestra, para una imagen elegida a mano (foto real, render limpio o
+con ruido): la superficie segmentada (máscara superpuesta), el contorno+bbox anotado, la tabla
+completa de features, y el perfil de anchura. Se amplió luego para correr los tres backends de
+segmentación a la vez sobre la misma imagen y compararlos lado a lado.
+
+### Casos reales que motivaron abandonar el punto/umbral fijo
+Revisando el banco de fotos reales con el inspector aparecieron varios fallos de segmentación no
+detectados antes por ir directos a métricas agregadas:
+- `cranio_05.jpg`: fondo gris casi del mismo tono que el hueso — con `classic` (Otsu+adaptativo)
+  solo sobrevivió la cavidad nasal (alto contraste local), el resto del cráneo no se segmentó.
+- `cranio_06.jpg` (momia envuelta): la textura de la envoltura tiene tanto microcontraste como el
+  hueso — 224 contornos tras la apertura morfológica, el mayor solo cubre 18% del área real.
+- `hueso_plano_08.jpg` (escápula, `fastsam`): la máscara nativa de FastSAM trae un corte recto de
+  fábrica justo en el cuello fino de la escápula — limitación del decodificador de máscara a baja
+  resolución en geometría cóncava/fina, no un bug del pipeline.
+- `vertebra_05.jpg` (`fastsam`): el prompt de punto fijo en el centro de la imagen cayó dentro del
+  foramen vertebral — FastSAM segmentó el agujero, no el hueso. Cualquier hueso con hueco central
+  y vista centrada en él (vértebra, sacro, pelvis) es vulnerable a este fallo.
+- `cranio_08.jpg`: primer plano macro de una cuenca ocular con raíces/tierra (foto de excavación in
+  situ) — no es un fallo de segmentación, es una imagen no representativa del caso de uso real
+  (nadie envía una foto así para identificar un hueso). Confirma que parte del ruido medido en el
+  banco de fotos reales viene de la curación del banco, no solo del modelo — pendiente aparte, sin
+  tocar todavía.
+
+### Grounded-SAM (Grounding DINO + SAM por texto)
+Propuesta del usuario: en vez de un punto fijo (asume hueso centrado, falla con huecos centrados),
+usar detección por texto — Grounding DINO encuadra "bone" semánticamente, SAM segmenta dentro de
+esa caja. Implementado en `_segment_grounded_sam` (`src/cv_extractor/extract.py`,
+`IDEA-Research/grounding-dino-tiny` + `facebook/sam-vit-base`, vía `transformers`, ~0.3-0.5s/imagen
+en GPU tras la carga inicial). Arregla el caso de `vertebra_05.jpg` de raíz: la caja encuadra la
+vértebra entera, no un punto que pueda caer dentro del agujero.
+
+**Dos bugs encontrados y arreglados durante la implementación:**
+1. **Selección de máscara por `iou_score` en vez de por área**: SAM devuelve 3 máscaras candidatas
+   (distinta granularidad) con un score que se autoasigna. En `mandibula_01.jpg` (fondo blanco puro,
+   mandíbula ocupando ~90% del encuadre, caja de Grounding DINO casi tan grande como la imagen
+   entera) la máscara correcta (silueta completa, 60% del área) puntuó 0.93, y dos sub-partes
+   erróneas puntuaron 0.97 y 1.01 — SAM confía más en la lectura equivocada cuando la caja cubre
+   casi todo el encuadre (ambigüedad conocida de SAM: no sabe si "el objeto" es la caja entera o
+   una parte suya). Arreglado eligiendo la máscara de **mayor área** en vez de mayor score —
+   coincide con la mejor máscara en todos los casos ya validados a ojo (vértebra, cráneo).
+2. **Artefacto de borde que infla `area_ratio`**: en `hueso_plano_08.jpg`, la máscara de SAM traía
+   una tira falsa de ~1px pegada al borde inferior de la imagen (artefacto de upsampling desde la
+   rejilla de baja resolución) — apenas cambia el área en píxeles (52%) pero "engancha" el contorno
+   externo al borde, y `cv2.contourArea` sobre ese contorno midió 98% en vez de 52%. Una apertura
+   morfológica (kernel 3×3) tras obtener la máscara lo elimina sin tocar la silueta real.
+
+### Decisión: `grounded_sam` backend por defecto en TODO el pipeline
+Con los dos bugs arreglados, el usuario decidió adoptarlo como backend por defecto siempre, no solo
+como opción. Cambiado el default en `extract_features()`, `predict_geometric.classify_image()`,
+`predict_cnn.classify_image()`, `predict_cascade.classify_image()` y los `--segmenter` de los 3
+scripts `evaluate_*_real_photos.py`. **Importante**: esto exige reentrenar geométrico e híbrido con
+features re-extraídas también con `grounded_sam` — servir en producción un backend distinto del que
+vio el modelo en entrenamiento es exactamente el desajuste que ya se sospechaba como causa de que
+FastSAM midiera peor pese a verse mejor a ojo (pendiente 8, sesión anterior).
+
+### Pipeline completo re-ejecutado con `grounded_sam`
+1. `build_dataset.py` sobre `renders/` y `renders_noisy_composited/` — mejor tasa de contorno
+   encontrado que `classic` (limpio: 2544/2760 vs 2414/2760; ruido: 1077/1220 vs 972/1220).
+2. Filtro de calidad `area_ratio>0.02` (mismo criterio que el 2026-07-25): mucho menos ruido que con
+   `classic` — 4.9%/3.2% de filas descartadas (limpio/ruido) frente al 5.1%/12.4% de antes. Combinado
+   final: 3462 filas (antes 3386).
+3. **Bug latente encontrado en `train_geometric.py`**: la generación de la tabla de referencia PCA
+   (`pca_pipeline.fit_transform(X)`) usa el `X` crudo sin imputar — 8 filas se quedan sin
+   `ellipse_ratio` (contorno con <5 puntos) y `PCA` no admite NaN a diferencia de
+   `RandomForestClassifier` (que sí los tolera de forma nativa desde hace unas versiones de
+   sklearn). Nunca se había disparado porque `classic` no producía esas filas; con `grounded_sam` sí.
+   Arreglado imputando con la media de columna antes del PCA.
+4. **Bug latente más serio en `train_cnn.py` (modelo híbrido)**: el mismo NaN en `ellipse_ratio`
+   llega sin imputar al `StandardScaler` → al tensor de la CNN, y **colapsa el entrenamiento entero
+   a `loss=nan` desde el primer batch que lo contiene** (visto en la primera corrida: accuracy de
+   validación estancada en 0.19, recall 0 en 7 de 9 grupos). Arreglado con la misma imputación por
+   media de columna antes de construir los datasets de train/val. Este bug es el mismo patrón que el
+   colapso del híbrido documentado el 2026-07-25 (columnas en píxeles absolutos) — otra variante de
+   "un valor raro en una fila cuela sin avisar y rompe todo el entrenamiento", vale la pena recordar
+   este patrón para la próxima vez que el híbrido dé números sospechosamente malos.
+5. MLflow/Postgres no estaban levantados (`docker compose up -d postgres mlflow` desde
+   `docker/`) — sin esto, `train_geometric.py`/`train_cnn.py` se quedan colgados en silencio
+   intentando conectar (sin ningún print antes, porque `mlflow.set_experiment()` va antes de cargar
+   el dataset).
+6. Reentrenado geométrico (`train_geometric.py`) e híbrido (`train_cnn.py --model-type hybrid`).
+   `cnn_only` NO se reentrena — no depende del backend de segmentación (no llama a
+   `extract_features` en ningún punto de su pipeline).
+
+### Resultados: salto grande en fotos reales
+
+| Modelo | Antes (classic, con filtro area_ratio) | Ahora (grounded_sam) |
+|---|---|---|
+| Geométrico | 0.27-0.33 | **0.5185** |
+| Híbrido | 0.3818 | **0.6296** |
+| Cascada (elongación+cnn_only) | 0.6000 (mejor histórico) | 0.5741 |
+| Geométrico, banco sintético fijo | — | 0.7731 |
+
+Geométrico e híbrido mejoran muchísimo — la segmentación deja de ser el cuello de botella que
+enmascaraba la capacidad real de los modelos. **Pero la cascada, que era el mejor resultado medido
+hasta ahora, ahora queda por DEBAJO del híbrido solo** (0.5741 vs 0.6296): la puerta de elongación
+se diseñó para rescatar `hueso_largo` cuando el resto del pipeline iba mal (cnn_only solo: 0.5273
+con classic) — con una segmentación tan buena, el híbrido ya no necesita ese parche, y forzar la
+regla geométrica en vez de dejar decidir al modelo puede estar restando en vez de sumando. El umbral
+`ELONGATION_THRESHOLD=0.900` tampoco se ha re-validado sobre la distribución de `elongation` que da
+`grounded_sam` (se fijó mirando datos de `classic`).
+
+### Limpieza del banco de fotos reales
+`hueso_largo_femur_02.jpg` mostraba el MISMO fémur en dos vistas (anterior/posterior) apiladas en
+una sola imagen — cualquier segmentación por objeto ve ahí dos blobs de hueso, no uno. Eliminada del
+banco (`data/real_world_benchmark/`, no versionado) y su fila de `manifest.csv`.
+
+### Pendiente
+10. Con el híbrido ahora por delante de la cascada, replantear qué modelo servir en producción
+    (`app/main.py` sirve hoy el geométrico simple, ni siquiera el híbrido/cascada — ver pendiente 3
+    de la sesión anterior sobre esto) — y si se despliega, el contenedor `app` necesita reiniciarse
+    para recoger los `.joblib`/`.pt` nuevos.
+11. Re-validar `ELONGATION_THRESHOLD` (cascada) sobre la distribución de `elongation` de
+    `grounded_sam`, no la de `classic` — puede que el umbral óptimo haya cambiado, o que la puerta ya
+    no aporte nada por las razones de arriba.
+12. `cranio_08.jpg` y similares (fotos de excavación in situ, primeros planos macro no
+    representativos) siguen sin revisar/curar en el banco de fotos reales — quedó apuntado durante
+    esta sesión pero no se llegó a hacer la pasada completa.

@@ -36,7 +36,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model-type", choices=["cnn_only", "hybrid"], default="cnn_only",
                    help="modelo de respaldo para lo que no capture la puerta de elongación")
-    p.add_argument("--segmenter", choices=["classic", "fastsam"], default="classic")
+    p.add_argument("--segmenter", choices=["classic", "fastsam", "grounded_sam"], default="grounded_sam")
     return p.parse_args()
 
 

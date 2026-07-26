@@ -90,7 +90,7 @@ def _load(model_type: str):
     return model, encoder, feature_cols, scaler, fallback_means
 
 
-def classify_image(image_file, model_type: str = "hybrid", backend: str = "classic") -> dict:
+def classify_image(image_file, model_type: str = "hybrid", backend: str = "grounded_sam") -> dict:
     """Clasifica una imagen (path o file-like) con la CNN.
 
     Devuelve:

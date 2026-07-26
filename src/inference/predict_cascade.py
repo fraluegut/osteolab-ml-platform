@@ -30,12 +30,13 @@ ELONGATION_THRESHOLD = 0.900  # umbral óptimo de un stump de profundidad 1 sobr
 GATED_CLASS = "hueso_largo"
 
 
-def classify_image(image_file, model_type: str = "cnn_only", backend: str = "classic") -> dict:
+def classify_image(image_file, model_type: str = "cnn_only", backend: str = "grounded_sam") -> dict:
     """Igual que `predict_cnn.classify_image`, pero primero prueba la puerta
     de elongación. Si no salta, delega en la CNN (`model_type` decide cuál).
-    `backend` es el backend de segmentación ("classic"/"fastsam", ver
-    `src/cv_extractor/extract.py`) usado tanto para medir `elongation` como,
-    si hace falta, para las features geométricas del modelo híbrido.
+    `backend` es el backend de segmentación ("grounded_sam"/"fastsam"/
+    "classic", ver `src/cv_extractor/extract.py`) usado tanto para medir
+    `elongation` como, si hace falta, para las features geométricas del
+    modelo híbrido.
 
     Devuelve el mismo formato que `predict_cnn.classify_image` más una clave
     `"gate"`: `"elongation_rule"` si decidió la regla geométrica, `"cnn"` si
