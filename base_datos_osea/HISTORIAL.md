@@ -1224,3 +1224,109 @@ tiene fondos ya bastante triviales de por sí, así que es la lectura menos info
     `train_cnn.py` de `timm` a `transformers` para el backbone (no es solo un flag). Se decidió
     esperar a tener un número limpio del recorte segmentado antes de cambiar también el backbone, para
     no mezclar dos variables a la vez.
+
+---
+
+## 2026-07-26 (cont.) — Migración a BlenderProc: implementada y validada, regeneración a escala EN CURSO
+
+### Qué se pidió y por qué
+Propuesta del usuario: unir el fix de `has_real_texture()` (commit `5dbca0d`) con una migración a
+BlenderProc, dándole margen para configurarlo "que aporte mucho valor" en vez de una migración 1:1.
+La razón de mayor peso para migrar: hoy `extract_features()` tiene que ADIVINAR el contorno del
+hueso sobre el render ya compuesto (Otsu/FastSAM/grounded_sam) — falla en huesos pequeños/lejanos de
+bajo contraste (~12% de renders limpios descartados por esto, ver sección de "renders en blanco" más
+arriba). BlenderProc puede exportar la máscara exacta desde la propia geometría 3D, sin adivinar nada.
+
+### Implementado (`base_datos_osea/blender/render_bone_bproc.py`)
+1. **Máscara ground-truth exacta**: con `film_transparent=True`, el canal alfa del render YA es la
+   silueta real del objeto — se guarda como `<vista>_mask.png` (alpha>250, umbral que excluye la
+   sombra de contacto de alpha parcial). Nueva función `extract_features_from_mask()` en
+   `extract.py` (+ `_compute_all_features()` factorizado de `extract_features` para no duplicar
+   lógica) mide sobre esa máscara en vez de correr un backend de segmentación — usada por el nuevo
+   `src/cv_extractor/build_dataset_bproc.py`.
+2. **HDRIs reales**: el downloader `blenderproc download haven` colgó/fue demasiado lento en este
+   entorno (probado con timeout de 90s, sin resultado, y de 60s directamente colgado) — en vez de
+   insistir, se usó la API pública de Poly Haven (`api.polyhaven.com`, misma fuente, CC0) directamente
+   con `requests` para bajar 14 HDRIs 1k a mano (`base_datos_osea/hdris/`, gitignored): 6 de estudio
+   fotográfico + 6 exteriores nublados + 2 de taller/workshop — variedad real de iluminación/reflejos
+   en vez del `World` de color sólido/degradado de antes.
+3. **Suciedad procedural en vez de descarga de texturas PBR externas**: `blenderproc download
+   cc_textures` (AmbientCG) no tiene forma de acotar el descargo (todo el catálogo, sin filtro) —
+   dado el tiempo disponible en esta sesión, se implementó `apply_procedural_dirt()`: ruido de
+   Blender (`ShaderNodeTexNoise` + `ColorRamp`) modulando color y roughness en parches, no un tono
+   plano único — sigue siendo un sustituto de las texturas PBR reales de la propuesta original, pero
+   sin depender de una descarga externa no acotada. Se aplica SOLO a mallas sin
+   `has_real_texture()`, exactamente igual que en `render_bone_noisy.py`.
+4. **Óptica variable**: focal length 24-70mm por vista (antes FOV fijo a 40°), con la distancia de
+   cámara recalculada por focal para mantener el hueso ocupando una fracción similar del encuadre.
+5. **Oclusiones/objetos de laboratorio (punto 5 de la lista original)**: NO implementado — sin una
+   fuente de assets 3D CC0 de "objetos de laboratorio" a mano y sin tiempo para prepararlos en esta
+   sesión, tal y como se avisó de antemano que podía pasar. Queda pendiente.
+
+### Problemas encontrados y resueltos durante la implementación
+- `blenderproc run` exige `import blenderproc as bproc` como PRIMERA línea del script (antes de
+  cualquier otro import, incluso el docstring del módulo) — falla con un error explícito si no.
+- Los argumentos del script van después de `--` en la CLI, pero `blenderproc run` internamente ya
+  los separa de los suyos (`sys.argv = sys.argv[:1] + unknown_args`) — NO queda un `--` literal que
+  buscar en `sys.argv` como sí pasa invocando `blender --python ... --` a pelo.
+- `bpy.ops.object.join()` para fusionar las sub-mallas del glTF en un único objeto falla con
+  "context is incorrect" incluso con `bpy.context.temp_override(...)` — el contexto headless de
+  blenderproc no expone lo que el operador espera. Solución: NO fusionar — operar sobre la LISTA de
+  sub-objetos (bbox/centroide agregados en espacio de mundo, material aplicado a cada uno), mismo
+  resultado visual sin el operador problemático.
+- Bug propio: mover `.location` de TODOS los objetos (incluidos los Empty padres de la jerarquía del
+  glTF) por `-centroide` desplaza a los hijos DOS VECES (una vez por la propia asignación, otra vez
+  por la herencia del transform del padre ya movido) — el hueso aparecía diminuto en una esquina.
+  Arreglado sin tocar ninguna `.location`: la cámara apunta directamente al centroide en espacio de
+  mundo, en vez de recentrar la escena.
+- `bproc.camera.set_intrinsics_from_blender_params()` no acepta `sensor_width` como parámetro (sí
+  `lens`/`lens_unit`) — el sensor se fija aparte con `cam.data.sensor_width` tras la llamada.
+- Nodos Empty de la jerarquía del glTF (agrupación/transform, sin malla) rompían `has_real_texture()`
+  y el cómputo de bbox con `AttributeError` (`.data` es `None`) — filtrados con `type == "MESH" and
+  data is not None` antes de procesar.
+
+Validado visualmente (igual que se hizo con `render_bone_noisy.py`): un cráneo de macaca con textura
+real (conserva la fotogrametría, incluida una etiqueta de catálogo manuscrita) y un fémur sin
+textura de origen (suciedad procedural en parches, no un tono plano) — cada uno sigue el camino
+correcto.
+
+### Estado de la regeneración a escala: EN CURSO, no completada en esta sesión
+Un primer intento de regenerar los 122 especímenes completos (mismo criterio que
+`renders_noisy_composited/`, 10 vistas cada uno) resultó demasiado lento para esta sesión: ~2.5-3
+min/espécimen medido en la práctica (arranque de `blenderproc run` + carga de malla + HDRI por
+vista), muy por encima de la estimación inicial (~6s/vista según un test de timing con 10 vistas de
+un único espécimen, que no capturaba bien el overhead de arrancar Blender fresco por invocación) —
+a ese ritmo, el lote completo tardaría 5-6 horas, inviable dentro de esta sesión.
+
+**Validación a escala reducida**: se generó un lote de 9 especímenes (uno por `bone_group`, 6 vistas
+cada uno) para probar el pipeline completo extremo a extremo — `build_dataset_bproc.py` extrajo 39
+filas válidas de 54 imágenes (15 descartadas sin máscara/contorno válido) usando la máscara
+ground-truth. **Decisión**: no se reentrenó ni reevaluó con esta muestra de 39 filas — comparar
+contra los ~1043 filas del `renders_noisy_composited/` actual no sería una lectura justa (tamaño de
+muestra demasiado distinto), así que reportar un número aquí habría sido engañoso.
+
+**Lote completo relanzado en background** (`base_datos_osea/scripts/render_noisy_batch_bproc.sh`,
+proceso `nohup` desacoplado de esta sesión, sigue corriendo tras cerrarla): 122 especímenes × 6
+vistas (reducido de 10 a 6 por tiempo, especímenes físicos distintos siguen siendo lo que importa,
+no vistas por especímen — mismo criterio que ya se estableció el 2026-07-23). Log en
+`/tmp/render_noisy_bproc.log`.
+
+### Pendiente (para retomar cuando el lote termine)
+15. Comprobar que `base_datos_osea/scripts/render_noisy_batch_bproc.sh` terminó (`grep BATCH_DONE
+    /tmp/render_noisy_bproc.log`), luego:
+    `python -m src.cv_extractor.build_dataset_bproc --renders-dir base_datos_osea/renders_noisy_bproc
+    --out data/processed/bone_geometric_features_noisy_bproc.csv`, recombinar con
+    `bone_geometric_features.csv` (limpio, sin tocar) en `bone_geometric_features_combined.csv`,
+    aplicar el filtro `area_ratio>0.02` de siempre, regenerar recortes segmentados
+    (`build_segmented_crops.py`), reentrenar geométrico + cnn_only + híbrido, reevaluar en los 3
+    bancos y comparar contra los números ya documentados hoy (geométrico 0.52, híbrido 0.63, cascada
+    0.57 en fotos reales) — todo con el mismo rigor de siempre, sin dar nada por sentado.
+16. Decidir si el nuevo `renders_noisy_bproc/` SUSTITUYE a `renders_noisy_composited/` (y por tanto
+    a `render_bone_noisy.py`+`render_noisy_batch.py`+`compose_noisy.py`) o convive con él — no
+    decidido todavía, pendiente de ver si los números justifican el reemplazo completo.
+17. Oclusiones/objetos de laboratorio (punto 5 de la propuesta original) sigue sin implementar —
+    necesitaría una fuente de assets 3D CC0 que no se buscó en esta sesión.
+18. `blenderproc download haven`/`download cc_textures` colgaron o fueron poco fiables en este
+    entorno — si se retoma esa vía en vez de la API de Poly Haven a mano, investigar por qué antes
+    de asumir que es solo lentitud de red (la API REST de Poly Haven respondió en <1s en la misma
+    sesión, así que no parece ser conectividad general).

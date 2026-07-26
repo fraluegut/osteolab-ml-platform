@@ -7,6 +7,8 @@ data/backgrounds/
 renders/
 renders_noisy/
 renders_noisy_composited/
+renders_noisy_bproc/
+hdris/
 .env
 
 .claude/

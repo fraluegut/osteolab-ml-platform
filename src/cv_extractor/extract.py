@@ -624,10 +624,43 @@ def extract_features(image_file, backend: str = "grounded_sam", include_crop: bo
         raise ValueError("No se pudo decodificar la imagen")
     image = _resize_to_canonical(image)
 
+    binary, contour = _locate_bone(image, backend)
+    return _compute_all_features(image, binary, contour, include_crop)
+
+
+def extract_features_from_mask(image_file, mask_file, include_crop: bool = False) -> dict:
+    """Igual que `extract_features`, pero con la máscara de segmentación YA
+    dada (p.ej. la máscara ground-truth que exporta BlenderProc desde la
+    propia geometría 3D, ver `render_bone_bproc.py` y HISTORIAL.md
+    2026-07-26) en vez de adivinarla con un backend de segmentación sobre
+    los píxeles. Evita el problema medido de huesos pequeños/lejanos y bajo
+    contraste que Otsu/FastSAM/grounded_sam fallan en detectar (~12% de
+    renders limpios descartados por esto) -- con la máscara exacta, esos
+    casos ya no se pierden."""
+    data = np.frombuffer(image_file.read(), dtype=np.uint8)
+    image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("No se pudo decodificar la imagen")
+    image = _resize_to_canonical(image)
+
+    mask_data = np.frombuffer(mask_file.read(), dtype=np.uint8)
+    mask = cv2.imdecode(mask_data, cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise ValueError("No se pudo decodificar la máscara")
+    if mask.shape[:2] != image.shape[:2]:
+        mask = cv2.resize(mask, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
+    binary = (mask > 127).astype(np.uint8) * 255
+    contour = _largest_contour(binary)
+    img_area = image.shape[0] * image.shape[1]
+    if contour is None or cv2.contourArea(contour) < img_area * MIN_CONTOUR_AREA_RATIO:
+        binary, contour = None, None
+    return _compute_all_features(image, binary, contour, include_crop)
+
+
+def _compute_all_features(image: np.ndarray, binary, contour, include_crop: bool) -> dict:
     img_h, img_w = image.shape[:2]
     img_area = img_h * img_w
 
-    binary, contour = _locate_bone(image, backend)
     if binary is None:
         return {"found": False, "image_size": {"width": img_w, "height": img_h}}
 
