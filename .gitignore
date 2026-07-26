@@ -9,5 +9,5 @@ dist/
 build/
 data/real_world_benchmark/
 data/backgrounds/
-data/ai_generated_review/
-data/ai_generated_accepted/
+data/real_photos_review/
+data/real_photos_accepted/

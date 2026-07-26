@@ -806,6 +806,78 @@ usen el MISMO segmentador) y reentrenar — no se ha hecho, es una inversión ba
 cambiar el backend suelto. **Se mantiene la cascada con segmentación clásica (0.60) como mejor
 configuración medida** — FastSAM no se adopta por ahora.
 
+### Pipeline de fotorrealismo con Stable Diffusion + revisor manual
+
+Petición del usuario: en vez de una GAN entrenada desde cero (inviable, ~75 fotos reales es muy
+poco dato, colapsaría), usar un modelo de difusión ya entrenado (gratis, local, sin pagar) en modo
+img2img para "fotorrealizar" los renders limpios que ya tenemos por miles — mantiene la forma 3D
+correcta, sustituye textura/fondo/iluminación por algo realista. Con revisión manual antes de que
+cuente para nada (un modelo de imagen genérico no sabe de anatomía ósea, va a generar bastante
+basura junto a resultados buenos).
+
+- `base_datos_osea/scripts/generate_ai_variants.py`: elige N especímenes al azar por
+  `bone_group` (solo de `renders/` limpios, no de los ya compuestos con ruido) y genera un
+  candidato por cada uno.
+- **Primer intento con `stabilityai/sd-turbo`** (1-4 pasos, sin guidance, pensado para velocidad):
+  descartado tras inspección visual — con tan pocos pasos y sin CFG el resultado era casi
+  idéntico al render de entrada (mismo fondo blanco liso, sin textura nueva), el prompt apenas
+  tenía margen para cambiar nada estructural.
+- **SD1.5 clásico** (`stable-diffusion-v1-5/stable-diffusion-v1-5`, 30 pasos, guidance=7.5,
+  strength=0.5) sí transforma de verdad: fondo con textura real (mármol, madera), tinción/pátina
+  en el hueso, manteniendo la silueta reconocible. Más lento por imagen (segundos en vez de
+  milisegundos) pero irrelevante en lotes de decenas/cientos.
+- Lote piloto: 27 candidatos (3 especímenes × 9 grupos) en `data/ai_generated_review/` (no
+  versionado) + `manifest.csv`. Inspección rápida de 2: el cráneo salió muy convincente (suturas
+  craneales, hasta un soporte de vitrina inventado); un fémur salió con una textura anillada poco
+  natural — exactamente el tipo de caso que debe rechazarse, confirma que la revisión manual hace
+  falta, no se puede aceptar todo automáticamente.
+- `base_datos_osea/scripts/review_ai_generated.py`: app Streamlit (puerto 8502, distinto del 8501
+  de producción) que muestra original vs. generado lado a lado con botones Aceptar/Rechazar;
+  decisión se guarda al momento en `manifest.csv` (se puede cerrar y retomar). Los aceptados se
+  copian a `data/ai_generated_accepted/<bone_group>/`.
+- **Pendiente de la usuaria**: revisar los 27 candidatos del lote piloto vía Streamlit antes de
+  generar más o de plantear usarlos en entrenamiento.
+
+### Descriptores de Fourier del contorno (propuesta del usuario): probado, descartado — pero saca un bug real
+
+Propuesta: en vez de seguir con reglas geométricas sueltas, usar descriptores elípticos de
+Fourier (EFD) del contorno completo — técnica clásica en morfometría geométrica para distinguir
+elementos óseos por silueta. Probado con `pyefd` (normalización Kuhl-Giardina correcta, no una
+versión casera): **42-44% de accuracy en renders de entrenamiento, 17-19% en fotos reales** — muy
+por debajo de las features ya existentes (64-71% interno). Combinarlo con las features actuales
+tampoco ayudó en la prueba (54.7%, aunque sobre una muestra pequeña, no 100% comparable).
+
+Conclusión: no es un fallo de implementación — la reconstrucción visual (`plot_efd`/
+`reconstruct_contour`, ver captura generada) confirma que con 10-20 armónicos el contorno
+reconstruido traza la silueta real con fidelidad cuando la segmentación es buena (cráneo, costilla,
+fémur de foto real, todos con reconstrucciones muy fieles). Simplemente no aporta información que
+no tuviéramos ya: `elongation`, `aspect_ratio`, momentos de Hu, etc. ya capturan "cómo es la
+silueta" de otras formas. **No se sigue por esta vía.**
+
+**Lo que sí valió la pena de la exploración**: la visualización reveló que 2 de las 8 muestras de
+entrenamiento pintadas tenían la segmentación completamente rota (contorno = textura del fondo,
+no el hueso) — en renders con ruido compuesto. Medido con `area_ratio` (ya calculado) como filtro
+barato: **7.3% de las 3653 filas de `bone_geometric_features_combined.csv` (267 filas) tenían
+`area_ratio` ≤ 0.02**, es decir, un contorno diminuto casi con toda seguridad espurio — 5.1% en
+renders limpios (130/2544), 12.4% en los de ruido (137/1109), 18.0% en el banco de ruido excluido
+(16/89). El banco limpio de evaluación (`bone_geometric_benchmark.csv`) salió limpio, 0%.
+
+**Arreglado**: filtradas las 4 tablas (`bone_geometric_features.csv`,
+`bone_geometric_features_noisy.csv`, `bone_geometric_benchmark.csv`,
+`bone_geometric_benchmark_noisy_excluded.csv`) por `area_ratio > 0.02`, `combined.csv`
+regenerado (3653→3386 filas), geométrico e híbrido reentrenados sobre los datos limpios:
+
+| Modelo | Fotos reales, antes del filtro | Fotos reales, después |
+|---|---|---|
+| Geométrico | 0.27-0.33 (ruidoso entre reentrenos) | 0.29 (dentro del mismo ruido) |
+| **Híbrido** | 0.3455 | **0.3818** |
+| Cascada | 0.6000 | 0.6000 (no usa estas tablas — `cnn_only` + regla en vivo, sin cambios) |
+
+El híbrido mejora de verdad (+3.6 puntos) con datos más limpios, sin cambiar nada del modelo. El
+geométrico sigue en la misma banda de ruido que ya conocíamos de reentrenar un RandomForest. La
+cascada, que sigue siendo el mejor resultado medido (0.60), no se ve afectada porque no depende de
+estas tablas de entrenamiento.
+
 ### Pendiente
 1. ~~Confirmar resultado de los 2 agentes de fotos reales y volver a correr `evaluate_real_photos.py`
    con el banco completo~~ — hecho, ver arriba. Nuevo pendiente que deja: `costilla`/`pelvis`/
@@ -841,6 +913,15 @@ configuración medida** — FastSAM no se adopta por ahora.
    una segunda regla (p.ej. curvatura, para separar "recto" de "curvado" dentro del grupo
    elongado) — no probado todavía, y con solo 2 fotos reales de costilla en el banco cualquier
    lectura ahí sería poco fiable hasta ampliarlo (ver punto 5).
+8. Propuesta del usuario tras el resultado de FastSAM: re-extraer features geométricas (renders
+   limpios + `renders_noisy_composited/`) usando `backend="fastsam"` en vez de Otsu, y reentrenar
+   geométrico + híbrido con eso — así entrenamiento y evaluación usarían el MISMO segmentador
+   (hoy el desajuste entre "Otsu en render limpio" vs. "FastSAM en foto real" es la hipótesis de
+   por qué FastSAM midió peor pese a verse mejor a ojo). No implementado: requiere pasar FastSAM
+   sobre ~4000 renders (factible, minutos en GPU) + reentrenar ambos modelos + re-evaluar los 3
+   bancos. Es la inversión "mayor" que se mencionaba en la sección de FastSAM de arriba.
+9. ~~Revisar los 27 candidatos de `data/ai_generated_review/`~~ — hecho, ver entrada 2026-07-26.
+   Rechazados todos, pipeline de fotorrealismo con IA abandonado.
 
 ---
 
@@ -910,3 +991,25 @@ consistencia.
   fuente (MorphoSource/Smithsonian) o aceptar el límite actual.
 - Sigue pendiente la pregunta abierta de la sesión anterior (ruido/aumento de datos + CNN como
   ejercicio aparte) — no se ha tocado hoy.
+
+---
+
+## 2026-07-26 — Rechazado el pipeline de fotorrealismo con IA
+
+Revisados a mano los 27 candidatos del lote piloto (`data/ai_generated_review/`, vía
+`review_ai_generated.py` en Streamlit puerto 8502). **Veredicto del usuario: todos horribles.**
+No fue un problema de un caso suelto (como el fémur con textura anillada ya detectado en la
+sesión anterior) — el lote entero, incluido el cráneo que en su momento pareció convincente
+(suturas craneales, soporte de vitrina inventado), no se sostiene a revisión completa.
+
+**Decisión: se abandona por completo la vía de fotorrealizar renders con Stable Diffusion
+img2img.** No se sigue con más lotes, ni con SD1.5 ni con ningún otro modelo de difusión para
+este propósito.
+
+**Limpieza**: eliminados `base_datos_osea/scripts/generate_ai_variants.py` y
+`base_datos_osea/scripts/review_ai_generated.py` (código muerto), y los directorios locales
+`data/ai_generated_review/` y `data/ai_generated_accepted/` (nunca estuvieron versionados). Se
+revierten las entradas correspondientes de `.gitignore`.
+
+Cierra el pendiente 9 de la sesión anterior. El pendiente 8 (reextraer con FastSAM + reentrenar)
+sigue abierto y sin relación con esto.

@@ -6,6 +6,7 @@ data/meshes/
 data/backgrounds/
 renders/
 renders_noisy/
+renders_noisy_composited/
 .env
 
 .claude/
