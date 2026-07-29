@@ -45,7 +45,7 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     ports:
-      - "8001:8000"
+      - "8017:8000"
     volumes:
       - ../data:/app/data
       - ../models:/app/models
@@ -53,7 +53,7 @@ services:
   ui:
     build:
       context: ..
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/Dockerfile.ui
     depends_on:
       - app
     environment:

@@ -1,4 +1,4 @@
 [core]
     remote = local-storage
 ['remote "local-storage"']
-    url = /home/fraluegut/dvc-storage
+    url = /root/dvc-storage

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
+from src.inference.predict_cnn import classify_image as hybrid_classify_image
 from src.inference.predict_geometric import classify_image, get_reference_points
 from src.bone_filter.predict import is_bone
 from src.clip_filter.predict import classify_image as clip_classify
@@ -37,6 +38,25 @@ async def classify(file: UploadFile = File(...)):
 
     try:
         return classify_image(file.file)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/hybrid/classify")
+async def hybrid_classification(file: UploadFile = File(...)):
+    """Clasificación híbrida usando el modelo CNN híbrido entrenado.
+
+    Este endpoint usa la segmentación de la imagen, extrae las features
+    geométricas y las combina con el embedding del backbone CNN para obtener
+    una predicción más robusta basada en el mejor modelo disponible.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+    try:
+        return hybrid_classify_image(file.file, model_type="hybrid")
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
