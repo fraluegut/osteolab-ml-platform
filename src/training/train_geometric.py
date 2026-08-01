@@ -27,6 +27,8 @@ el modelo que están evaluando, sin tener que adivinarlo por la fecha.
 """
 import argparse
 import json
+import logging
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 import os
@@ -47,6 +49,13 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 MODEL_DIR = BASE_DIR / "models"
 MODEL_DIR.mkdir(exist_ok=True, parents=True)
 PARAMS_PATH = BASE_DIR / "params.yaml"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("train_geometric")
 
 # img_width/img_height excluidas (2026-07-25): constantes exactas (512x512) en todos los renders
 # de entrenamiento, así que su desviación típica es ~0 — cualquier foto real de otra resolución
@@ -79,7 +88,9 @@ def load_dataset(csv_path: Path, target_col: str):
 
 
 def main():
+    t_start = time.monotonic()
     args = parse_args()
+    logger.info("[1/7] Cargando parámetros y dataset (target=%s)", args.target)
 
     with open(PARAMS_PATH) as f:
         params = yaml.safe_load(f)
@@ -100,6 +111,7 @@ def main():
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
 
+    logger.info("[2/7] Split train/test (test_size=%s)", training_params["test_size"])
     X_train, X_test, y_train, y_test, groups_train, groups_test = train_test_split(
         X,
         y_encoded,

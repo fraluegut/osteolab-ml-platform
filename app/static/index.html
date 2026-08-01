@@ -22,6 +22,7 @@
       <ul class="nav-links" id="navLinks">
         <li><a href="#inicio">Inicio</a></li>
         <li><a href="#proyecto">El proyecto</a></li>
+        <li><a href="#datos">Datos</a></li>
         <li><a href="#resultados">Resultados</a></li>
         <li><a href="#nosotros">Nosotros</a></li>
         <li><a href="#contacto">Contacto</a></li>
@@ -180,8 +181,146 @@
       </div>
     </section>
 
+    <!-- ============ DATOS ============ -->
+    <section id="datos" class="section section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Los datos</p>
+        <h2>De la malla 3D a la fila de entrenamiento</h2>
+        <p class="section-lead">
+          Cada fila que ve un modelo empieza como un espécimen 3D catalogado, pasa por un
+          render multi-vista con ruido sintético y, en un puñado de casos, se cruza con una
+          fotografía real aceptada tras revisión manual. Así queda el recuento actual.
+        </p>
+
+        <h3 class="subhead">Catálogo de mallas 3D</h3>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-value">122</span>
+            <span class="stat-label">especímenes descargados</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">11</span>
+            <span class="stat-label">especies distintas (mayoría <em>Homo sapiens</em>, resto primates de referencia)</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">21 → 9</span>
+            <span class="stat-label">huesos objetivo, agrupados en 9 grupos morfológicos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">3</span>
+            <span class="stat-label">fuentes: Sketchfab (80 esp.), MorphoSource (27 esp.), Smithsonian (7 esp.)</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">De malla a imagen</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Cada espécimen se renderiza desde 24 ángulos fijos. Ese render limpio (2419 vistas) se
+          combina con dos variantes de ruido sintético — clásico y BlenderProc (máscaras exactas,
+          HDRIs reales, suciedad procedural) — para formar el dataset combinado con el que se
+          entrena el modelo actual: <strong>3855 filas, 122 especímenes, 12 especies</strong>.
+        </p>
+
+        <h3 class="subhead">Fotos reales</h3>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-value">12</span>
+            <span class="stat-label">fotos reales ya en el entrenamiento — solo cubren 4 de los 9 grupos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">839</span>
+            <span class="stat-label">fotos reales candidatas en revisión, pendientes de aceptar</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">63</span>
+            <span class="stat-label">fotos reales en el banco de evaluación — nunca entrenan, son el examen</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">Desbalance por grupo morfológico</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Recuento de filas en el dataset combinado de entrenamiento, por grupo. La diferencia
+          entre el más y el menos representado es de casi 8.5×.
+        </p>
+        <div class="imbalance-chart">
+          <div class="imbalance-row">
+            <span class="imbalance-label">hueso_largo</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:100%"></span></span>
+            <span class="imbalance-value">952</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">hueso_pequeño</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:56.8%"></span></span>
+            <span class="imbalance-value">541</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">vértebra</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:46.8%"></span></span>
+            <span class="imbalance-value">446</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">mandíbula/maxilar</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:43.7%"></span></span>
+            <span class="imbalance-value">416</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">sacro</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:39.6%"></span></span>
+            <span class="imbalance-value">377</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">cráneo</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:36.8%"></span></span>
+            <span class="imbalance-value">350</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">costilla</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:35.9%"></span></span>
+            <span class="imbalance-value">342</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">hueso_plano</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:33.5%"></span></span>
+            <span class="imbalance-value">319</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">pelvis</span>
+            <span class="imbalance-track"><span class="imbalance-fill imbalance-fill-low" style="width:11.8%"></span></span>
+            <span class="imbalance-value">112</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">Cobertura de fotos reales por grupo</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          5 de los 9 grupos todavía entrenan sin ninguna foto real — toda su señal de "textura de
+          verdad" viene de síntesis. Es la brecha más clara a cerrar a continuación.
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Fotos reales · entrenamiento</th>
+                <th>Fotos reales · banco de evaluación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>cráneo</td><td>4</td><td>8</td></tr>
+              <tr><td>vértebra</td><td>4</td><td>8</td></tr>
+              <tr><td>pelvis</td><td>3</td><td>8</td></tr>
+              <tr><td>hueso_largo</td><td>1</td><td>8</td></tr>
+              <tr class="row-warn"><td>mandíbula/maxilar</td><td class="cell-warn">0</td><td>8</td></tr>
+              <tr class="row-warn"><td>hueso_plano</td><td class="cell-warn">0</td><td>9</td></tr>
+              <tr class="row-warn"><td>hueso_pequeño</td><td class="cell-warn">0</td><td>4</td></tr>
+              <tr class="row-warn"><td>sacro</td><td class="cell-warn">0</td><td>7</td></tr>
+              <tr class="row-warn"><td>costilla</td><td class="cell-warn">0</td><td>3</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ RESULTADOS ============ -->
-    <section id="resultados" class="section section-alt">
+    <section id="resultados" class="section">
       <div class="section-inner">
         <p class="section-eyebrow">Resultados</p>
         <h2>Rendimiento sobre fotos reales</h2>

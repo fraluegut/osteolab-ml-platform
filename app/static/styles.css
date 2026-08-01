@@ -242,6 +242,45 @@ a { color: inherit; }
 .table-note { margin-top: 1rem; font-size: 0.88rem; color: var(--ink-soft); max-width: 720px; }
 .results-table-compact th, .results-table-compact td { font-size: 0.88rem; padding: 0.6rem 1rem; }
 
+/* ---------- datos ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+}
+.stat-card {
+  background: var(--bone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.stat-value { font-size: 1.7rem; font-weight: 800; color: var(--terracotta); }
+.stat-label { font-size: 0.88rem; color: var(--ink-soft); line-height: 1.4; }
+
+.imbalance-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  background: var(--bone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+.imbalance-row { display: flex; align-items: center; gap: 0.9rem; font-size: 0.92rem; }
+.imbalance-label { width: 150px; flex-shrink: 0; }
+.imbalance-track { flex: 1; height: 14px; background: var(--sand); border-radius: 999px; overflow: hidden; }
+.imbalance-fill { display: block; height: 100%; background: var(--terracotta); border-radius: 999px; }
+.imbalance-fill-low { background: #b3402f; }
+.imbalance-value { width: 46px; text-align: right; flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.row-warn { background: color-mix(in srgb, #b3402f 6%, transparent); }
+.cell-warn { color: #b3402f; font-weight: 700; }
+
 /* ---------- nosotros ---------- */
 .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
 .team-card {
