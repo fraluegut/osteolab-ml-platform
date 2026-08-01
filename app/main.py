@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
+from fastapi.staticfiles import StaticFiles
 from src.inference.predict_cnn import classify_image as hybrid_classify_image
 from src.inference.predict_geometric import classify_image, get_reference_points
 from src.bone_filter.predict import is_bone
@@ -6,6 +9,8 @@ from src.clip_filter.predict import classify_image as clip_classify
 from src.cv_extractor.extract import extract_features
 
 app = FastAPI(title="OsteoLab", version="0.2.0")
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @app.get("/health")
@@ -151,3 +156,9 @@ async def filter_is_bone(file: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Montado al final: las rutas de arriba (API) se resuelven primero, esto solo
+# atrapa lo que no matchea ninguna — sirve la web de producto (app/static/)
+# en la misma URL que la API, sin necesitar CORS ni un segundo servicio.
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

@@ -8,6 +8,30 @@ Las mallas 3D, el render multi-vista y el dataset base vienen de la subcarpeta
 `base_datos_osea/` de este mismo repo (ver su `HISTORIAL.md` para el porqué de la taxonomía de
 9 grupos y de por qué se abandonó clasificar por hueso exacto o por especie).
 
+## Inicio rápido
+
+**Stack completo (Docker, recomendado para primera vez):**
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+Levanta `postgres` + `mlflow` + `app` (API) + `ui` (Streamlit). Web de producto y API en
+`http://localhost:8000`, UI Streamlit en `http://localhost:8501`, MLflow en
+`http://localhost:5000`. Ver [Cómo levantarlo](#cómo-levantarlo) para logs/parar/limpiar.
+
+**Solo API + web (sin Docker, si ya tienes el entorno Python y los modelos entrenados en `models/`):**
+
+```bash
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+Abre `http://localhost:8000` — sirve la web de producto (`app/static/`) y la API en el mismo
+puerto. No necesitas Postgres ni MLflow levantados solo para servir/probar el clasificador; solo
+hacen falta para entrenar y trackear experimentos nuevos.
+
 ## Stack
 
 | Componente | Tecnología | Puerto |
@@ -52,7 +76,8 @@ docker compose -f docker/docker-compose.yml down -v   # además borra datos de P
 
 ## Probar que funciona
 
-- **UI (recomendado)**: abre `http://localhost:8501`, sube una imagen de hueso y mira el grupo morfológico predicho, las probabilidades y dónde cae en el espacio PCA respecto a lo ya conocido.
+- **Web de producto**: abre `http://localhost:8000`, sección "Probarlo" — sube una imagen y compara la predicción del modelo geométrico y del híbrido lado a lado. También trae la presentación del proyecto, resultados y contacto (`app/static/`).
+- **UI Streamlit (pipeline paso a paso)**: abre `http://localhost:8501`, sube una imagen de hueso y mira el grupo morfológico predicho, las probabilidades y dónde cae en el espacio PCA respecto a lo ya conocido.
 - **API directa**:
   ```bash
   curl http://localhost:8000/health
