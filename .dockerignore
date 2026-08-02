@@ -9,7 +9,7 @@ venv/
 dist/
 build/
 notebooks/
-docker/
+mlops/docker/
 k8s/
 .gitignore
 README.md

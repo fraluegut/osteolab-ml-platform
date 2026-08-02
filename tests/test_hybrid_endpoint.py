@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
+from serving.backend.main import app
 
 
 def test_hybrid_classification_endpoint_uses_hybrid_model(monkeypatch):
@@ -13,7 +13,7 @@ def test_hybrid_classification_endpoint_uses_hybrid_model(monkeypatch):
             "cv_features": {"found": True},
         }
 
-    monkeypatch.setattr("app.main.hybrid_classify_image", fake_hybrid_classify)
+    monkeypatch.setattr("serving.backend.main.hybrid_classify_image", fake_hybrid_classify)
 
     client = TestClient(app)
     response = client.post(

@@ -1,20 +1,20 @@
 schema: '2.0'
 stages:
   train_geometric:
-    cmd: python -m src.training.train_geometric
+    cmd: python -m training.train_geometric
     deps:
     - path: data/processed/bone_geometric_features.csv
       hash: md5
       md5: 3f62b53a5a1c555e95ca142f20a9edf6
       size: 1819455
-    - path: src/cv_extractor/extract.py
+    - path: shared/cv_extractor/extract.py
       hash: md5
-      md5: 35d451f8eeeeeadfbc9d8a7c7fd811fd
-      size: 33722
-    - path: src/training/train_geometric.py
+      md5: b100a32d4a2e9175d7016673f8fe352f
+      size: 33755
+    - path: training/train_geometric.py
       hash: md5
-      md5: db7bed6989782489e3f468ae3155fb8b
-      size: 14842
+      md5: a28d8d498440f27babbbbdbe85c1641a
+      size: 15243
     params:
       params.yaml:
         geometric_dataset:

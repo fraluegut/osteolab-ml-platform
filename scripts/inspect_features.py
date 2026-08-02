@@ -21,7 +21,7 @@ from PIL import Image
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))  # streamlit no añade la raíz del repo por defecto
 
-from src.cv_extractor.extract import extract_features  # noqa: E402
+from shared.cv_extractor.extract import extract_features  # noqa: E402
 
 REAL_DIR = BASE_DIR / "data/real_world_benchmark"
 REAL_MANIFEST = REAL_DIR / "manifest.csv"

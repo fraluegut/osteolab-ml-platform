@@ -1,9 +1,9 @@
 stages:
   train_geometric:
-    cmd: python -m src.training.train_geometric
+    cmd: python -m training.train_geometric
     deps:
-      - src/training/train_geometric.py
-      - src/cv_extractor/extract.py
+      - training/train_geometric.py
+      - shared/cv_extractor/extract.py
       - data/processed/bone_geometric_features.csv
     params:
       - geometric_dataset
