@@ -375,6 +375,71 @@
             </tbody>
           </table>
         </div>
+
+        <h3 class="subhead">Especímenes 3D por grupo — hoy</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Especímenes físicos distintos (no vistas, no variantes de ruido) detrás de cada
+          grupo. Objetivo de trabajo: al menos 15 por grupo y variedad de especie, no solo
+          cantidad — <code>pelvis</code> y <code>hueso_plano</code> son la prioridad hoy.
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Especímenes 3D</th>
+                <th>Especies distintas</th>
+                <th>Objetivo</th>
+                <th>Faltan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-warn"><td>pelvis</td><td class="cell-warn">6</td><td>2</td><td>15</td><td class="cell-warn">9</td></tr>
+              <tr class="row-warn"><td>hueso_plano</td><td class="cell-warn">9</td><td>2</td><td>15</td><td class="cell-warn">6</td></tr>
+              <tr><td>costilla</td><td>10</td><td>2</td><td>15</td><td>5</td></tr>
+              <tr><td>sacro</td><td>10</td><td>2</td><td>15</td><td>5</td></tr>
+              <tr><td>mandíbula/maxilar</td><td>11</td><td>8</td><td>15</td><td>4</td></tr>
+              <tr><td>cráneo</td><td>14</td><td>8</td><td>15</td><td>1</td></tr>
+              <tr><td>hueso_pequeño</td><td>15</td><td>2</td><td>15</td><td class="cell-best">0</td></tr>
+              <tr><td>vértebra</td><td>16</td><td>3</td><td>15</td><td class="cell-best">0</td></tr>
+              <tr><td>hueso_largo</td><td>34</td><td>4</td><td>15</td><td class="cell-best">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          15 como piso no es una regla mágica: es donde ya están vértebra/hueso_pequeño, los
+          dos grupos "de en medio" en rendimiento — ni los mejores ni los peores del banco de
+          fotos reales (ver "Resultados"). hueso_largo con 34 especímenes es el que mejor
+          generaliza; pelvis con 6 es de los que peor recall da. Contar especies, no solo
+          especímenes: costilla/hueso_pequeño/pelvis/sacro/hueso_plano solo tienen 2 especies
+          cada uno — variar especie generaliza mejor que repetir la misma.
+        </p>
+
+        <h3 class="subhead">Catálogo completo — los 122 modelos 3D usados</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Cada fila es un espécimen real: enlace a la fuente (Sketchfab/MorphoSource/
+          Smithsonian) y una vista renderizada de esa misma malla, para verificar que la
+          imagen sale de donde dice que sale. <a href="/catalog/specimens.csv" download>Descargar como CSV ↓</a>
+        </p>
+        <div class="catalog-filters" id="catalogFilters"></div>
+        <div class="table-wrap">
+          <table class="results-table catalog-table" id="catalogTable">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Grupo</th>
+                <th>Especie</th>
+                <th>Hueso</th>
+                <th>Fuente</th>
+                <th>Licencia</th>
+                <th>Enlace</th>
+              </tr>
+            </thead>
+            <tbody id="catalogTableBody">
+              <tr><td colspan="7" class="table-note">Cargando catálogo…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 

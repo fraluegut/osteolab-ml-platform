@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import csv
+import io
+
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from shared.inference.predict_cnn import classify_image as hybrid_classify_image
@@ -12,10 +15,12 @@ from shared.clip_filter.predict import classify_image as clip_classify
 from shared.cv_extractor.extract import extract_features
 from shared.vlm_describe.predict import describe_image as qwen_describe_image
 from shared.bone_ingest import pipeline as bone_ingest
+from shared.catalog import specimens as catalog_specimens
 
 app = FastAPI(title="OsteoLab", version="0.2.0")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @app.get("/health")
@@ -283,6 +288,38 @@ def ingest_flag_review(item_id: str):
         raise HTTPException(status_code=404, detail=str(e))
     return item
 
+
+@app.get("/catalog/specimens")
+def catalog_list():
+    """Los 122 especímenes 3D curados (Sketchfab + MorphoSource + Smithsonian),
+    con su render de ejemplo — ver shared/catalog/specimens.py."""
+    return {"specimens": catalog_specimens.list_specimens()}
+
+
+@app.get("/catalog/specimens.csv")
+def catalog_csv():
+    """Mismo listado que /catalog/specimens, como CSV descargable."""
+    rows = catalog_specimens.list_specimens()
+    buf = io.StringIO()
+    fieldnames = ["source", "species", "bone_canonical", "bone_group", "specimen",
+                  "external_url", "license", "creator", "render_path"]
+    writer = csv.DictWriter(buf, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(rows)
+    buf.seek(0)
+    return StreamingResponse(
+        buf, media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=osteolab_catalogo_3d.csv"},
+    )
+
+
+# Sirve los renders de base_datos_osea/ para las miniaturas del catálogo 3D
+# (/catalog/specimens da rutas relativas al repo, esto las hace accesibles por HTTP).
+# Debe montarse ANTES del "/" de abajo — Starlette resuelve mounts en orden de
+# registro, y "/" como prefijo se comería cualquier ruta registrada después.
+_renders_dir = REPO_ROOT / "base_datos_osea" / "renders"
+if _renders_dir.is_dir():
+    app.mount("/catalog-renders", StaticFiles(directory=_renders_dir), name="catalog_renders")
 
 # Montado al final: las rutas de arriba (API) se resuelven primero, esto solo
 # atrapa lo que no matchea ninguna — sirve la web de producto (serving/backend/static/)
