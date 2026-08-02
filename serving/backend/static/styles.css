@@ -165,6 +165,8 @@ a { color: inherit; }
 .hero-stat { display: flex; flex-direction: column; }
 .hero-stat-value { font-size: 1.8rem; font-weight: 800; color: var(--terracotta); }
 .hero-stat-label { font-size: 0.85rem; color: var(--ink-soft); }
+.hero-footnote { font-size: 0.78rem; color: var(--ink-soft); max-width: 640px; margin: 1.5rem auto 0; line-height: 1.5; }
+.hero-footnote a { color: var(--terracotta); }
 
 /* ---------- sections ---------- */
 .section { padding: 5rem 1.5rem; }
@@ -422,6 +424,102 @@ a { color: inherit; }
 .result-viz-label { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 0.4rem; }
 .result-viz-img { width: 100%; max-width: 220px; display: block; border-radius: 8px; cursor: zoom-in; background: #fff; }
 .result-viz-img:hover { outline: 2px solid var(--terracotta); outline-offset: 2px; }
+
+/* ---------- ampliar base de datos ---------- */
+.ingest-form { display: flex; gap: 0.75rem; max-width: 640px; flex-wrap: wrap; }
+.ingest-input {
+  flex: 1;
+  min-width: 240px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bone);
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+.ingest-input:focus { outline: 2px solid var(--terracotta); outline-offset: 1px; }
+
+.ingest-jobs { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem; }
+.ingest-job {
+  background: var(--bone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+.ingest-job-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+.ingest-job-title { font-weight: 700; font-size: 1.05rem; }
+.ingest-job-meta { font-size: 0.82rem; color: var(--ink-soft); }
+.ingest-job-status { font-size: 0.85rem; color: var(--terracotta); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.ingest-job-actions { display: flex; gap: 0.75rem; align-items: center; margin: 1rem 0; flex-wrap: wrap; }
+.ingest-count { font-size: 0.85rem; color: var(--ink-soft); }
+
+.ingest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.ingest-item {
+  background: var(--bone-dim);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.72rem;
+}
+.ingest-item img { width: 100%; aspect-ratio: 1/1; object-fit: contain; background: #fff; border-radius: 6px; cursor: zoom-in; }
+.ingest-item-name { display: block; margin-top: 0.35rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ingest-item-group { display: block; color: var(--ink-soft); text-transform: capitalize; }
+.ingest-item-flag {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.ingest-item-flag:hover { border-color: var(--terracotta); color: var(--terracotta); }
+.ingest-item.is-accepted { opacity: 0.5; }
+.ingest-item.is-review { border-color: var(--terracotta); }
+
+/* ---------- identificación manual (tinder) ---------- */
+.tinder-empty { color: var(--ink-soft); font-size: 0.95rem; }
+.tinder-stack { max-width: 420px; }
+.tinder-progress { font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 0.75rem; }
+.tinder-card {
+  background: var(--bone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  text-align: center;
+}
+.tinder-img { width: 100%; max-height: 320px; object-fit: contain; background: #fff; border-radius: 8px; cursor: zoom-in; }
+.tinder-meta { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.tinder-name { font-weight: 700; font-size: 1.1rem; }
+.tinder-dims { font-size: 0.8rem; color: var(--ink-soft); }
+.tinder-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin: 1.25rem 0;
+}
+.tinder-group-btn {
+  padding: 0.7rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bone);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tinder-group-btn:hover { border-color: var(--terracotta); background: color-mix(in srgb, var(--terracotta) 8%, var(--bone)); }
 
 /* ---------- infraestructura ---------- */
 .infra-grid {

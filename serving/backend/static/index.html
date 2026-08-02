@@ -25,6 +25,8 @@
         <li><a href="#datos">Datos</a></li>
         <li><a href="#resultados">Resultados</a></li>
         <li><a href="#infraestructura">Infraestructura</a></li>
+        <li><a href="#ampliar-bd">Ampliar Base de Datos</a></li>
+        <li><a href="#identificacion-manual">Identificación Manual</a></li>
         <li><a href="#nosotros">Nosotros</a></li>
         <li><a href="#contacto">Contacto</a></li>
         <li><a href="#probar" class="nav-cta">Probarlo</a></li>
@@ -55,14 +57,21 @@
             <span class="hero-stat-label">grupos morfológicos</span>
           </div>
           <div class="hero-stat">
-            <span class="hero-stat-value">~75%</span>
-            <span class="hero-stat-label">acierto sobre fotos reales</span>
+            <span class="hero-stat-value">~78%</span>
+            <span class="hero-stat-label">balanced accuracy sobre fotos reales<sup>†</sup></span>
           </div>
           <div class="hero-stat">
             <span class="hero-stat-value">2</span>
             <span class="hero-stat-label">señales combinadas: forma + textura</span>
           </div>
         </div>
+        <p class="hero-footnote">
+          <sup>†</sup>Modelo híbrido, banco de 57 fotos reales nunca vistas en entrenamiento
+          (<a href="#resultados">detalle abajo</a>). Usamos balanced accuracy en vez de accuracy
+          plana porque con el desbalance de clases del dataset (8.5× entre el grupo más y menos
+          representado) la accuracy puede quedar bien aunque el modelo falle sistemáticamente en
+          varias clases — ver ejemplo real en "Resultados".
+        </p>
       </div>
     </section>
 
@@ -388,8 +397,8 @@
               <tr>
                 <th>Modelo</th>
                 <th>Descripción</th>
-                <th>Accuracy · solo síntesis</th>
-                <th>Accuracy · + 12 fotos reales</th>
+                <th>Accuracy · solo síntesis <span class="tag">histórico</span></th>
+                <th>Accuracy · + fotos reales <span class="tag">re-verificado hoy</span></th>
               </tr>
             </thead>
             <tbody>
@@ -397,34 +406,202 @@
                 <td>Geométrico</td>
                 <td>RandomForest sobre medidas OpenCV</td>
                 <td>0.5185</td>
-                <td class="cell-highlight">0.5926</td>
+                <td class="cell-highlight">0.5439</td>
               </tr>
               <tr>
                 <td>CNN</td>
                 <td>ResNet18 sobre píxeles del recorte segmentado</td>
                 <td>0.5741</td>
-                <td class="cell-highlight">0.6667</td>
+                <td class="cell-highlight">0.6842</td>
               </tr>
               <tr class="row-best">
                 <td>Híbrido<span class="badge">mejor modelo</span></td>
                 <td>CNN + medidas geométricas concatenadas</td>
                 <td>0.6852</td>
-                <td class="cell-highlight cell-best">0.7593</td>
+                <td class="cell-highlight cell-best">0.7719</td>
               </tr>
               <tr>
                 <td>Cascada</td>
-                <td>Regla de elongación → hueso largo; resto → CNN</td>
+                <td>Regla de elongación → hueso largo; resto → híbrido</td>
                 <td>0.6296</td>
-                <td class="cell-highlight">0.7222</td>
+                <td class="cell-highlight">0.7719</td>
               </tr>
             </tbody>
           </table>
         </div>
         <p class="table-note">
-          Accuracy sobre el banco de fotos reales (~55 imágenes, 9 grupos morfológicos),
-          segmentación Grounded-SAM. El desglose F1/precisión/recall por clase de esta
-          configuración final vive en el MLflow local del proyecto — no está exportado
-          todavía a este repositorio.
+          Columna "solo síntesis": accuracy histórica, checkpoint anterior a sumar fotos
+          reales al entrenamiento — no re-verificada (haría falta reentrenar esa variante
+          para tener también su macro-F1/balanced accuracy). Columna "+ fotos reales":
+          re-ejecutada hoy contra los modelos y el banco <strong>actuales</strong>
+          (57 de las 63 fotos del manifest — 6 no están ya en disco, ver nota abajo),
+          por eso difiere un poco del número citado en versiones anteriores de esta página.
+          Cascada sale idéntica al híbrido en este banco: la regla de elongación solo se
+          disparó en 8 fotos, y en las 8 coincidió con lo que la CNN ya predecía sola.
+        </p>
+
+        <h3 class="subhead">Accuracy esconde el desbalance — por eso el titular usa balanced accuracy</h3>
+        <p class="section-lead">
+          Con 8.5× de diferencia entre el grupo más y menos representado, un accuracy alto
+          puede convivir con una clase entera en 0% de recall (pasa exactamente con
+          "costilla" en el modelo geométrico, abajo). <strong>Balanced accuracy</strong> y
+          <strong>macro-F1</strong> promedian por clase antes de promediar entre clases, así
+          que una clase ignorada pesa igual que una que domina el dataset — no se puede
+          compensar acertando mucho en las clases fáciles.
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Modelo</th>
+                <th>n</th>
+                <th>Accuracy</th>
+                <th>Balanced accuracy</th>
+                <th>Macro F1</th>
+                <th>Macro precision</th>
+                <th>Macro recall</th>
+                <th>Top-3 accuracy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Geométrico</td>
+                <td>57</td>
+                <td>0.544</td>
+                <td>0.536</td>
+                <td>0.47</td>
+                <td>0.57</td>
+                <td>0.54</td>
+                <td>0.860</td>
+              </tr>
+              <tr>
+                <td>CNN</td>
+                <td>57</td>
+                <td>0.684</td>
+                <td>0.665</td>
+                <td>0.67</td>
+                <td>0.75</td>
+                <td>0.66</td>
+                <td>0.877</td>
+              </tr>
+              <tr class="row-best">
+                <td>Híbrido<span class="badge">mejor modelo</span></td>
+                <td>57</td>
+                <td class="cell-highlight">0.772</td>
+                <td class="cell-highlight cell-best">0.783</td>
+                <td class="cell-highlight cell-best">0.77</td>
+                <td>0.81</td>
+                <td>0.78</td>
+                <td>0.895</td>
+              </tr>
+              <tr>
+                <td>Cascada</td>
+                <td>57</td>
+                <td>0.772</td>
+                <td>0.783</td>
+                <td>0.77</td>
+                <td>0.81</td>
+                <td>0.78</td>
+                <td>0.895</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          Todas las cifras de esta tabla se generaron en la misma corrida, hoy, contra el
+          mismo banco de 57 fotos reales (<code>training/evaluate_cnn_real_photos.py</code> /
+          <code>evaluate_real_photos.py</code> / <code>evaluate_cascade_real_photos.py</code>,
+          segmentación Grounded-SAM). El híbrido pasa de 0.772 accuracy a 0.783 balanced
+          accuracy — sube, no baja: en este banco concreto no hay ninguna clase con recall
+          en 0 para el híbrido (ver desglose completo abajo), así que balanced accuracy no
+          lo penaliza. El geométrico sí lo sufre: 0.544 accuracy pero 0.47 de macro-F1,
+          arrastrado por "costilla" en 0.00 precisión/recall/F1.
+        </p>
+
+        <h3 class="subhead">Desglose por clase — los 4 modelos, banco completo</h3>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>n</th>
+                <th>Geométrico<br />P / R / F1</th>
+                <th>CNN<br />P / R / F1</th>
+                <th>Híbrido<br />P / R / F1</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-warn">
+                <td>costilla</td><td>3</td>
+                <td class="cell-warn">0.00 / 0.00 / 0.00</td>
+                <td>0.50 / 0.33 / 0.40</td>
+                <td class="cell-best">1.00 / 0.67 / 0.80</td>
+              </tr>
+              <tr>
+                <td>cráneo</td><td>6</td>
+                <td>0.33 / 0.67 / 0.44</td>
+                <td class="cell-best">1.00 / 0.83 / 0.91</td>
+                <td>0.67 / 0.67 / 0.67</td>
+              </tr>
+              <tr>
+                <td>hueso largo</td><td>8</td>
+                <td class="cell-best">0.89 / 1.00 / 0.94</td>
+                <td>1.00 / 0.25 / 0.40</td>
+                <td>0.88 / 0.88 / 0.88</td>
+              </tr>
+              <tr>
+                <td>hueso pequeño</td><td>3</td>
+                <td>0.43 / 1.00 / 0.60</td>
+                <td>0.67 / 0.67 / 0.67</td>
+                <td>0.43 / 1.00 / 0.60</td>
+              </tr>
+              <tr>
+                <td>hueso plano</td><td>8</td>
+                <td>1.00 / 0.38 / 0.55</td>
+                <td>0.38 / 0.62 / 0.48</td>
+                <td class="cell-best">1.00 / 0.62 / 0.77</td>
+              </tr>
+              <tr>
+                <td>mandíbula/maxilar</td><td>8</td>
+                <td>0.50 / 0.75 / 0.60</td>
+                <td class="cell-best">0.89 / 1.00 / 0.94</td>
+                <td>0.60 / 0.75 / 0.67</td>
+              </tr>
+              <tr class="row-warn">
+                <td>pelvis</td><td>8</td>
+                <td class="cell-warn">1.00 / 0.12 / 0.22</td>
+                <td>0.67 / 0.75 / 0.71</td>
+                <td class="cell-best">0.86 / 0.75 / 0.80</td>
+              </tr>
+              <tr>
+                <td>sacro</td><td>6</td>
+                <td>0.50 / 0.33 / 0.40</td>
+                <td>1.00 / 0.67 / 0.80</td>
+                <td class="cell-best">1.00 / 1.00 / 1.00</td>
+              </tr>
+              <tr>
+                <td>vértebra</td><td>7</td>
+                <td>0.44 / 0.57 / 0.50</td>
+                <td>0.60 / 0.86 / 0.71</td>
+                <td class="cell-best">0.83 / 0.71 / 0.77</td>
+              </tr>
+              <tr class="row-best">
+                <td><strong>Macro avg</strong></td><td>57</td>
+                <td>0.57 / 0.54 / 0.47</td>
+                <td>0.75 / 0.66 / 0.67</td>
+                <td class="cell-best">0.81 / 0.78 / 0.77</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          P / R / F1 = precisión / recall / F1-score por clase. Cascada no está en esta
+          tabla porque en el banco actual predice exactamente igual que Híbrido (ver nota
+          arriba). El geométrico falla sobre todo por baja <em>precisión o recall</em> en
+          clases con forma parecida a otra (pelvis→cráneo, costilla→hueso plano en la
+          matriz de confusión) — la CNN compensa esas confusiones con textura donde la
+          forma sola no alcanza; el híbrido combina ambas señales y es el único sin
+          ninguna clase en 0.
         </p>
 
         <h3 class="subhead">Por grupo morfológico: forma vs. textura</h3>
@@ -534,6 +711,58 @@
             <span class="infra-desc">Versiona datos y pipeline reproducible de entrenamiento.</span>
             <span class="infra-meta"><code>dvc repro</code> · <code>dvc status</code></span>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ AMPLIAR BASE DE DATOS ============ -->
+    <section id="ampliar-bd" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Ampliar base de datos</p>
+        <h2>Pega una URL de Sketchfab</h2>
+        <p class="section-lead">
+          Si el modelo trae los huesos como objetos separados (p. ej. un esqueleto
+          "desplegado"), cada uno se descarga, se separa y se renderiza por su cuenta.
+          El nombre que le puso el autor (<code>l_femur</code>, <code>c3</code>...) se
+          intenta mapear al grupo morfológico automáticamente; lo que no se reconoce con
+          confianza pasa a <a href="#identificacion-manual">Identificación Manual</a>.
+        </p>
+
+        <div class="ingest-form">
+          <input type="url" id="ingestUrlInput" class="ingest-input"
+                 placeholder="https://sketchfab.com/3d-models/..." />
+          <button id="ingestSubmitBtn" class="btn btn-primary">Analizar</button>
+        </div>
+        <div id="ingestStatus" class="demo-status" hidden></div>
+
+        <div id="ingestJobs" class="ingest-jobs"></div>
+      </div>
+    </section>
+
+    <!-- ============ IDENTIFICACIÓN MANUAL ============ -->
+    <section id="identificacion-manual" class="section section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Identificación manual</p>
+        <h2>¿Qué hueso es este?</h2>
+        <p class="section-lead">
+          Cola de huesos con nombre ambiguo o desconocido — el nombre del autor no
+          mapeó con confianza a ninguno de los 9 grupos. Elegí el grupo correcto o
+          descartalo si no sirve.
+        </p>
+
+        <div id="tinderEmpty" class="tinder-empty">No hay nada pendiente de revisión ahora mismo.</div>
+
+        <div id="tinderStack" class="tinder-stack" hidden>
+          <p class="tinder-progress" id="tinderProgress"></p>
+          <div class="tinder-card">
+            <img id="tinderImg" class="tinder-img" src="" alt="" data-zoomable />
+            <div class="tinder-meta">
+              <span id="tinderName" class="tinder-name"></span>
+              <span id="tinderDims" class="tinder-dims"></span>
+            </div>
+          </div>
+          <div class="tinder-groups" id="tinderGroups"></div>
+          <button id="tinderDiscard" class="btn btn-ghost">Descartar (no sirve)</button>
         </div>
       </div>
     </section>

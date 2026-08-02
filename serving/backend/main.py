@@ -1,7 +1,9 @@
 from pathlib import Path
 
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from shared.inference.predict_cnn import classify_image as hybrid_classify_image
 from shared.inference.predict_cnn import explain_gradcam
 from shared.inference.predict_geometric import classify_image, get_reference_points
@@ -9,6 +11,7 @@ from shared.bone_filter.predict import is_bone
 from shared.clip_filter.predict import classify_image as clip_classify
 from shared.cv_extractor.extract import extract_features
 from shared.vlm_describe.predict import describe_image as qwen_describe_image
+from shared.bone_ingest import pipeline as bone_ingest
 
 app = FastAPI(title="OsteoLab", version="0.2.0")
 
@@ -192,6 +195,93 @@ async def filter_is_bone(file: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class IngestSubmitRequest(BaseModel):
+    url: str
+
+
+class IngestDecideRequest(BaseModel):
+    item_id: str
+    accept: bool
+    bone_group: str | None = None
+    species: str | None = None
+
+
+@app.post("/ingest/submit")
+def ingest_submit(body: IngestSubmitRequest):
+    """Recibe una URL (o uid) de Sketchfab y lanza en un hilo aparte:
+    descarga -> separar por objeto (Blender) -> sugerir grupo por nombre.
+    Ver shared/bone_ingest/pipeline.py::submit_job.
+    """
+    try:
+        job_id = bone_ingest.submit_job(body.url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"job_id": job_id}
+
+
+@app.get("/ingest/jobs")
+def ingest_jobs():
+    """Todos los jobs de ingest (para "Ampliar Base de Datos"), con sus items."""
+    return bone_ingest.get_queue()["jobs"]
+
+
+@app.get("/ingest/jobs/{job_id}")
+def ingest_job_detail(job_id: str):
+    jobs = bone_ingest.get_queue()["jobs"]
+    job = jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"job {job_id} no existe")
+    return job
+
+
+@app.post("/ingest/jobs/{job_id}/bulk-accept")
+def ingest_bulk_accept(job_id: str):
+    """Acepta en bloque todos los items "suggested" (nombre reconocido con
+    confianza) de un job — no toca los que ya están en "needs_review"."""
+    try:
+        n = bone_ingest.bulk_accept_suggested(job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"accepted": n}
+
+
+@app.get("/ingest/thumbnail/{job_id}/{filename}")
+def ingest_thumbnail(job_id: str, filename: str):
+    path = bone_ingest.INGEST_DIR / job_id / "thumbnails" / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Miniatura no encontrada")
+    return FileResponse(path)
+
+
+@app.get("/ingest/review-queue")
+def ingest_review_queue():
+    """Items con nombre ambiguo/desconocido — la cola de "Identificación
+    Manual" (Tinder)."""
+    return {"items": bone_ingest.get_review_items()}
+
+
+@app.post("/ingest/decide")
+def ingest_decide(body: IngestDecideRequest):
+    """Decisión manual (Tinder o lista de "Ampliar Base de Datos"): aceptar
+    con un grupo morfológico, o rechazar."""
+    try:
+        item = bone_ingest.decide_item(body.item_id, body.accept, body.bone_group, body.species)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return item
+
+
+@app.post("/ingest/items/{item_id}/flag-review")
+def ingest_flag_review(item_id: str):
+    """Manda un item "suggested" a revisión manual en vez de aceptar la
+    sugerencia automática a ciegas."""
+    try:
+        item = bone_ingest.flag_for_review(item_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return item
 
 
 # Montado al final: las rutas de arriba (API) se resuelven primero, esto solo
