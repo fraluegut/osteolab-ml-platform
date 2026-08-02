@@ -21,3 +21,4 @@ accelerate
 opencv-python-headless
 pandas
 plotly
+bitsandbytes

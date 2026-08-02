@@ -24,6 +24,7 @@
         <li><a href="#proyecto">El proyecto</a></li>
         <li><a href="#datos">Datos</a></li>
         <li><a href="#resultados">Resultados</a></li>
+        <li><a href="#infraestructura">Infraestructura</a></li>
         <li><a href="#nosotros">Nosotros</a></li>
         <li><a href="#contacto">Contacto</a></li>
         <li><a href="#probar" class="nav-cta">Probarlo</a></li>
@@ -220,6 +221,55 @@
           entrena el modelo actual: <strong>3855 filas, 122 especímenes, 12 especies</strong>.
         </p>
 
+        <div class="pipeline-example">
+          <div class="pipeline-step">
+            <div class="pipeline-embed-wrap">
+              <iframe
+                title="Human Femur — modelo 3D en Sketchfab"
+                class="pipeline-embed"
+                src="https://sketchfab.com/models/a9c1f1a88b104c3fbfe975fa10b31b31/embed"
+                allow="autoplay; fullscreen; xr-spatial-tracking"
+                loading="lazy"
+              ></iframe>
+            </div>
+            <p class="pipeline-caption">
+              <strong>1. Espécimen catalogado</strong> — <em>Human Femur</em>, escaneado por el
+              laboratorio de anatomía de Eric Bauer (Elon University). CC Attribution.
+              <a href="https://sketchfab.com/3d-models/human-femur-a9c1f1a88b104c3fbfe975fa10b31b31" target="_blank" rel="noopener">Ver en Sketchfab ↗</a>
+            </p>
+          </div>
+
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/dataset/femur-clean.png" alt="Render limpio del fémur sobre fondo blanco" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>2. Render limpio</strong> — una de las 24 vistas fijas generadas en Blender
+              a partir de la malla, sin ruido ni fondo.
+            </p>
+          </div>
+
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/dataset/femur-bg.jpg" alt="Render del fémur compuesto sobre una foto de fondo real (tierra)" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>3. + fondo real</strong> — el render (RGBA) se compone sobre una foto real
+              de <code>data/backgrounds/</code> (mesa, tierra, mármol, tela...) para que el modelo
+              no aprenda a depender del fondo blanco de estudio.
+            </p>
+          </div>
+
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/dataset/femur-bproc.png" alt="Render del fémur con BlenderProc: HDRI real y suciedad procedural" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>4. Variante BlenderProc</strong> — pipeline alternativo con HDRI real,
+              suciedad procedural y máscara ground-truth exacta exportada de la geometría.
+            </p>
+          </div>
+        </div>
+
+        <div class="lightbox" id="lightbox" hidden>
+          <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+          <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+        </div>
+
         <h3 class="subhead">Fotos reales</h3>
         <div class="stat-grid">
           <div class="stat-card">
@@ -409,6 +459,85 @@
       </div>
     </section>
 
+    <!-- ============ INFRAESTRUCTURA ============ -->
+    <section id="infraestructura" class="section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Infraestructura</p>
+        <h2>De qué partes está hecho OsteoLab</h2>
+        <p class="section-lead">
+          El repo separa entrenamiento, servicio al usuario, código compartido y
+          orquestación en carpetas independientes. <code>./run.sh</code> levanta el stack
+          completo con Docker Compose; cada pieza también puede correr suelta.
+        </p>
+
+        <h3 class="subhead">Servicios (con URL de acceso)</h3>
+        <div class="infra-grid">
+          <a class="infra-card" href="http://localhost:8000" target="_blank" rel="noopener">
+            <span class="infra-icon">🚀</span>
+            <span class="infra-name">API backend <span class="tag">FastAPI</span></span>
+            <span class="infra-desc">Inferencia + web de producto (<code>/classify</code>, <code>/hybrid/classify</code>, <code>/pca/reference</code>...).</span>
+            <span class="infra-meta"><code>http://localhost:8000</code></span>
+            <span class="infra-path">serving/backend/</span>
+          </a>
+          <a class="infra-card" href="http://localhost:8501" target="_blank" rel="noopener">
+            <span class="infra-icon">🎛️</span>
+            <span class="infra-name">UI Streamlit <span class="tag">demo</span></span>
+            <span class="infra-desc">Pipeline paso a paso: sube imagen → CLIP → medir + clasificar → PCA.</span>
+            <span class="infra-meta"><code>http://localhost:8501</code></span>
+            <span class="infra-path">serving/frontend/</span>
+          </a>
+          <a class="infra-card" href="http://localhost:5000" target="_blank" rel="noopener">
+            <span class="infra-icon">📊</span>
+            <span class="infra-name">MLflow <span class="tag">tracking</span></span>
+            <span class="infra-desc">Experimentos, métricas y modelos registrados de cada entrenamiento.</span>
+            <span class="infra-meta"><code>http://localhost:5000</code></span>
+            <span class="infra-path">mlops/docker/</span>
+          </a>
+          <div class="infra-card">
+            <span class="infra-icon">🐘</span>
+            <span class="infra-name">PostgreSQL <span class="tag">interno</span></span>
+            <span class="infra-desc">Backend de almacenamiento de MLflow. Sin UI propia.</span>
+            <span class="infra-meta"><code>postgres:5432</code> (solo red interna de Docker)</span>
+            <span class="infra-path">mlops/docker/docker-compose.yml</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">Código y pipeline (sin servicio propio)</h3>
+        <div class="infra-grid">
+          <div class="infra-card">
+            <span class="infra-icon">🧠</span>
+            <span class="infra-name">training/ <span class="tag">CLI</span></span>
+            <span class="infra-desc">Entrena y evalúa los 3 modelos (geométrico, CNN, híbrido).</span>
+            <span class="infra-meta"><code>python -m training.train_geometric</code></span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🧩</span>
+            <span class="infra-name">shared/ <span class="tag">librería</span></span>
+            <span class="infra-desc">Código compartido entre training y serving: filtros CLIP/ResNet18, extracción de features (OpenCV) e inferencia.</span>
+            <span class="infra-meta">importado como <code>shared.*</code>, no se ejecuta solo</span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🐳</span>
+            <span class="infra-name">mlops/docker/ <span class="tag">Docker</span></span>
+            <span class="infra-desc">Dockerfiles + <code>docker-compose.yml</code>: orquesta postgres, mlflow, API y UI.</span>
+            <span class="infra-meta"><code>./run.sh</code></span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🌬️</span>
+            <span class="infra-name">mlops/airflow/ <span class="tag">no desplegado</span></span>
+            <span class="infra-desc">DAG de orquestación del pipeline de entrenamiento. Todavía no forma parte de <code>docker-compose.yml</code>.</span>
+            <span class="infra-meta">mlops/airflow/dags/train_pipeline.py</span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🗂️</span>
+            <span class="infra-name">DVC <span class="tag">CLI</span></span>
+            <span class="infra-desc">Versiona datos y pipeline reproducible de entrenamiento.</span>
+            <span class="infra-meta"><code>dvc repro</code> · <code>dvc status</code></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ NOSOTROS ============ -->
     <section id="nosotros" class="section">
       <div class="section-inner">
@@ -448,8 +577,10 @@
         <p class="section-eyebrow">Probarlo</p>
         <h2>Sube una foto de un hueso</h2>
         <p class="section-lead">
-          La imagen se procesa con los dos modelos: el geométrico (medidas OpenCV) y el
-          híbrido (CNN + medidas). Ninguna imagen se guarda de forma permanente.
+          Primero pasa por el filtro CLIP (¿es un hueso?); si lo confirma, se dispara en
+          paralelo contra los 3 modelos: el geométrico (medidas OpenCV), el híbrido (CNN +
+          medidas) y Qwen2.5-VL 7B, un VLM general al que se le pide describir lo que ve y
+          razonar su propia sugerencia. Ninguna imagen se guarda de forma permanente.
         </p>
 
         <div class="demo-panel">
@@ -470,6 +601,31 @@
 
           <div id="demoStatus" class="demo-status" hidden></div>
 
+          <div class="flow" id="flow" hidden>
+            <div class="flow-step" id="flowClip" data-status="pending">
+              <span class="flow-step-icon">🔍</span>
+              <span class="flow-step-label">1. Filtro CLIP — ¿es un hueso?</span>
+              <span class="flow-step-status"></span>
+            </div>
+            <div class="flow-branch">
+              <div class="flow-step" id="flowGeometric" data-status="pending">
+                <span class="flow-step-icon">📐</span>
+                <span class="flow-step-label">Geométrico</span>
+                <span class="flow-step-status"></span>
+              </div>
+              <div class="flow-step" id="flowHybrid" data-status="pending">
+                <span class="flow-step-icon">🧬</span>
+                <span class="flow-step-label">CNN Híbrido</span>
+                <span class="flow-step-status"></span>
+              </div>
+              <div class="flow-step" id="flowQwen" data-status="pending">
+                <span class="flow-step-icon">💬</span>
+                <span class="flow-step-label">Qwen2.5-VL 7B</span>
+                <span class="flow-step-status"></span>
+              </div>
+            </div>
+          </div>
+
           <div class="results-grid" id="resultsGrid" hidden>
             <div class="result-card" id="cardGeometric">
               <h3>Modelo geométrico</h3>
@@ -477,6 +633,10 @@
             </div>
             <div class="result-card" id="cardHybrid">
               <h3>Modelo híbrido <span class="badge">mejor modelo</span></h3>
+              <div class="result-body"></div>
+            </div>
+            <div class="result-card" id="cardQwen">
+              <h3>Qwen2.5-VL 7B <span class="tag">VLM zero-shot</span></h3>
               <div class="result-body"></div>
             </div>
           </div>

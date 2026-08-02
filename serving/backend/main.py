@@ -3,10 +3,12 @@ from pathlib import Path
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from shared.inference.predict_cnn import classify_image as hybrid_classify_image
+from shared.inference.predict_cnn import explain_gradcam
 from shared.inference.predict_geometric import classify_image, get_reference_points
 from shared.bone_filter.predict import is_bone
 from shared.clip_filter.predict import classify_image as clip_classify
 from shared.cv_extractor.extract import extract_features
+from shared.vlm_describe.predict import describe_image as qwen_describe_image
 
 app = FastAPI(title="OsteoLab", version="0.2.0")
 
@@ -64,6 +66,40 @@ async def hybrid_classification(file: UploadFile = File(...)):
         return hybrid_classify_image(file.file, model_type="hybrid")
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/explain/gradcam")
+async def explain_gradcam_endpoint(file: UploadFile = File(...), model_type: str = Form("hybrid")):
+    """Grad-CAM del backbone ResNet18 (CNN/híbrido): qué región de la imagen
+    pesó más en la predicción. Ver shared/inference/predict_cnn.py::explain_gradcam.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+    if model_type not in ("cnn_only", "hybrid"):
+        raise HTTPException(status_code=400, detail="model_type debe ser 'cnn_only' o 'hybrid'")
+
+    try:
+        return explain_gradcam(file.file, model_type=model_type)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/describe/qwen")
+async def describe_qwen(file: UploadFile = File(...)):
+    """Descripción libre + sugerencia de grupo morfológico con Qwen2.5-VL 7B
+    (VLM zero-shot, en lenguaje natural). Corre en paralelo con los modelos
+    geométrico e híbrido — no es un filtro previo, es una tercera opinión
+    para comparar contra ellos; ver shared/vlm_describe/.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+    try:
+        return qwen_describe_image(file.file)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

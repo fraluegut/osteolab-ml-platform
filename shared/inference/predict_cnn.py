@@ -11,10 +11,14 @@ llamada (con el mismo fallback de medias de entrenamiento para features que
 salgan `None`) — así que ambas comparten una única pasada de segmentación
 por imagen, no dos.
 """
+import base64
+import io
 from functools import lru_cache
 from pathlib import Path
 
+import cv2
 import joblib
+import numpy as np
 import pandas as pd
 import timm
 import torch
@@ -138,4 +142,94 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
         "prediction": prediction,
         "probabilities": class_probabilities,
         "cv_features": raw_features if model_type == "hybrid" else None,
+    }
+
+
+def _encode_png(image: Image.Image) -> str:
+    buf = io.BytesIO()
+    image.convert("RGB").save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def explain_gradcam(image_file, model_type: str = "hybrid", backend: str = "grounded_sam") -> dict:
+    """Grad-CAM sobre la última etapa convolucional del backbone ResNet18
+    (`backbone.layer4`), calculado respecto a la clase predicha — qué región
+    del recorte que ve la CNN pesó más en esa predicción. Pensado para
+    evaluar si el modelo mira el hueso o se apoya en fondo/ruido/artefactos.
+
+    No aplica al modelo geométrico (Random Forest sobre medidas OpenCV, sin
+    capas convolucionales) — ahí se usa `mask_overlay_base64` de
+    `extract_features()` en su lugar.
+
+    Devuelve:
+        {
+          "found": bool,
+          "prediction": str,
+          "heatmap_base64": str,   # PNG: el recorte con el mapa de calor superpuesto
+        }
+    """
+    model, encoder, feature_cols, scaler, fallback_means = _load(model_type)
+
+    raw_features = extract_features(image_file, backend=backend, include_crop=True)
+    if not raw_features.get("found"):
+        return {"found": False}
+
+    geom_tensor = torch.zeros((1, 0), dtype=torch.float32)
+    if model_type == "hybrid":
+        flat = flatten_features(raw_features)
+        row = [[
+            flat[col] if flat[col] is not None else fallback_means[col]
+            for col in feature_cols
+        ]]
+        scaled = scaler.transform(row)
+        geom_tensor = torch.tensor(scaled, dtype=torch.float32)
+
+    crop_image = raw_features.pop("crop_image")
+    image_tensor = _TRANSFORM(crop_image).unsqueeze(0).to(_DEVICE)
+    geom_tensor = geom_tensor.to(_DEVICE)
+
+    activations, gradients = {}, {}
+
+    def save_activation(_module, _input, output):
+        activations["value"] = output
+
+    def save_gradient(_module, _grad_input, grad_output):
+        gradients["value"] = grad_output[0]
+
+    target_layer = model.backbone.layer4
+    fwd_handle = target_layer.register_forward_hook(save_activation)
+    bwd_handle = target_layer.register_full_backward_hook(save_gradient)
+
+    try:
+        model.zero_grad(set_to_none=True)
+        logits = model(image_tensor, geom_tensor)
+        class_idx = int(logits.argmax(dim=1).item())
+        logits[0, class_idx].backward()
+
+        acts = activations["value"][0]  # [C, H, W]
+        grads = gradients["value"][0]  # [C, H, W]
+        weights = grads.mean(dim=(1, 2))  # [C], global average pool de los gradientes
+        cam = torch.relu((weights[:, None, None] * acts).sum(dim=0))  # [H, W]
+    finally:
+        fwd_handle.remove()
+        bwd_handle.remove()
+        model.zero_grad(set_to_none=True)
+
+    cam = cam.detach().cpu().numpy()
+    cam -= cam.min()
+    cam_max = cam.max()
+    if cam_max > 1e-8:
+        cam /= cam_max
+
+    crop_rgb = np.array(crop_image.convert("RGB"))
+    h, w = crop_rgb.shape[:2]
+    cam_resized = cv2.resize(cam, (w, h))
+    heatmap = cv2.applyColorMap((cam_resized * 255).astype(np.uint8), cv2.COLORMAP_JET)
+    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+    overlay = (0.55 * crop_rgb + 0.45 * heatmap).astype(np.uint8)
+
+    return {
+        "found": True,
+        "prediction": encoder.inverse_transform([class_idx])[0],
+        "heatmap_base64": _encode_png(Image.fromarray(overlay)),
     }
