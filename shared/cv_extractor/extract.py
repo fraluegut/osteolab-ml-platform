@@ -203,6 +203,114 @@ def _segment_grounded_sam(image_bgr: np.ndarray) -> np.ndarray:
     return mask
 
 
+def _segment_grounded_sam_all(image_bgr: np.ndarray, text_prompt: str = GROUNDED_SAM_TEXT_PROMPT,
+                               box_threshold: float = GROUNDED_SAM_BOX_THRESHOLD) -> list[np.ndarray]:
+    """Como `_segment_grounded_sam` pero devuelve TODAS las cajas de Grounding
+    DINO por encima del umbral (no solo `argmax`), cada una segmentada por SAM
+    por separado — para fotos con varios huesos sueltos del mismo tipo en un
+    plano (costillas en abanico/parrilla, ver HISTORIAL.md 2026-08-03: esas
+    fotos se descartaban enteras por no poder recortarse limpio con un
+    rectángulo, cuando en realidad cada hueso individual sí es segmentable).
+
+    2026-08-03: usado por `segment_instances()` para producir un recorte por
+    hueso en vez de descartar la imagen entera cuando hay varios.
+    """
+    import torch
+    from PIL import Image as PILImage
+
+    h, w = image_bgr.shape[:2]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    pil_image = PILImage.fromarray(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB))
+
+    dino_processor, dino_model = _load_grounding_dino()
+    inputs = dino_processor(images=pil_image, text=text_prompt, return_tensors="pt").to(device)
+    with torch.no_grad():
+        outputs = dino_model(**inputs)
+    detections = dino_processor.post_process_grounded_object_detection(
+        outputs, threshold=box_threshold, text_threshold=GROUNDED_SAM_TEXT_THRESHOLD,
+        target_sizes=[(h, w)],
+    )[0]
+    if len(detections["boxes"]) == 0:
+        return []
+
+    sam_processor, sam_model = _load_sam()
+    masks_out = []
+    for box in detections["boxes"].tolist():
+        sam_inputs = sam_processor(pil_image, input_boxes=[[box]], return_tensors="pt").to(device)
+        with torch.no_grad():
+            sam_outputs = sam_model(**sam_inputs)
+        masks = sam_processor.image_processor.post_process_masks(
+            sam_outputs.pred_masks.cpu(), sam_inputs["original_sizes"].cpu(), sam_inputs["reshaped_input_sizes"].cpu(),
+        )
+        candidate_masks = masks[0][0].numpy()
+        best_mask_idx = int(candidate_masks.reshape(len(candidate_masks), -1).mean(axis=1).argmax())
+        mask = (candidate_masks[best_mask_idx].astype(np.uint8)) * 255
+        kernel = np.ones((3, 3), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        masks_out.append(mask)
+    return masks_out
+
+
+def _dedupe_overlapping_masks(masks: list[np.ndarray], iou_threshold: float = 0.6) -> list[np.ndarray]:
+    """Grounding DINO puede devolver varias cajas casi idénticas para el mismo
+    hueso físico (una detección redundante con score algo distinto) — sin
+    esto, `segment_instances` produciría 2 fotos casi iguales del mismo hueso
+    en vez de una por hueso real. Se queda con la de mayor área entre cada par
+    que se solapa por encima de `iou_threshold`."""
+    keep = []
+    areas = [int((m > 0).sum()) for m in masks]
+    order = sorted(range(len(masks)), key=lambda i: areas[i], reverse=True)
+    for i in order:
+        mi = masks[i] > 0
+        is_dup = False
+        for j in keep:
+            mj = masks[j] > 0
+            inter = np.logical_and(mi, mj).sum()
+            union = np.logical_or(mi, mj).sum()
+            if union > 0 and inter / union > iou_threshold:
+                is_dup = True
+                break
+        if not is_dup:
+            keep.append(i)
+    return [masks[i] for i in keep]
+
+
+def segment_instances(image_file, text_prompt: str = GROUNDED_SAM_TEXT_PROMPT,
+                       box_threshold: float = GROUNDED_SAM_BOX_THRESHOLD,
+                       bg_gray: int = 128) -> list["Image.Image"]:
+    """Para una foto con VARIOS huesos sueltos del mismo tipo (costillas en
+    abanico/parrilla, vértebras en grid...): detecta cada uno por separado
+    (Grounding DINO, todas las cajas por encima de umbral) y devuelve una
+    lista de recortes — uno por hueso, con TODO lo demás (fondo + los otros
+    huesos de la foto) pintado de gris neutro, igual que `segment_and_crop`
+    pero aplicado hueso a hueso en vez de a la imagen entera.
+
+    Uso: `python -m shared.cv_extractor.segment_instances_cli <carpeta>` (ver
+    ese script) para procesar un lote y revisar visualmente antes de aceptar
+    nada en el manifest — el recorte automático puede fallar si dos huesos
+    están pegados/solapados de verdad, no solo próximos.
+    """
+    data = np.frombuffer(image_file.read(), dtype=np.uint8)
+    image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("No se pudo decodificar la imagen")
+    image = _resize_to_canonical(image)
+
+    masks = _segment_grounded_sam_all(image, text_prompt=text_prompt, box_threshold=box_threshold)
+    img_area = image.shape[0] * image.shape[1]
+    masks = [m for m in masks if (m > 0).sum() >= img_area * MIN_CONTOUR_AREA_RATIO]
+    masks = _dedupe_overlapping_masks(masks)
+
+    crops = []
+    for mask in masks:
+        contour = _largest_contour(mask)
+        if contour is None:
+            continue
+        x, y, w, h = cv2.boundingRect(contour)
+        crops.append(_crop_masked(image, mask, x, y, w, h, bg_gray))
+    return crops
+
+
 FASTSAM_CHECKPOINT = "models/FastSAM-s.pt"
 
 
@@ -364,6 +472,101 @@ def _menger_curvature(p1, p2, p3) -> float:
     return 4 * area / denom if denom > 1e-9 else 0.0
 
 
+def _signed_turning_angle(p1, p2, p3) -> float:
+    """Ángulo de giro (con signo) entre el segmento p1->p2 y p2->p3, en
+    radianes — positivo si gira a la izquierda, negativo a la derecha. A
+    diferencia de `_menger_curvature` (magnitud, sin signo), esto permite
+    distinguir "gira siempre hacia el mismo lado" (arco, como una costilla) de
+    "gira para un lado y para otro" (recta con ruido, o forma en S)."""
+    v1 = np.asarray(p2) - np.asarray(p1)
+    v2 = np.asarray(p3) - np.asarray(p2)
+    n1, n2 = np.linalg.norm(v1), np.linalg.norm(v2)
+    if n1 < 1e-9 or n2 < 1e-9:
+        return 0.0
+    cos_a = np.clip(np.dot(v1, v2) / (n1 * n2), -1.0, 1.0)
+    angle = float(np.arccos(cos_a))
+    cross = v1[0] * v2[1] - v1[1] * v2[0]
+    return angle if cross >= 0 else -angle
+
+
+def _fit_circle_residual(points: np.ndarray) -> float | None:
+    """Ajuste algebraico de círculo (Kåsa) a `points` — devuelve el residuo
+    RMS normalizado por el radio ajustado (0 = encaja perfecto en un arco de
+    circunferencia, mayor cuanto más se aleje esa forma de un arco limpio).
+    `None` si el ajuste degenera (puntos casi colineales, radio no finito)."""
+    pts = np.asarray(points, dtype=np.float64)
+    x, y = pts[:, 0], pts[:, 1]
+    A = np.column_stack([x, y, np.ones_like(x)])
+    b = x ** 2 + y ** 2
+    try:
+        sol, *_ = np.linalg.lstsq(A, b, rcond=None)
+    except np.linalg.LinAlgError:
+        return None
+    cx, cy = sol[0] / 2, sol[1] / 2
+    r_sq = sol[2] + cx ** 2 + cy ** 2
+    if r_sq <= 1e-6:
+        return None
+    r = float(np.sqrt(r_sq))
+    dists = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+    residual = float(np.sqrt(np.mean((dists - r) ** 2)))
+    return residual / r if r > 1e-6 else None
+
+
+def _fit_line_residual(points: np.ndarray) -> float:
+    """Distancia RMS de `points` a la recta que mejor ajusta (mínimos
+    cuadrados) — 0 si son colineales, mayor cuanto más se curve la forma.
+    Los puntos ya vienen en coordenadas (a lo largo del eje principal,
+    desviación perpendicular), así que un ajuste simple y = a·x + b es
+    suficiente sin necesitar rotación adicional."""
+    pts = np.asarray(points, dtype=np.float64)
+    x, y = pts[:, 0], pts[:, 1]
+    A = np.column_stack([x, np.ones_like(x)])
+    sol, *_ = np.linalg.lstsq(A, y, rcond=None)
+    pred = A @ sol
+    return float(np.sqrt(np.mean((y - pred) ** 2)))
+
+
+def _axis_shape_features(centerline: list[tuple[float, float]]) -> dict:
+    """Propuesta del usuario (2026-08-03, pensada para separar costilla —muy
+    tortuosa, gira siempre igual— de huesos largos —casi rectos—):
+    tortuosidad, giro acumulado, consistencia del giro, y ajuste a
+    arco/línea. Todo calculado sobre la misma `centerline` que ya produce
+    `_width_profile_and_curvature` (sin segmentar ni muestrear de nuevo)."""
+    if len(centerline) < 3:
+        return {
+            "tortuosity": 0.0, "total_turning_angle": 0.0, "turning_consistency": 0.0,
+            "circle_fit_residual": None, "line_fit_residual": 0.0,
+        }
+
+    pts = np.asarray(centerline, dtype=np.float64)
+    chord = float(np.linalg.norm(pts[-1] - pts[0]))
+    arc_length = float(np.sum(np.linalg.norm(np.diff(pts, axis=0), axis=1)))
+    tortuosity = round(arc_length / chord, 4) if chord > 1e-6 else 0.0
+
+    signed_angles = [
+        _signed_turning_angle(centerline[i - 1], centerline[i], centerline[i + 1])
+        for i in range(1, len(centerline) - 1)
+    ]
+    total_abs_turning = sum(abs(a) for a in signed_angles)
+    # consistencia: 1.0 = gira siempre hacia el mismo lado (arco limpio, como
+    # una costilla); 0.0 = gira igual a un lado que al otro (recta con ruido,
+    # o una forma en S) — el signo se cancela al sumar en ese caso.
+    turning_consistency = (
+        round(abs(sum(signed_angles)) / total_abs_turning, 4) if total_abs_turning > 1e-9 else 0.0
+    )
+
+    circle_residual = _fit_circle_residual(pts)
+    line_residual = _fit_line_residual(pts)
+
+    return {
+        "tortuosity": tortuosity,
+        "total_turning_angle": round(total_abs_turning, 4),
+        "turning_consistency": turning_consistency,
+        "circle_fit_residual": round(circle_residual, 4) if circle_residual is not None else None,
+        "line_fit_residual": round(line_residual, 4),
+    }
+
+
 def _width_profile_and_curvature(contour: np.ndarray, box_points: np.ndarray, n_samples: int = 20) -> dict:
     """Perfil de anchura a lo largo del eje principal del hueso (n_samples
     cortes perpendiculares equiespaciados) y curvatura de la línea central
@@ -389,6 +592,8 @@ def _width_profile_and_curvature(contour: np.ndarray, box_points: np.ndarray, n_
         return {
             "width_profile": empty_profile, "mean_width": 0.0, "std_width": 0.0,
             "max_width": 0.0, "min_width": 0.0, "curvature_mean": 0.0, "curvature_max": 0.0,
+            "tortuosity": 0.0, "total_turning_angle": 0.0, "turning_consistency": 0.0,
+            "circle_fit_residual": None, "line_fit_residual": 0.0,
         }
 
     sample_xs = np.linspace(x_min, x_max, n_samples)
@@ -409,6 +614,23 @@ def _width_profile_and_curvature(contour: np.ndarray, box_points: np.ndarray, n_
         for i in range(1, len(centerline) - 1)
     ]
 
+    # `centerline` viene del punto medio de cada corte de anchura — sensible al
+    # ruido del borde de la máscara (foto real, artefactos de SAM), así que un
+    # tramo perfectamente recto puede mostrar zigzag punto a punto que no es
+    # curvatura real del hueso, solo ruido de medición. `curvature_mean/max` ya
+    # existía y se deja tal cual (no tocar su comportamiento ya validado); para
+    # las métricas nuevas de tortuosidad/giro se usa una versión suavizada
+    # (media móvil en la desviación perpendicular, la coordenada con ruido —
+    # la posición a lo largo del eje ya es uniforme por construcción).
+    ys = np.array([c[1] for c in centerline])
+    if len(ys) >= 5:
+        kernel = np.ones(3) / 3
+        ys_smooth = np.convolve(ys, kernel, mode="same")
+        ys_smooth[0], ys_smooth[-1] = ys[0], ys[-1]
+    else:
+        ys_smooth = ys
+    smoothed_centerline = [(c[0], float(ys_smooth[i])) for i, c in enumerate(centerline)]
+
     return {
         "width_profile": [round(w, 2) for w in widths],
         "mean_width": round(float(widths_arr.mean()), 2),
@@ -417,6 +639,7 @@ def _width_profile_and_curvature(contour: np.ndarray, box_points: np.ndarray, n_
         "min_width": round(float(widths_arr.min()), 2),
         "curvature_mean": round(float(np.mean(curvatures)), 6) if curvatures else 0.0,
         "curvature_max": round(float(np.max(curvatures)), 6) if curvatures else 0.0,
+        **_axis_shape_features(smoothed_centerline),
     }
 
 
@@ -612,6 +835,11 @@ def extract_features(image_file, backend: str = "grounded_sam", include_crop: bo
           "mean_width": float, "std_width": float, "max_width": float, "min_width": float,
           "curvature_mean": float, "curvature_max": float,   # de la línea central (1/px)
           "width_profile": [float] * 20,   # anchura en 20 cortes a lo largo del eje principal
+          "tortuosity": float,       # longitud del eje / distancia entre extremos (1.0 = recto)
+          "total_turning_angle": float,   # suma de los giros del eje, en radianes (0 = recto)
+          "turning_consistency": float,   # 0-1, 1.0 = gira siempre hacia el mismo lado (arco limpio)
+          "circle_fit_residual": float | None,   # RMS al mejor círculo ajustado, /radio (None si degenera)
+          "line_fit_residual": float,     # RMS a la mejor recta ajustada al eje
           "n_holes": int, "holes_area_ratio": float, "largest_hole_area_ratio": float,  # forámenes/agujeros internos
           "n_deep_grooves": int, "max_groove_depth": float, "mean_groove_depth": float,  # muescas articulares (defectos de convexidad)
           "annotated_image_base64": str,   # imagen con las medidas pegadas a cada lado

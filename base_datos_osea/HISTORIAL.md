@@ -1940,8 +1940,69 @@ ambos bancos: `accepted/test` (n=72) para seguimiento fino por grupo epoch a epo
 siquiera aportaron nada al pool de entrenamiento.
 
 ### Pendiente
-42. `costilla` y `hueso_plano` con recall 0.25 real en el examen de 72 fotos — con n=4 cada uno ya
-    empieza a ser una señal seria, no solo ruido. Revisar qué está fallando (confusión con qué
-    clases, ver matriz) antes de simplemente añadir más fotos a ciegas.
+42. ~~`costilla` con recall 0.25~~ — resuelto, ver más abajo (sube a 0.89).
 43. Considerar ampliar también `real_world_benchmark` (sigue en n=9 el held_out) para tener un
     segundo control totalmente externo con más muestra.
+
+### Sexta ronda: segmentación multi-instancia + 5 métricas de forma nuevas — costilla 0.25→0.89
+
+Propuesta del usuario: para las fotos de costilla con VARIOS huesos sueltos en la misma imagen (ya
+descartadas enteras en la ronda anterior por no poder recortarse limpio con un rectángulo), segmentar
+cada hueso por separado y pintar el resto de gris — y de paso, añadir métricas de forma pensadas para
+distinguir costilla (muy tortuosa) de hueso_largo (casi recto): tortuosidad, giro acumulado,
+consistencia del giro, ajuste a arco, ajuste a línea.
+
+**1. Segmentación multi-instancia** (`segment_instances()` en `extract.py`, nuevo
+`segment_instances_cli.py`): en vez de quedarse con la caja de mayor score de Grounding DINO (como
+`_segment_grounded_sam`), detecta TODAS las cajas por encima de umbral, segmenta cada una con SAM por
+separado, descarta duplicados casi idénticos (IoU de máscara), y devuelve un recorte por hueso con
+todo lo demás (fondo + los otros huesos) pintado de gris — mismo criterio que ya existía para
+`costilla_104/105` (recortes manuales de una foto con 3 costillas), ahora automatizado.
+
+Probado sobre las 7 fotos de costilla más densas (7-24 costillas cada una, descartadas enteras antes):
+42 recortes candidatos generados, revisados uno a uno con un contact sheet — **28 limpios** (un hueso
+por recorte), 14 descartados (varias costillas fusionadas en una caja, típico cuando están muy juntas
+o solapadas — las fotos de "parrilla"/ribcage completo casi no separan bien, esperable). `costilla`
+pasa de 18 a 46 fotos reales (37 train / 9 test tras re-estratificar el split solo para este grupo).
+
+**2. Cinco métricas de forma nuevas**, calculadas sobre la misma `centerline` que ya usaba
+`curvature_mean/max` (sin segmentar de nuevo): `tortuosity` (longitud del eje / distancia entre
+extremos), `total_turning_angle` (suma de giros, radianes), `turning_consistency` (0-1, si el giro es
+siempre hacia el mismo lado como un arco, o se cancela como en una recta con ruido), `circle_fit_residual`
+(RMS al mejor círculo ajustado, /radio) y `line_fit_residual` (RMS a la mejor recta ajustada). La
+`centerline` cruda resultó ruidosa punto a punto (viene de punto medio de anchura por corte, sensible
+al borde de la máscara) — se suaviza con media móvil antes de calcular estas 5, sin tocar
+`curvature_mean/max` (que se dejan como estaban).
+
+**Efectos secundarios encontrados al re-extraer TODO el dataset sintético** (necesario para que las 5
+columnas nuevas tengan valores reales en sintético, no solo en fotos reales):
+- `base_datos_osea/renders/` había crecido desde la última vez que se generaron estas tablas (más
+  especímenes acumulados con el tiempo, nunca se había vuelto a extraer) — 2419→2544 filas limpias,
+  1043→1077 ruido clásico, 381→414 BlenderProc. Más volumen sintético de regalo, no relacionado con
+  las métricas nuevas.
+- **Bug encontrado**: `build_segmented_crops.py` (añade la columna `segmented_path` que necesita
+  `cnn_dataset.py` para cargar el recorte de imagen) no incluía `bone_geometric_features_noisy.csv`
+  en su lista `TABLES` — el CSV commiteado SÍ tenía esa columna (se había añadido en algún momento
+  anterior sin dejar el cambio en el script). Al regenerar `bone_geometric_features*.csv` desde cero,
+  esa tabla se quedó sin la columna y **rompió el entrenamiento** (crash en el primer batch). Arreglado
+  añadiendo la tabla a `TABLES` y re-corriendo — 0 filas perdidas al recortar de nuevo.
+
+Reentrenado el híbrido (`model_seed=42`, todo lo demás igual que la ronda anterior):
+- Val sintético: `costilla` sube a 0.816 recall (antes bailaba entre 0.5-0.7 según la ronda). Banco
+  limpio: 0.838.
+- **Examen honesto (`accepted/test`, ahora 77 fotos: 72→77 por las nuevas costillas): accuracy 0.8442,
+  balanced 0.7959** (similar al 0.8472/0.7631 de la ronda anterior en global, pero mejor balanced).
+  **`costilla`: recall 0.25 → 0.89 (8/9)** — el punto débil más claro de la sesión, resuelto.
+  `hueso_plano` sigue flojo (0.25, n=4) — ahora el punto débil claro que queda, sin tocar en esta
+  ronda (no se le sumaron fotos ni se le aplicó segmentación multi-instancia).
+
+### Pendiente
+44. `hueso_plano` (recall 0.25, n=4) es ahora el punto débil objetivo más claro — mismo patrón que
+    costilla antes de esta ronda: candidato a segmentación multi-instancia si hay fotos con varias
+    escápulas/esternones juntos, o simplemente más fotos reales (sigue con pocas, 20 en total).
+45. Aplicar `segment_instances()` a las fotos densas ya identificadas de otros grupos (vertebra tenía
+    4 imágenes muy densas sin recortar, pendiente #37) ahora que la herramienta existe y funciona.
+46. Considerar métricas de forma equivalentes para otros grupos con geometría distintiva no capturada
+    aún (ej. número de bifurcaciones del esqueleto, propuesta del usuario no implementada por
+    complejidad/prioridad más baja — huesos con forma en Y o ramificada, ninguno de los 9 grupos
+    actuales la tiene marcadamente, bajo valor esperado por ahora).

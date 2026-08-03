@@ -41,8 +41,17 @@ OUT_DIR = REPO_ROOT / "data/segmented_crops"
 # "mask": renders de BlenderProc, cada vista trae su `<...>_mask.png` hermano
 # (ver render_bone_bproc.py) -- se usa esa máscara exacta, más barato y más
 # fiel que volver a segmentar con grounded_sam sobre el color ya renderizado.
+#
+# 2026-08-03: `bone_geometric_features_noisy.csv` (ruido clásico compuesto)
+# faltaba de esta lista pese a que el CSV commiteado SÍ traía `segmented_path`
+# — se había añadido en algún momento anterior sin dejar el cambio en
+# `TABLES` (o corrido con una versión modificada del script). Al regenerar
+# `bone_geometric_features*.csv` desde cero (nuevas features de forma,
+# 2026-08-03) esa tabla se quedó sin la columna y rompió el entrenamiento
+# (`cnn_dataset.py` la necesita para cargar el recorte). Reincorporada aquí.
 TABLES = [
     ("data/processed/bone_geometric_features.csv", "grounded_sam"),
+    ("data/processed/bone_geometric_features_noisy.csv", "grounded_sam"),
     ("data/processed/bone_geometric_features_noisy_bproc.csv", "mask"),
     ("data/processed/bone_geometric_benchmark.csv", "grounded_sam"),
     ("data/processed/bone_geometric_benchmark_noisy_bproc_excluded.csv", "mask"),
