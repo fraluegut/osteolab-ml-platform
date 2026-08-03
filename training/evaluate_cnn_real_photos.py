@@ -36,8 +36,10 @@ def _git_commit() -> str:
         return "desconocido"
 
 
-def _iter_images():
+def _iter_images(split: str | None):
     df = pd.read_csv(MANIFEST_PATH)
+    if split is not None and "split" in df.columns:
+        df = df[df["split"] == split]
     for _, row in df.iterrows():
         path = BENCHMARK_DIR / row["bone_group"] / row["filename"]
         if not path.exists():
@@ -51,6 +53,12 @@ def parse_args():
     p.add_argument("--model-type", choices=["cnn_only", "hybrid"], default="hybrid")
     p.add_argument("--segmenter", choices=["classic", "fastsam", "grounded_sam"], default="grounded_sam",
                    help="backend de segmentación (solo afecta a 'hybrid', 'cnn_only' no usa geometría)")
+    p.add_argument("--split", choices=["all", "selection", "held_out"], default="all",
+                   help="2026-08-03: si train_cnn.py seleccionó el checkpoint maximizando "
+                        "real_bench_acc sobre el subconjunto 'selection' de este mismo banco "
+                        "(ver HISTORIAL.md), evaluar con --split=all o --split=selection es "
+                        "circular — para un número honesto de generalización usar "
+                        "--split=held_out (las fotos que el entrenamiento nunca vio).")
     return p.parse_args()
 
 
@@ -63,7 +71,8 @@ def main():
     probas, proba_true = [], []
     n_not_found = 0
 
-    for path, true_group, meta in _iter_images():
+    split_filter = None if args.split == "all" else args.split
+    for path, true_group, meta in _iter_images(split_filter):
         with path.open("rb") as f:
             result = classify_image(f, model_type=args.model_type, backend=args.segmenter)
         if not result["found"]:
@@ -114,6 +123,7 @@ def main():
         mlflow.log_param("n_images", len(y_true))
         mlflow.log_param("n_not_found", n_not_found)
         mlflow.log_param("segmenter", args.segmenter)
+        mlflow.log_param("split", args.split)
         mlflow.set_tag("model_type", args.model_type)
         mlflow.set_tag("segmenter", args.segmenter)
         mlflow.log_metric("accuracy", accuracy)

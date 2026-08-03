@@ -41,13 +41,16 @@ import pandas as pd
 import timm
 import torch
 import torch.nn as nn
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, recall_score
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader
 
+from shared.cv_extractor.build_dataset import flatten_features
+from shared.cv_extractor.extract import extract_features
 from training.cnn_dataset import (
     BoneImageDataset,
+    build_transform,
     geometric_feature_columns,
     resolve_source_path,
     specimen_split,
@@ -58,6 +61,8 @@ MODEL_DIR = BASE_DIR / "models"
 MODEL_DIR.mkdir(exist_ok=True, parents=True)
 TARGET = "bone_group"
 DEFAULT_DATASET = BASE_DIR / "data/processed/bone_geometric_features_combined.csv"
+REAL_BENCH_DIR = BASE_DIR / "data/real_world_benchmark"
+REAL_BENCH_MANIFEST = REAL_BENCH_DIR / "manifest.csv"
 DEFAULT_BENCHMARK = BASE_DIR / "data/processed/bone_geometric_benchmark.csv"
 
 
@@ -98,9 +103,32 @@ def parse_args():
     p.add_argument("--epochs-finetune", type=int, default=10)
     p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--lr-head", type=float, default=1e-3)
+    p.add_argument("--lr-head-finetune", type=float, default=None,
+                    help="LR de la cabeza en fase 2 (descongelada); por defecto igual a lr_head. "
+                         "Se probó bajarlo a lr_head/10 (hipótesis: menos descalibración de la "
+                         "cabeza al descongelar el backbone) pero perdió en 3/3 semillas de modelo "
+                         "contra el banco real de 63 fotos (media 0.661 vs 0.684) — ver HISTORIAL.md "
+                         "2026-08-03. Flag disponible para reabrir la comparación si cambia el "
+                         "dataset o el backbone.")
     p.add_argument("--lr-backbone", type=float, default=1e-5)
     p.add_argument("--val-size", type=float, default=0.2)
-    p.add_argument("--random-state", type=int, default=42)
+    p.add_argument("--random-state", type=int, default=42,
+                    help="Semilla del split train/val (specimen_split) — cambiarla cambia QUÉ "
+                         "especímenes caen en val, no solo la inicialización del modelo.")
+    p.add_argument("--model-seed", type=int, default=None,
+                    help="Semilla de inicialización del modelo y orden de batches "
+                         "(torch.manual_seed/np.random.seed); por defecto igual a --random-state. "
+                         "Separado de --random-state para poder repetir el mismo split con distinta "
+                         "inicialización (ver HISTORIAL.md 2026-08-03: sin esto, comparar 2 configs "
+                         "de entrenamiento confunde el efecto de la config con el ruido de init).")
+    p.add_argument("--select-by-real-bench", action="store_true",
+                    help="Seleccionar checkpoint maximizando real_bench_acc (subconjunto "
+                         "'selection' de data/real_world_benchmark) en vez de val_acc sintético. "
+                         "Default False: probado el 2026-08-03 y, medido de forma honesta contra "
+                         "el subconjunto held_out (nunca visto en selección), dio 0.4444 — peor que "
+                         "el criterio de val_acc sintético (0.684-0.702 documentado con 3 semillas). "
+                         "El banco real se sigue precomputando y logueando (`real_bench_acc`) "
+                         "aunque este flag esté apagado, solo para verlo en MLflow sin que decida.")
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--tag", action="append", default=[], metavar="KEY=VALUE")
     return p.parse_args()
@@ -148,8 +176,89 @@ def evaluate_external(model, df, target_col, label_encoder, feature_cols, scaler
     return accuracy, report
 
 
+def precompute_real_bench(label_encoder, feature_cols, scaler, fallback_means, backend="grounded_sam"):
+    """Segmenta UNA VEZ (Grounding DINO + SAM, ~0.5s/imagen en GPU) el subconjunto
+    de SELECCIÓN del banco de fotos reales externo (`data/real_world_benchmark/`)
+    y devuelve tensores ya listos. La segmentación no depende de los pesos del
+    modelo, así que hacerla una vez antes de entrenar y reevaluar cada epoch con
+    un forward pass barato sobre estos tensores cacheados sale gratis comparado
+    con resegmentar en cada una de las 15 epochs.
+
+    2026-08-03: usar el banco real para seleccionar checkpoint Y para examinar
+    con `evaluate_cnn_real_photos.py` es circular (el examen deja de ser
+    honesto). `manifest.csv` tiene una columna `split` (`selection`/`held_out`,
+    1 foto por bone_group reservada como held_out, ver HISTORIAL.md) — aquí
+    solo se usa `selection`; `held_out` queda sin tocar para el examen final.
+    """
+    if not REAL_BENCH_MANIFEST.exists():
+        return None
+    manifest = pd.read_csv(REAL_BENCH_MANIFEST)
+    if "split" in manifest.columns:
+        manifest = manifest[manifest["split"] == "selection"]
+    transform = build_transform(train=False)
+    images, geoms, labels = [], [], []
+    n_not_found = 0
+    for _, row in manifest.iterrows():
+        path = REAL_BENCH_DIR / row["bone_group"] / row["filename"]
+        if not path.exists():
+            continue
+        with path.open("rb") as fh:
+            raw = extract_features(fh, backend=backend, include_crop=True)
+        if not raw.get("found"):
+            n_not_found += 1
+            continue
+        crop = raw.pop("crop_image")
+        images.append(transform(crop))
+        if feature_cols is not None:
+            flat = flatten_features(raw)
+            geoms.append([flat[c] if flat[c] is not None else fallback_means[c] for c in feature_cols])
+        labels.append(int(label_encoder.transform([row["bone_group"]])[0]))
+    if not images:
+        return None
+    print(f"Banco real precomputado (subconjunto de selección): {len(images)} imágenes "
+          f"({n_not_found} sin segmentar, backend={backend}) — se reevalúa cada epoch con un "
+          f"forward pass, sin resegmentar. El held_out queda intacto para el examen final.")
+    image_tensor = torch.stack(images)
+    if feature_cols is not None:
+        geom_tensor = torch.tensor(scaler.transform(geoms), dtype=torch.float32)
+    else:
+        geom_tensor = torch.zeros((len(images), 0), dtype=torch.float32)
+    label_tensor = torch.tensor(labels, dtype=torch.long)
+    return image_tensor, geom_tensor, label_tensor
+
+
+def eval_real_bench(model, real_bench, device):
+    image_tensor, geom_tensor, label_tensor = real_bench
+    model.eval()
+    with torch.no_grad():
+        logits = model(image_tensor.to(device), geom_tensor.to(device))
+        preds = logits.argmax(dim=1).cpu()
+    return accuracy_score(label_tensor.numpy(), preds.numpy())
+
+
 def main():
     args = parse_args()
+    if args.lr_head_finetune is None:
+        # 2026-08-03: la hipótesis era que lr_head/10 en fase 2 ayudaría (menos
+        # descalibración de la cabeza al descongelar el backbone) — probado con
+        # 3 semillas de modelo (split fijo) contra el banco real de 63 fotos:
+        # PIERDE en las 3 (media 0.661 vs 0.684 sin bajarlo). Default revertido
+        # a lr_head (el flag sigue existiendo por si se quiere reabrir la
+        # comparación con más semillas/otro dataset).
+        args.lr_head_finetune = args.lr_head
+    if args.model_seed is None:
+        args.model_seed = args.random_state
+    # 2026-08-03: `random_state` solo fijaba el split train/val — la
+    # inicialización de la cabeza y el orden/augmentation de los batches no
+    # tenían semilla. Dos corridas con checkpoints muy distintos (fase 1 con
+    # backbone congelado vs fase 2 ya afinado) dieron el mismo accuracy en el
+    # banco real (0.6491) con la misma matriz de confusión — señal de que la
+    # varianza entre corridas (no el cambio que se estaba probando) domina el
+    # resultado. `--model-seed` (separado de `--random-state`, que sigue
+    # controlando solo el split) fija esa parte para que comparar dos configs
+    # sea comparar la config, no el azar de la inicialización.
+    torch.manual_seed(args.model_seed)
+    np.random.seed(args.model_seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
@@ -188,6 +297,28 @@ def main():
         scaler = StandardScaler()
         scaler.fit(train_df[feature_cols].to_numpy(dtype=np.float32))
 
+    # 2026-08-03: primero se probó un proxy de 12 fotos reales DENTRO de val
+    # (las de `real_photos_accepted` que caían ahí por el split de espécimen)
+    # como criterio de selección — descartado con evidencia de 3 semillas de
+    # modelo (empataba constantemente, terminaba eligiendo épocas de fase 1
+    # con el backbone congelado). Segunda vuelta: usar el banco EXTERNO de 63
+    # fotos (`data/real_world_benchmark/`, el mismo que usa
+    # `evaluate_cnn_real_photos.py`), segmentado una sola vez antes de
+    # entrenar — más señal (57-63 filas vs 12) y no depende del split.
+    real_bench = precompute_real_bench(
+        label_encoder, feature_cols, scaler,
+        col_means.to_dict() if feature_cols is not None else None,
+    )
+    if real_bench is not None and args.select_by_real_bench:
+        print("Selección de checkpoint por val_acc en el banco real externo (con guardarraíl "
+              "anti clase-cero sobre el val sintético). AVISO: esta vía dio 0.4444 en el held_out "
+              "el 2026-08-03, peor que val_acc sintético — usar --select-by-real-bench a sabiendas.")
+    elif real_bench is not None:
+        print("Banco real externo precomputado y logueado (real_bench_acc) solo para visibilidad — "
+              "selección de checkpoint por val_acc sintético (criterio validado con 3 semillas).")
+    else:
+        print("Sin banco real externo disponible — selección de checkpoint por val_acc sintético.")
+
     train_dataset = BoneImageDataset(train_df, TARGET, label_encoder, feature_cols, scaler, train=True)
     val_dataset = BoneImageDataset(val_df, TARGET, label_encoder, feature_cols, scaler, train=False)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
@@ -218,9 +349,12 @@ def main():
             "epochs_finetune": args.epochs_finetune,
             "batch_size": args.batch_size,
             "lr_head": args.lr_head,
+            "lr_head_finetune": args.lr_head_finetune,
             "lr_backbone": args.lr_backbone,
             "val_size": args.val_size,
             "random_state": args.random_state,
+            "model_seed": args.model_seed,
+            "select_by_real_bench": args.select_by_real_bench,
             "dataset_path": dataset_path_display,
             "n_train_rows": len(train_df),
             "n_train_specimens": int(train_df["specimen"].nunique()),
@@ -239,21 +373,61 @@ def main():
             p.requires_grad = False
         optimizer = torch.optim.AdamW(model.head_params(), lr=args.lr_head)
 
-        best_val_accuracy = -1.0
-        best_state = None
+        # 2026-08-03 (cont.): un primer intento de seleccionar el checkpoint solo
+        # por val_acc_real_photos disparó el accuracy real (0.83->0.92) pero se lo
+        # llevó por delante regalando mandibula_maxilar entero (recall 0.000) — esa
+        # clase no tiene NINGUNA foto real en el proxy de 12 filas, así que
+        # maximizarlo a ciegas no la protege. Guardarraíl: nunca aceptar como "mejor"
+        # una epoch que deja alguna clase en recall 0 en el val sintético completo
+        # (que sí cubre las 9 clases), usando los mismos preds/labels que ya calcula
+        # `run_epoch` para el val sintético (sin pasada extra). Si NINGUNA epoch
+        # cumple el guardarraíl (caso borde, no debería pasar tras fase1), se cae de
+        # vuelta al criterio antiguo (max val_acc sintético) como red de seguridad.
+        best = {"metric": (-1.0, -1.0), "val_acc": -1.0, "real": None, "state": None}
+        fallback = {"val_acc": -1.0, "state": None}
+
+        def consider_checkpoint(val_acc, real_bench_acc, val_preds, val_labels):
+            # `labels=range(num_classes)` trataría una clase SIN filas en val (p.ej.
+            # mandibula_maxilar con este split, ver HISTORIAL.md 2026-08-03) como
+            # recall=0 con zero_division=0 — clase fantasma que nunca puede pasar el
+            # guardarraíl. Limitar a las clases con al menos una fila real en val.
+            present_labels = np.unique(val_labels)
+            worst_recall = recall_score(val_labels, val_preds, average=None,
+                                         labels=present_labels, zero_division=0).min()
+            if val_acc > fallback["val_acc"]:
+                fallback["val_acc"] = val_acc
+                fallback["state"] = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            # 2026-08-03: con el proxy de 12 filas DENTRO de val esto perdía (empataba,
+            # elegía fase 1). Con el banco externo de 48-57 filas de 'selection' se
+            # midió honesto contra el 'held_out' (9 fotos nunca vistas en selección):
+            # 0.4444 — peor que val_acc sintético. `--select-by-real-bench` deja
+            # reabrir esta vía a propósito; por defecto usa val_acc sintético (con
+            # `real_bench_acc` ya calculado arriba, solo para loguear).
+            use_real_bench = args.select_by_real_bench and real_bench_acc is not None
+            selection_metric = (real_bench_acc, val_acc) if use_real_bench else (val_acc, val_acc)
+            if worst_recall > 0 and selection_metric > best["metric"]:
+                best["metric"] = selection_metric
+                best["val_acc"] = val_acc
+                best["real"] = real_bench_acc
+                best["state"] = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            return worst_recall
+
         epoch = 0
         total_epochs = args.epochs_frozen + args.epochs_finetune
         for phase_epoch in range(args.epochs_frozen):
             train_loss, train_acc, _, _ = run_epoch(model, train_loader, device, criterion, optimizer)
-            val_loss, val_acc, _, _ = run_epoch(model, val_loader, device, criterion, optimizer=None)
+            val_loss, val_acc, val_preds, val_labels = run_epoch(model, val_loader, device, criterion, optimizer=None)
+            real_bench_acc = eval_real_bench(model, real_bench, device) if real_bench is not None else None
+            worst_recall = consider_checkpoint(val_acc, real_bench_acc, val_preds, val_labels)
             print(f"[fase1 congelada {phase_epoch + 1}/{args.epochs_frozen}] "
                   f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} "
-                  f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}")
-            mlflow.log_metrics({"train_loss": train_loss, "train_acc": train_acc,
-                                 "val_loss": val_loss, "val_acc": val_acc}, step=epoch)
-            if val_acc > best_val_accuracy:
-                best_val_accuracy = val_acc
-                best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+                  f"val_loss={val_loss:.4f} val_acc={val_acc:.4f} val_worst_class_recall={worst_recall:.4f}"
+                  + (f" real_bench_acc={real_bench_acc:.4f}" if real_bench_acc is not None else ""))
+            metrics = {"train_loss": train_loss, "train_acc": train_acc,
+                       "val_loss": val_loss, "val_acc": val_acc, "val_worst_class_recall": worst_recall}
+            if real_bench_acc is not None:
+                metrics["real_bench_acc"] = real_bench_acc
+            mlflow.log_metrics(metrics, step=epoch)
             epoch += 1
 
         # Fase 2: backbone descongelado a LR bajo, cabeza sigue a LR normal.
@@ -261,24 +435,48 @@ def main():
             p.requires_grad = True
         optimizer = torch.optim.AdamW([
             {"params": model.backbone_params(), "lr": args.lr_backbone},
-            {"params": model.head_params(), "lr": args.lr_head},
+            {"params": model.head_params(), "lr": args.lr_head_finetune},
         ])
         for phase_epoch in range(args.epochs_finetune):
             train_loss, train_acc, _, _ = run_epoch(model, train_loader, device, criterion, optimizer)
-            val_loss, val_acc, _, _ = run_epoch(model, val_loader, device, criterion, optimizer=None)
+            val_loss, val_acc, val_preds, val_labels = run_epoch(model, val_loader, device, criterion, optimizer=None)
+            real_bench_acc = eval_real_bench(model, real_bench, device) if real_bench is not None else None
+            worst_recall = consider_checkpoint(val_acc, real_bench_acc, val_preds, val_labels)
             print(f"[fase2 fine-tune {phase_epoch + 1}/{args.epochs_finetune}] "
                   f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} "
-                  f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}")
-            mlflow.log_metrics({"train_loss": train_loss, "train_acc": train_acc,
-                                 "val_loss": val_loss, "val_acc": val_acc}, step=epoch)
-            if val_acc > best_val_accuracy:
-                best_val_accuracy = val_acc
-                best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+                  f"val_loss={val_loss:.4f} val_acc={val_acc:.4f} val_worst_class_recall={worst_recall:.4f}"
+                  + (f" real_bench_acc={real_bench_acc:.4f}" if real_bench_acc is not None else ""))
+            metrics = {"train_loss": train_loss, "train_acc": train_acc,
+                       "val_loss": val_loss, "val_acc": val_acc, "val_worst_class_recall": worst_recall}
+            if real_bench_acc is not None:
+                metrics["real_bench_acc"] = real_bench_acc
+            mlflow.log_metrics(metrics, step=epoch)
             epoch += 1
 
+        if best["state"] is not None:
+            best_state = best["state"]
+            best_selection_metric = best["metric"][0]
+            best_val_accuracy = best["val_acc"]
+            best_val_acc_real_photos = best["real"]
+            selection_label = ("val_acc en banco real externo (con guardarraíl anti clase-cero)"
+                                if (real_bench is not None and args.select_by_real_bench)
+                                else "val_acc sintético (con guardarraíl anti clase-cero)")
+        else:
+            print("\nAVISO: ninguna epoch cumplió el guardarraíl (alguna clase siempre en recall 0) "
+                  "— cayendo al criterio antiguo (max val_acc sintético) como red de seguridad.")
+            best_state = fallback["state"]
+            best_selection_metric = fallback["val_acc"]
+            best_val_accuracy = fallback["val_acc"]
+            best_val_acc_real_photos = None
+            selection_label = "val_acc sintético (fallback, guardarraíl no satisfecho)"
+
         model.load_state_dict(best_state)
-        print(f"\nMejor accuracy en validación (espécimen fuera): {best_val_accuracy:.4f}")
+        print(f"\nCheckpoint elegido por {selection_label}: {best_selection_metric:.4f} "
+              f"(val_acc sintético de esa misma epoch: {best_val_accuracy:.4f})")
         mlflow.log_metric("best_val_acc", best_val_accuracy)
+        mlflow.log_metric("best_selection_metric", best_selection_metric)
+        if best_val_acc_real_photos is not None:
+            mlflow.log_metric("best_val_acc_real_photos", best_val_acc_real_photos)
 
         _, val_report = evaluate_external(model, val_df, TARGET, label_encoder, feature_cols, scaler,
                                            device, args.batch_size, args.num_workers)
@@ -332,6 +530,8 @@ def main():
             "mlflow_run_id": run_id,
             "mlflow_experiment": mlflow.get_experiment(mlflow.active_run().info.experiment_id).name,
             "best_val_accuracy": best_val_accuracy,
+            "best_val_accuracy_real_photos": best_val_acc_real_photos,
+            "checkpoint_selection": selection_label,
             "accuracy_clean_benchmark": bench_accuracy,
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "tags": {t.split("=", 1)[0]: t.split("=", 1)[1] for t in args.tag},

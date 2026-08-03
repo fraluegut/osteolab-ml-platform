@@ -14,3 +14,5 @@ data/real_photos_accepted/
 data/segmented_crops/
 data/bone_ingest/
 base_datos_osea/Fotos entrenamiento/
+mlruns/
+mlruns_local/

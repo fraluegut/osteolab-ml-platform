@@ -1446,3 +1446,247 @@ Híbrido en 0.7593 es, con diferencia, el mejor resultado medido en todo el proy
     evaluación adicional (no solo entrenamiento) para no depender únicamente de las 54 fotos
     congeladas de `data/real_world_benchmark/` — no decidido todavía, el volumen actual (12) es
     demasiado pequeño para plantearlo en serio.
+
+---
+
+## 2026-08-03 — Investigación: por qué el híbrido empeoró tras sumar las 37 fotos + fuga train/val/test
+
+Petición del usuario: entender por qué el híbrido empeoró en el commit `c29bb88` (0.772→0.702 en
+el banco real de 57 fotos) y auditar si en algún punto se mezclan train/validación/test.
+
+### Causa del empeoramiento del híbrido
+Confirmado que ya estaba explicado en el propio mensaje del commit `c29bb88`: al sumar las 37 fotos
+reales curadas, geométrico y cnn_only mejoran, pero el híbrido empeora — `mandibula_maxilar` y
+`sacro` pierden recall **pese a no haber recibido ninguna foto nueva** (mandibula_maxilar tiene 0
+fotos reales en todo `real_photos_accepted/`; sacro tiene 8). Confirmado además que la cabeza de
+clasificación es compartida entre las 9 clases y solo se afinan 15 epochs — la señal apunta a que
+el fine-tuning corto descalibra la cabeza globalmente cuando el resto de clases reciben datos más
+heterogéneos, no a un problema de datos específico de esas 2 clases. Decisión del usuario: no
+revertir (los modelos no están versionados en git).
+
+### Auditoría de fuga train/val/test — sin fuga real
+- `train_cnn.py` reparte por espécimen (`GroupShuffleSplit`) con `RuntimeError` explícito si hay
+  overlap train/val. `train_geometric.py` usa `GroupKFold` con el mismo criterio (aviso, no
+  excepción, para el caso borde de una clase con un único espécimen). Ambos guards activos y
+  correctos.
+- Cruce `combined.csv` (entrenamiento) × `bone_geometric_benchmark.csv` (banco sintético limpio) ×
+  `real_world_benchmark/` (63 fotos reales, el "examen honesto") × `real_photos_accepted` (las 49
+  fotos que SÍ entraron a entrenamiento): 1 solo espécimen compartido entre `combined` y el banco
+  sintético (`nmnhvz_7049315`), pero contribuye `bone_group` distinto en cada lado (mandíbula vs
+  cráneo del mismo animal) — silueta distinta, no es fuga real. Los nombres de archivo de
+  `real_world_benchmark/` y `real_photos_accepted/` coinciden por convención de numeración
+  (`cranio_01.jpg`, etc.) pero son fotos distintas — verificado por hash y resolución, falsa alarma.
+- **Conclusión: no hay fuga.** La caída del híbrido es un problema de selección/calibración de
+  checkpoint, no de contaminación de datos.
+
+### Decisión y cambio: seleccionar el checkpoint por val_acc en fotos reales, no por val_acc sintético
+`train_cnn.py` guardaba el mejor checkpoint por `val_acc` sobre el split sintético completo — nunca
+miraba cómo se comportaba en foto real durante el propio entrenamiento. Como `real_photos_accepted`
+ya cae parcialmente en val por el split de espécimen (12 de 49 fotos reales, en 5 de los 9 grupos,
+con random_state=42), se usa ese subconjunto como criterio de selección cuando existe (fallback a
+val_acc sintético si el split lo deja vacío). Implementado en `train_cnn.py`:
+`real_val_df`/`val_acc_real_photos` por epoch, nuevo campo `checkpoint_selection` en el meta.json,
+métricas nuevas en MLflow (`val_acc_real_photos`, `best_selection_metric`,
+`best_val_acc_real_photos`). Aviso explícito en el propio commit/código: es un proxy pequeño y
+ruidoso (12 filas), no sustituye la evaluación posterior contra el banco de 63 fotos de
+`evaluate_cnn_real_photos.py`.
+
+### Primer intento fallido: seleccionar solo por val_acc_real_photos regala una clase entera
+Primer reentreno del híbrido con el criterio nuevo: `val_acc_real_photos` sube de 0.833 a 0.917 en
+la última epoch, pero `mandibula_maxilar` cae a **recall 0.000** en el val sintético completo (las
+demás 8 clases se mantienen razonables, cranio la más baja con 0.538) y el banco sintético limpio
+baja de 0.889 a 0.861. Causa: `mandibula_maxilar` no tiene NINGUNA foto real en el proxy de 12 filas
+(0 de 49), así que maximizar ese proxy a ciegas no la protege — puede sacrificarla entera sin que la
+métrica de selección se entere. Confirma el aviso que ya llevaba el propio cambio ("proxy pequeño y
+ruidoso").
+
+**Guardarraíl añadido**: no aceptar como "mejor" ninguna epoch que deje alguna clase en recall 0 en
+el val sintético (que sí cubre casi todas las clases), calculado gratis a partir de los mismos
+preds/labels que ya produce `run_epoch` para el val. Con fallback al criterio antiguo (max val_acc
+sintético) si ninguna epoch lo cumple.
+
+**Segundo bug, encontrado al probar el guardarraíl**: con `random_state=42` el split de espécimen
+deja a `mandibula_maxilar` con **0 filas en val** (11 especímenes en total, ninguno cayó en el 20%
+de val) — `recall_score(labels=range(num_classes))` trata esa clase ausente como recall=0 con
+`zero_division=0`, así que el guardarraíl se disparaba en TODAS las epochs (clase fantasma) y caía
+siempre al fallback, sin filtrar nada de verdad. Corregido: `recall_score` limitado a
+`labels=np.unique(val_labels)` (solo clases con al menos 1 fila real en val). Nota aparte, más de
+fondo: como `mandibula_maxilar` no aparece nunca en val con este split, el propio `val_acc` global
+tampoco tiene NUNCA señal de esa clase durante el entrenamiento — ni el criterio viejo ni el nuevo
+la vigilan de verdad; solo el banco sintético externo (`bone_geometric_benchmark.csv`) y el banco
+real la evalúan. Especímenes por grupo en `combined.csv`: hueso_plano 9, **mandibula_maxilar 11**,
+cranio 15, hueso_pequeno 15, pelvis 17, costilla 18, sacro 18, vertebra 25, hueso_largo 34 — con tan
+pocos especímenes y un split no estratificado por clase, quedarse sin representación en val es
+plausible para las clases pequeñas (no solo mandibula_maxilar; pelvis con 2 filas y vertebra con 4
+en este split concreto también son casi tan frágiles).
+
+### Propuesta 2 implementada: `lr_head` más bajo en fase 2
+Nuevo flag `--lr-head-finetune` (por defecto `lr_head/10`, es decir `1e-4` con los defaults
+actuales) — en fase 1 la cabeza parte de cero y necesita `lr_head` completo para moverse rápido,
+pero en fase 2 ya está entrenada y competir a la misma LR que el backbone recién descongelado
+parecía ser parte de por qué se descalibraba con datos heterogéneos nuevos. `checkpoint_selection`
+en el meta.json ahora refleja cuál de los 3 caminos se usó (real_photos / fallback sintético).
+
+### Contra el examen real (banco de 63 fotos): el proxy de 12 fotos empeora, no mejora
+Con el guardarraíl corregido + desempate por val_acc arreglado, se corrió por fin
+`evaluate_cnn_real_photos.py --model-type hybrid` (el examen de verdad, no el val sintético) contra
+el checkpoint elegido por `val_acc_real_photos`: **0.6491 accuracy** (balanced 0.5747) — peor que el
+0.702 ya regresado del commit `c29bb88` y muy por debajo del 0.772 original. `mandibula_maxilar`
+mejora bastante (recall 0.62, confirma que el 0.000 que salía en el val sintético era el artefacto
+de la clase sin filas en val, no una regresión real) pero `costilla` y `hueso_pequeno` caen a
+recall 0.00 — regresiones nuevas que no estaban antes.
+
+Conclusión: el checkpoint elegido por el proxy de 12 fotos resultó ser de fase 1 (época 3, backbone
+TODAVÍA CONGELADO) — con solo 12 filas, `val_acc_real_photos` empata constantemente (10/12, 11/12) y
+el desempate por val_acc sintético más alto no protege de elegir una época demasiado temprana, donde
+el backbone solo tiene features genéricas de ImageNet sin adaptar al dominio de huesos. Tres
+iteraciones seguidas de este enfoque (versión rota, con guardarraíl, con desempate) dieron las 3 un
+resultado peor que el baseline en el banco real — **revertido**: la selección de checkpoint vuelve a
+ser por val_acc sintético (620 filas, el criterio que sí dio 0.772 originalmente) + el guardarraíl
+anti clase-cero se mantiene como red de seguridad adicional (no hace daño, y sigue calculando/
+logueando `val_acc_real_photos` por epoch solo para tenerlo a la vista). Lección: un proxy de 12
+imágenes no tiene suficiente señal para pilotar la selección de checkpoint por sí solo — haría falta
+uno bastante más grande (o el propio banco de 63, con el coste de correr Grounding DINO+SAM cada
+epoch) para que esta idea funcione.
+
+### Propuesta 2 (lr_head_finetune) probada aislada: mismo 0.6491 que el intento fallido
+Reentreno con el criterio de selección YA revertido a val_acc sintético (el bueno) + guardarraíl +
+`lr_head_finetune` aislado: esta vez el checkpoint elegido es de fase 2, época 9 (backbone
+totalmente afinado, val_acc sintético 0.7484 — el pico real de toda la corrida, banco limpio
+0.8426, mucho más sano que las corridas anteriores). Pero contra el banco real de 63 fotos:
+**0.6491 accuracy** — el mismo número exacto que el intento fallido anterior (que había elegido un
+checkpoint completamente distinto, de fase 1 con el backbone aún congelado), con una matriz de
+confusión casi idéntica (`costilla` sigue en recall 0, mismos patrones de confusión).
+
+**Hallazgo real, más importante que cualquiera de los cambios probados hoy**: `train_cnn.py` NUNCA
+fijaba semilla aleatoria — `--random-state` solo controla el split train/val
+(`GroupShuffleSplit`), pero la inicialización de la cabeza (`nn.Linear` con pesos aleatorios) y el
+orden/augmentation de los batches (`DataLoader(shuffle=True)`, sin `torch.manual_seed`) no tenían
+ninguna semilla. Que dos checkpoints tan distintos den el mismo accuracy con la misma matriz de
+confusión es la prueba de que la varianza entre corridas domina por encima de cualquier cambio que
+se estuviera probando (selección de checkpoint, `lr_head_finetune`) — los números 0.649/0.649/0.702
+/0.772 vistos hoy pueden ser en gran parte ruido de inicialización, no señal real de qué cambio
+ayuda o no. **Corregido**: `torch.manual_seed(args.random_state)` +
+`np.random.seed(args.random_state)` al principio de `main()`.
+
+Conclusión honesta de toda la sesión: no se puede afirmar con una sola corrida por configuración si
+`lr_head_finetune` ayuda o no — hace falta repetir cada config con varias semillas y comparar
+medias, ahora que el entrenamiento sí es reproducible corrida a corrida. No hecho todavía (coste de
+tiempo/cómputo, pendiente decidir con el usuario si se invierte en ello).
+
+### Pendiente
+23. ~~Confirmar que el guardarraíl + selección por fotos reales mejora el banco real~~ — probado y
+    revertido: empeora (0.649 vs 0.702 regresado vs 0.772 original). Guardarraíl anti clase-cero
+    conservado como red de seguridad; selección vuelve a ser por val_acc sintético.
+24. ~~Bajar `lr_head` en fase 2~~ — implementado (`--lr-head-finetune`, default `lr_head/10`), un
+    solo run dio 0.6491 en el banco real (igual que el intento fallido con checkpoint distinto) —
+    no concluyente por el problema de semilla del punto 27.
+25. Plantearse un split estratificado por clase (no solo por espécimen) para `train_cnn.py` —
+    con clases de 9-11 especímenes, un `GroupShuffleSplit` puro puede dejarlas sin ninguna fila en
+    val por pura mala suerte del `random_state` (pasó con `mandibula_maxilar` en este `random_state`
+    42), y entonces ni el criterio de selección ni las métricas de val ven nada de esa clase durante
+    todo el entrenamiento. No implementado.
+26. Si se quiere retomar la idea del proxy de fotos reales para seleccionar checkpoint, hacerlo con
+    bastantes más de 12 imágenes (o correr el banco de 63 fotos real como criterio, no solo como
+    examen final) y restringir la búsqueda a épocas de fase 2 (backbone ya descongelado) para no
+    poder elegir por accidente una época de fase 1 todavía sin adaptar. No implementado.
+27. ~~Fijar semilla aleatoria en `train_cnn.py`~~ — hecho: nuevo flag `--model-seed` (separado de
+    `--random-state`, que sigue controlando solo el split) para poder repetir el mismo split con
+    distinta inicialización.
+
+### Experimento final: 3 semillas de modelo, split fijo — `lr_head_finetune` bajo PIERDE, revertido
+
+Con la semilla ya separable, se corrieron 6 entrenamientos (`baseline`: `lr_head_finetune=lr_head`,
+comportamiento de siempre · `fix`: `lr_head_finetune=lr_head/10`, la propuesta 2) × 3
+`--model-seed` (42/43/44, split `random_state=42` fijo en los 6), cada uno evaluado contra el banco
+real de 63 fotos:
+
+| model_seed | baseline (real_acc) | fix (real_acc) |
+|---|---|---|
+| 42 | **0.7018** | 0.6842 |
+| 43 | 0.6667 | 0.6491 |
+| 44 | 0.6842 | 0.6491 |
+| **media** | **0.684** | 0.661 |
+
+`baseline` gana en las 3 semillas — señal consistente, no ruido de una sola corrida. La hipótesis de
+la propuesta 2 (bajar la LR de la cabeza en fase 2 para que no se descalibre) resultó equivocada:
+**empeora** el accuracy real en promedio ~2.3 puntos. Revertido: `--lr-head-finetune` por defecto
+vuelve a ser `lr_head` (el flag sigue existiendo, documentado con este resultado, por si se quiere
+reabrir la comparación con otro dataset/backbone). El guardarraíl anti clase-cero se mantiene (no
+participó en la diferencia, es red de seguridad neutral).
+
+Dato adicional útil: `baseline` con `model_seed=42` da 0.7018 — prácticamente igual al 0.702 ya
+documentado en el commit `c29bb88` tras sumar las 37 fotos reales. Confirma que el estado actual del
+dataset (con las 37 fotos) efectivamente asienta el híbrido en ~0.68-0.70 en el banco real, no en el
+0.772 de antes de esas fotos — ese descenso es real y viene de los datos/el fine-tuning corto, no de
+ningún bug de esta sesión. Modelo final en disco: reentrenado con `baseline` + `model_seed=42`
+(la mejor combinación medida) para dejar el mejor checkpoint conocido guardado.
+
+### Pendiente
+28. El hueco 0.772 (antes de las 37 fotos) → ~0.68-0.70 (media actual) sigue sin explicación
+    completa más allá de "cabeza compartida se descalibra con fine-tuning corto y datos más
+    heterogéneos" (hipótesis original del commit `c29bb88`, no refutada pero tampoco un fix
+    encontrado todavía). Ideas no probadas: más epochs de fine-tuning con early stopping por banco
+    real completo (caro, requiere correr Grounding DINO+SAM cada pocas epochs), o class-balanced
+    sampling (ver propuesta 3 de la sesión, no implementada).
+29. Split estratificado por clase (pendiente #25) y ampliar el proxy de fotos reales en val más allá
+    de 12 filas (pendiente #26) siguen abiertos, sin tocar en esta sesión.
+
+### Segunda vuelta a "seleccionar por fotos reales": banco EXTERNO precomputado, no proxy en val
+
+Pendiente #26 implementado: en vez del proxy de 12 filas dentro de val, `train_cnn.py` ahora
+segmenta UNA VEZ (Grounding DINO+SAM, antes de entrenar — la segmentación no depende de los pesos)
+el banco externo completo de `data/real_world_benchmark/` (57-63 fotos, el mismo que usa
+`evaluate_cnn_real_photos.py`) y cachea los tensores; cada epoch solo hace un forward pass barato
+sobre ellos (`eval_real_bench`, sin resegmentar). Se usa como criterio de selección principal
+(`real_bench_acc`), con desempate por val_acc sintético en empates y el guardarraíl anti clase-cero
+de siempre como red de seguridad adicional.
+
+Resultado (`model_seed=42`): checkpoint elegido en fase 2 época 3, **real_bench_acc=0.7018** en el
+banco real — confirmado corriendo `evaluate_cnn_real_photos.py` después (mismo 0.7018, balanced
+0.7044). Por primera vez en toda la sesión NINGUNA clase queda en recall 0 en el examen real
+(mandibula_maxilar 0.50, sacro 1.00, macro avg 0.69) — más sano que cualquier intento anterior con
+el proxy de 12 filas o con `lr_head_finetune`.
+
+**Aviso metodológico importante, sin resolver todavía**: al seleccionar el checkpoint maximizando
+`real_bench_acc` sobre EXACTAMENTE el mismo banco de 63 fotos que luego usa
+`evaluate_cnn_real_photos.py` para "examinar", el número deja de ser una medida honesta de
+generalización — es circular (el banco de examen se usó también para elegir el modelo). El 0.7018
+puede reflejar en parte sobreajuste a esas 63 fotos concretas, no mejora real frente a fotos nuevas
+que el modelo no ha visto ni de refilón durante la selección.
+
+### Pendiente #30 resuelto: partido el banco, medido honesto — la vía se descarta
+
+`manifest.csv` de `data/real_world_benchmark/` ganó una columna `split` (`selection`/`held_out`,
+random_state=42, 1 foto por `bone_group` reservada como `held_out` — con `costilla` en 3 y
+`hueso_pequeno` en 4 fotos totales, un 10%/90% puro habría dejado alguna clase en 0 en el held_out,
+igual que pasó con `mandibula_maxilar` en el val sintético). 54 filas `selection`, 9 `held_out`.
+`train_cnn.py::precompute_real_bench` ahora solo usa `selection`; `evaluate_cnn_real_photos.py`
+gana `--split {all,selection,held_out}` para poder examinar solo con lo nunca visto.
+
+Reentrenado con `model_seed=42` seleccionando por `real_bench_acc` sobre `selection` (48 imágenes
+tras descartar 6 sin segmentar): checkpoint elegido con real_bench_acc(selection)=0.75. Medido
+honesto:
+
+| split | accuracy | balanced_accuracy | n |
+|---|---|---|---|
+| `selection` (optimista, es lo que decidió el checkpoint) | 0.75 | 0.71 | 48 |
+| `held_out` (honesto, nunca visto) | **0.4444** | 0.4444 | 9 |
+
+**Conclusión**: el 0.70-0.75 que parecía la mejor cifra de toda la sesión era en gran parte
+sobreajuste a las 63 fotos del banco (usadas para elegir el checkpoint) — medido de forma honesta
+contra las 9 fotos held_out, da 0.4444, peor que el 0.684-0.702 del criterio de val_acc sintético
+documentado con 3 semillas. Con solo 9 fotos held_out el margen de error es enorme (cada foto vale
+~11 puntos), así que tampoco se puede afirmar con certeza que esta vía sea peor en el límite — pero
+no hay ninguna evidencia de que ayude, y sí una señal honesta preocupante. **Descartada como
+default**: nuevo flag `--select-by-real-bench` (default `False`) para poder reabrir esta vía a
+propósito si el banco real crece lo bastante como para tener un held_out con más de 1 foto/clase;
+`real_bench_acc` se sigue calculando y logueando siempre (banco precomputado una vez, gratis) para
+tenerlo a la vista sin que decida. Selección de checkpoint vuelve a ser val_acc sintético +
+guardarraíl anti clase-cero — el único criterio validado con evidencia sólida esta sesión. Modelo
+final en disco: reentrenado con esta configuración + `model_seed=42`.
+
+### Pendiente
+31. Si se quiere reabrir `--select-by-real-bench`, primero ampliar `data/real_world_benchmark/`
+    (más fotos por grupo, especialmente costilla=3 y hueso_pequeno=4) para que el held_out pueda
+    tener más de 1 foto/clase y el número honesto deje de tener tanto margen de error.
