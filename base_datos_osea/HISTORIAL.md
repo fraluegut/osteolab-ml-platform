@@ -1749,3 +1749,46 @@ Reentrenado el híbrido (criterio validado: val_acc sintético + guardarraíl, m
     ver pendiente de la sección anterior) necesitan revisión con el criterio corregido (algunas
     notas ya dicen "escápula de ciervo/perro", que ahora no descalifica) antes de fusionar. Uno de
     esos CSV tiene además una fila mal formada (columna con coma sin comillas) a arreglar al pasar.
+
+### Segunda corrección de criterio: tampoco rechazo por ilustración/marca de agua/anotación — decide el usuario
+
+Tras aceptar 5 de 21 (tras corregir el criterio de especie), el usuario frenó otra vez: seguía
+rechazando por mi cuenta (ilustración/CGI, marca de agua, anotaciones de figura de paper). Corregido
+de raíz: **no rechazo nada** — el usuario decide qué entra, asume el permiso/criterio de cada
+imagen. Mi única tarea activa es dividir imágenes con más de un hueso físico en recortes separados
+(hay precedente ya en el manifest: `costilla_104/105`, recortes de una foto con 3 costillas).
+Confirmado además que ya había precedente de aceptar cosas "no ortodoxas": `cranio_101.jpg` es una
+RÉPLICA (cast Bone Clones) de *Australopithecus afarensis* — ni hueso real ni Homo sapiens, y está
+aceptada desde antes. Guardado en memoria persistente para no repetir el error una tercera vez.
+
+Re-revisado el lote completo de 21 con este criterio: las 8 ya aceptadas se mantienen, más 15
+adicionales (10 imágenes de un solo hueso sin más — incluye el CGI dental, los 2 diagramas
+anatómicos con texto, la de marca de agua visible, las 2 con puntos numerados de medición, la
+completa vista inferior con arco dental etiquetado, la figura de artículo con flechas — y 2 imágenes
+con dos mandíbulas apiladas divididas en 4 recortes, `images (5).jpg`→`mandibula_20/21`,
+`images (15).jpg`→`mandibula_22/23`). `images (10).jpg` resultó ser 2 VISTAS del mismo espécimen
+(oclusal + lateral), no 2 huesos — no se divide. Total: **23 fotos de mandibula_maxilar** aceptadas
+de las 21 originales (2 se convirtieron en 4 recortes). `bone_geometric_features_real_photos.csv`
+49→72 filas (todas segmentaron bien, 0 sin segmentar), `combined.csv` 3892→3915.
+
+Reentrenado el híbrido (`model_seed=42`, criterio de selección val_acc sintético + guardarraíl):
+- `mandibula_maxilar` recall **0.807** en val sintético — señal real esta vez (37 especímenes en
+  val, antes 33; con solo 5 fotos previas ninguna había caído en val por azar del split).
+- `sacro` cae a recall 0.000 — pero es 1 solo espécimen en val (fallo puntual, no patrón amplio;
+  mismo problema estructural del split no estratificado ya documentado en el pendiente #25, no una
+  regresión nueva). El guardarraíl detectó correctamente que ninguna epoch tenía todas las clases
+  con recall>0 y cayó al fallback (max val_acc), como está diseñado.
+- Banco sintético limpio: **0.8981** (sube).
+- **Examen honesto (`--split held_out`, 9 fotos nunca vistas): 0.7778** — progresión de la sesión:
+  0.4444 (antes de tocar mandíbula) → 0.6667 (5 fotos) → 0.7778 (23 fotos). `mandibula_maxilar`
+  sigue acertando 1/1. Ya cerca del 0.772 original de antes de la regresión de las 37 fotos —
+  aunque n=9 sigue siendo pequeño, la tendencia con cada ronda de fotos reales añadidas es
+  consistentemente positiva, coherente con el patrón de toda la sesión (más fotos reales, no más
+  algoritmo, es lo que mueve el número).
+
+### Pendiente
+34. Confirmar la mejora con más fotos reales en otros grupos débiles (`cranio` 0.553 recall,
+    `sacro` con solo 1 fila en val) — mismo patrón que mandíbula: más fotos, no más ajuste de
+    algoritmo.
+35. Aplicar el criterio corregido (sin rechazo unilateral) a los lotes huérfanos del pendiente #33
+    cuando se retomen.
