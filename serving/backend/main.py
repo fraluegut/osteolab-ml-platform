@@ -296,6 +296,14 @@ def catalog_list():
     return {"specimens": catalog_specimens.list_specimens()}
 
 
+@app.get("/catalog/balance")
+def catalog_balance():
+    """Especímenes 3D + fotos reales (entrenamiento/banco) por grupo, con
+    objetivo y déficit — ver shared/catalog/specimens.py::list_group_balance
+    y base_datos_osea/HISTORIAL.md 2026-08-03."""
+    return {"groups": catalog_specimens.list_group_balance()}
+
+
 @app.get("/catalog/specimens.csv")
 def catalog_csv():
     """Mismo listado que /catalog/specimens, como CSV descargable."""

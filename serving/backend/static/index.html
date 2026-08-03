@@ -350,8 +350,10 @@
 
         <h3 class="subhead">Cobertura de fotos reales por grupo</h3>
         <p class="section-lead" style="margin-bottom: 1.5rem;">
-          5 de los 9 grupos todavía entrenan sin ninguna foto real — toda su señal de "textura de
-          verdad" viene de síntesis. Es la brecha más clara a cerrar a continuación.
+          Fotos reales de entrenamiento por grupo frente al objetivo de trabajo (40/grupo —
+          ver <code>base_datos_osea/HISTORIAL.md</code> 2026-08-03: con menos de eso no hay
+          margen para reservar un banco de examen held-out con más de 1 foto por clase sin
+          dejar casi nada para entrenar).
         </p>
         <div class="table-wrap">
           <table class="results-table results-table-compact">
@@ -360,18 +362,12 @@
                 <th>Grupo</th>
                 <th>Fotos reales · entrenamiento</th>
                 <th>Fotos reales · banco de evaluación</th>
+                <th>Objetivo</th>
+                <th>Faltan</th>
               </tr>
             </thead>
-            <tbody>
-              <tr><td>cráneo</td><td>4</td><td>8</td></tr>
-              <tr><td>vértebra</td><td>4</td><td>8</td></tr>
-              <tr><td>pelvis</td><td>3</td><td>8</td></tr>
-              <tr><td>hueso_largo</td><td>1</td><td>8</td></tr>
-              <tr class="row-warn"><td>mandíbula/maxilar</td><td class="cell-warn">0</td><td>8</td></tr>
-              <tr class="row-warn"><td>hueso_plano</td><td class="cell-warn">0</td><td>9</td></tr>
-              <tr class="row-warn"><td>hueso_pequeño</td><td class="cell-warn">0</td><td>4</td></tr>
-              <tr class="row-warn"><td>sacro</td><td class="cell-warn">0</td><td>7</td></tr>
-              <tr class="row-warn"><td>costilla</td><td class="cell-warn">0</td><td>3</td></tr>
+            <tbody id="realPhotosBalanceBody">
+              <tr><td colspan="5" class="table-note">Cargando…</td></tr>
             </tbody>
           </table>
         </div>
@@ -380,7 +376,7 @@
         <p class="section-lead" style="margin-bottom: 1.5rem;">
           Especímenes físicos distintos (no vistas, no variantes de ruido) detrás de cada
           grupo. Objetivo de trabajo: al menos 15 por grupo y variedad de especie, no solo
-          cantidad — <code>pelvis</code> y <code>hueso_plano</code> son la prioridad hoy.
+          cantidad.
         </p>
         <div class="table-wrap">
           <table class="results-table results-table-compact">
@@ -393,26 +389,16 @@
                 <th>Faltan</th>
               </tr>
             </thead>
-            <tbody>
-              <tr class="row-warn"><td>pelvis</td><td class="cell-warn">6</td><td>2</td><td>15</td><td class="cell-warn">9</td></tr>
-              <tr class="row-warn"><td>hueso_plano</td><td class="cell-warn">9</td><td>2</td><td>15</td><td class="cell-warn">6</td></tr>
-              <tr><td>costilla</td><td>10</td><td>2</td><td>15</td><td>5</td></tr>
-              <tr><td>sacro</td><td>10</td><td>2</td><td>15</td><td>5</td></tr>
-              <tr><td>mandíbula/maxilar</td><td>11</td><td>8</td><td>15</td><td>4</td></tr>
-              <tr><td>cráneo</td><td>14</td><td>8</td><td>15</td><td>1</td></tr>
-              <tr><td>hueso_pequeño</td><td>15</td><td>2</td><td>15</td><td class="cell-best">0</td></tr>
-              <tr><td>vértebra</td><td>16</td><td>3</td><td>15</td><td class="cell-best">0</td></tr>
-              <tr><td>hueso_largo</td><td>34</td><td>4</td><td>15</td><td class="cell-best">0</td></tr>
+            <tbody id="specimens3dBalanceBody">
+              <tr><td colspan="5" class="table-note">Cargando…</td></tr>
             </tbody>
           </table>
         </div>
         <p class="table-note">
           15 como piso no es una regla mágica: es donde ya están vértebra/hueso_pequeño, los
           dos grupos "de en medio" en rendimiento — ni los mejores ni los peores del banco de
-          fotos reales (ver "Resultados"). hueso_largo con 34 especímenes es el que mejor
-          generaliza; pelvis con 6 es de los que peor recall da. Contar especies, no solo
-          especímenes: costilla/hueso_pequeño/pelvis/sacro/hueso_plano solo tienen 2 especies
-          cada uno — variar especie generaliza mejor que repetir la misma.
+          fotos reales (ver "Resultados"). Contar especies, no solo especímenes: variar
+          especie generaliza mejor que repetir la misma.
         </p>
 
         <h3 class="subhead">Catálogo completo — los 122 modelos 3D usados</h3>

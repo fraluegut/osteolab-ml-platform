@@ -16,6 +16,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CATALOG_DIR = REPO_ROOT / "base_datos_osea" / "catalog"
 RENDERS_DIR = REPO_ROOT / "base_datos_osea" / "renders"
+REAL_PHOTOS_ACCEPTED_MANIFEST = REPO_ROOT / "data" / "real_photos_accepted" / "manifest.csv"
+REAL_WORLD_BENCHMARK_MANIFEST = REPO_ROOT / "data" / "real_world_benchmark" / "manifest.csv"
+
+# Objetivos de trabajo (ver base_datos_osea/HISTORIAL.md 2026-08-03): 15 especímenes
+# 3D/grupo ya es la referencia usada en la web desde antes; 40 fotos reales de
+# entrenamiento/grupo es la cifra nueva discutida esa sesión (punto medio del rango
+# 30-50 recomendado para poder reservar un held-out de examen con más de 1
+# foto/clase sin dejar casi nada para entrenar).
+SPECIMENS_3D_TARGET = 15
+REAL_PHOTOS_TARGET = 40
 
 # Mismo destino que shared/cv_extractor/build_dataset.py::BONE_GROUPS — se
 # duplica aquí (catálogo aparte, sin acoplar módulos) igual que el resto del
@@ -150,3 +160,55 @@ def list_specimens() -> list[dict]:
     )
     specimens.sort(key=lambda s: (s["bone_group"], s["species"], s["specimen"]))
     return specimens
+
+
+def _count_by_group(manifest_path: Path) -> dict[str, int]:
+    """Cuenta filas por `bone_group` en un manifest.csv de fotos reales
+    (`data/real_photos_accepted/` o `data/real_world_benchmark/`) — ambos usan
+    ya el mismo vocabulario de grupo que `BONE_GROUPS`, así que no hace falta
+    traducir nada, solo contar."""
+    if not manifest_path.exists():
+        return {}
+    counts: dict[str, int] = {}
+    with manifest_path.open(newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            group = row["bone_group"]
+            counts[group] = counts.get(group, 0) + 1
+    return counts
+
+
+@lru_cache(maxsize=1)
+def list_group_balance() -> list[dict]:
+    """Para la sección "Balance de datos" de la web: por cada uno de los 9
+    grupos, especímenes 3D (+especies distintas) y fotos reales
+    (entrenamiento/banco de examen), con el objetivo de trabajo y cuántos
+    faltan — ver `base_datos_osea/HISTORIAL.md` 2026-08-03 (por qué 40 fotos
+    reales de entrenamiento por grupo, no una cifra arbitraria)."""
+    specimens_by_group: dict[str, list[dict]] = {}
+    for s in list_specimens():
+        specimens_by_group.setdefault(s["bone_group"], []).append(s)
+
+    training_counts = _count_by_group(REAL_PHOTOS_ACCEPTED_MANIFEST)
+    benchmark_counts = _count_by_group(REAL_WORLD_BENCHMARK_MANIFEST)
+
+    all_groups = sorted(set(BONE_GROUPS.values()))
+    rows = []
+    for group in all_groups:
+        rows_3d = specimens_by_group.get(group, [])
+        n_3d = len(rows_3d)
+        n_species = len({r["species"] for r in rows_3d})
+        n_training = training_counts.get(group, 0)
+        n_benchmark = benchmark_counts.get(group, 0)
+        rows.append({
+            "bone_group": group,
+            "specimens_3d": n_3d,
+            "species_3d": n_species,
+            "specimens_3d_target": SPECIMENS_3D_TARGET,
+            "specimens_3d_missing": max(0, SPECIMENS_3D_TARGET - n_3d),
+            "real_photos_training": n_training,
+            "real_photos_benchmark": n_benchmark,
+            "real_photos_target": REAL_PHOTOS_TARGET,
+            "real_photos_missing": max(0, REAL_PHOTOS_TARGET - n_training),
+        })
+    rows.sort(key=lambda r: r["real_photos_training"])
+    return rows
