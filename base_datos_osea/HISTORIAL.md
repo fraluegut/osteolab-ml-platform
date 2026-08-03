@@ -1690,3 +1690,29 @@ final en disco: reentrenado con esta configuración + `model_seed=42`.
 31. Si se quiere reabrir `--select-by-real-bench`, primero ampliar `data/real_world_benchmark/`
     (más fotos por grupo, especialmente costilla=3 y hueso_pequeno=4) para que el held_out pueda
     tener más de 1 foto/clase y el número honesto deje de tener tanto margen de error.
+
+### Lote de 21 fotos de mandíbula pegadas por el usuario: 0 aceptadas
+
+El usuario pegó 21 fotos buscadas en `Fotos entrenamiento/mandibula/` para cerrar el hueco de
+`mandibula_maxilar` (0 fotos reales de entrenamiento). Revisadas una a una: **0 aceptadas**.
+Desglose — especie incorrecta ~17 (mandíbulas de perro, lobo, gato/mustélido y varios
+ungulados tipo ciervo/cabra/vaca, algunas con nombre de fichero ya delatándolo:
+`dog-jaw-or-wolf-jaw...webp`, `animal-jawbone-teeth...webp`), ilustraciones/diagramas con
+etiquetas quemadas en la imagen ~3 (una CGI dental, dos diagramas anatómicos con flechas/texto),
+figura de artículo científico con anotaciones ~1 (`vf-223-article-3-figure-3b-eng.png`, mismo
+problema de copyright que la figura de learnmuscles.com rechazada el 2026-08-02).
+
+Guardadas las 21 crudas en `base_datos_osea/Fotos entrenamiento/mandibula/` (gitignored, igual que
+el resto de esa carpeta — provenance de lo revisado, se acepte o no). `manifest.csv` y
+`data/real_photos_accepted/` sin tocar — nada que meter a entrenamiento de este lote.
+
+**Causa probable**: buscar "mandibula" (sin más contexto) devuelve sobre todo resultados
+veterinarios/zoológicos — a diferencia de "cráneo humano" o términos con "human"/"osteológico"
+explícito, que en las tandas anteriores dieron mucho mejor ratio de aceptación (fuente
+predominante: Wikimedia Commons, ver `source_url` en el resto del manifest).
+
+### Pendiente
+32. `mandibula_maxilar` sigue en 0 fotos reales de entrenamiento. Próximo intento: buscar con
+    términos más específicos ("human mandible specimen", "mandíbula humana osteológica") y
+    priorizar Wikimedia Commons / colecciones museísticas (mismo patrón que ya funcionó para
+    cráneo/costilla/vértebra) en vez de búsqueda de imágenes genérica.
