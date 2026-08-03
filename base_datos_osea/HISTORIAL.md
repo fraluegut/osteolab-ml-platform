@@ -1849,3 +1849,52 @@ Reentrenado el híbrido (`model_seed=42`, criterio de selección val_acc sintét
     grupo con muchas más fotos no arrastre la predicción hacia sí cuando el modelo duda. Con n=9 en
     el held_out no se puede confirmar la causa con certeza — ampliar el banco held_out ayudaría
     también a diagnosticar esto (pendiente #30/#31).
+
+### Cuarta ronda: los 3 grupos en cero (hueso_largo/hueso_plano/hueso_pequeno) rellenados
+
+El usuario dejó fotos nuevas en `Fotos entrenamiento/hueso largo/` (femur+humerus), `Hueso plano/`
+(Escapula+esternon) y `Huesos pequeños/` (Astragalo) — justo los 3 grupos que llevaban toda la
+sesión en 0 fotos reales de entrenamiento. De paso apareció "nuevos2" (más PDFs de papers, sin
+fotos, igual que "nuevos 1"). Los 6 grupos de la ronda anterior (costilla/cráneo/mandíbula/pelvis/
+sacro/vértebra) no tenían cambios (hash idéntico a lo ya procesado).
+
+Delegado en 3 forks paralelos, mismo protocolo de siempre (sin rechazo unilateral, solo dividir
+imágenes con más de un hueso). Sorpresa aparte: `hueso_largo` y `hueso_plano` tenían lotes huérfanos
+de una sesión previa (`manifest_hueso_largo.csv` 23 filas, `manifest_hueso_plano.csv` 3 filas —
+pendiente #33/#36 de antes) con fotos YA copiadas a disco pero nunca fusionadas al `manifest.csv`
+principal — los forks las fusionaron de paso antes de procesar lo nuevo.
+
+| Grupo | Antes | Después | Detalle |
+|---|---|---|---|
+| hueso_largo | 1 | **90** | +23 fusión huérfanos, +66 nuevas (fémur+húmero, 20 recortes de fotos con varios huesos) |
+| hueso_plano | 3 | **20** | +3 fusión huérfanos (escápula ciervo/perro/mamut), +17 nuevas (escápula+esternón) |
+| hueso_pequeno | 0 | **38** | +38 nuevas (astrágalo), 30 de ellas recortes de 8 fotos con varios especímenes |
+
+`manifest.csv`: 357 filas totales. `bone_geometric_features_real_photos.csv` regenerado: 357/357
+segmentaron bien. `combined.csv`: 4053→4200 filas. **Por primera vez en toda la sesión, los 9 grupos
+tienen fotos reales de entrenamiento** (ninguno en 0).
+
+Reentrenado el híbrido (`model_seed=42`):
+- val_acc sintético baja algo (0.6697 vs 0.7590 de la ronda anterior) — `mandibula_maxilar` cae
+  fuerte a 0.333 recall, `pelvis` a 0.500. Mismo patrón de siempre: meter mucho volumen nuevo de
+  golpe en unos grupos (hueso_largo pasa a ser el grupo con MÁS fotos reales, 90) desplaza el
+  balance y afecta a otros grupos que no cambiaron.
+- Banco sintético limpio: 0.8472 (baja un poco desde 0.8981/0.875 de rondas anteriores).
+- **Examen honesto (`--split held_out`): 0.6667** — progresión completa de la sesión:
+  0.4444 → 0.6667 → 0.7778 → 0.5556 → **0.6667**. Recupera algo desde el mínimo de la ronda
+  anterior; `hueso_pequeno` (que fallaba en la ronda de cráneo) ahora acierta. Sigue sin superar el
+  pico de 0.7778 (con solo mandíbula añadida, antes de los grandes lotes de cráneo/hueso_largo).
+
+**Lectura de las 5 rondas de esta sesión**: añadir fotos reales SÍ ayuda de fondo (0.4444 inicial
+→ 0.6667 final, +22 puntos netos), pero el ORDEN y el BALANCE entre grupos importa — meter un lote
+enorme y desproporcionado de un solo grupo (72 cráneos, luego 90 huesos largos) empeora
+temporalmente antes de que el conjunto se asiente. Con n=9 en el held_out cada ronda tiene mucho
+ruido individual; la tendencia de fondo (varias rondas, no una sola) es la que hay que mirar.
+
+### Pendiente
+40. Class-balanced sampling (pendiente #39) gana urgencia: ahora hay grupos con 90 fotos reales
+    (hueso_largo) y grupos con 18 (costilla) — el desequilibrio entre grupos de fotos reales es tan
+    grande como el que había entre grupos sintéticos al principio del proyecto.
+41. Ampliar el banco `real_world_benchmark` held_out (hoy 1 foto/grupo, n=9 total) sigue siendo la
+    mejora de infraestructura más urgente para que estas comparaciones dejen de tener ±11 puntos de
+    margen de error cada ronda.
