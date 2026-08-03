@@ -129,6 +129,12 @@ def parse_args():
                          "el criterio de val_acc sintético (0.684-0.702 documentado con 3 semillas). "
                          "El banco real se sigue precomputando y logueando (`real_bench_acc`) "
                          "aunque este flag esté apagado, solo para verlo en MLflow sin que decida.")
+    p.add_argument("--real-photo-boost", type=float, default=4.0,
+                    help="Peso relativo de las filas de foto real frente a sintética en el "
+                         "muestreo de entrenamiento (WeightedRandomSampler) — compensa que las "
+                         "reales son minoría dentro de cada grupo (ej. costilla: 5%% de sus filas "
+                         "son reales). No afecta el balance ENTRE grupos, eso ya lo hace "
+                         "class_weight='balanced' en la pérdida. 1.0 = sin sobremuestreo.")
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--tag", action="append", default=[], metavar="KEY=VALUE")
     return p.parse_args()
@@ -321,7 +327,26 @@ def main():
 
     train_dataset = BoneImageDataset(train_df, TARGET, label_encoder, feature_cols, scaler, train=True)
     val_dataset = BoneImageDataset(val_df, TARGET, label_encoder, feature_cols, scaler, train=False)
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
+
+    # 2026-08-03: `class_weight="balanced"` en la pérdida (más abajo) ya compensa el
+    # desequilibrio ENTRE grupos (hueso_largo con 952 filas vs pelvis con 132) — eso
+    # ya existía. Lo que no compensaba nada es que, DENTRO de cada grupo, las fotos
+    # reales son minoría frente a las sintéticas (costilla: 18 reales de 360 filas,
+    # 5%) — cada ronda de fotos reales añadidas esta sesión se diluye entre muchas
+    # más filas sintéticas del mismo grupo. `WeightedRandomSampler` sobremuestrea las
+    # filas reales (`--real-photo-boost`, default 4x) para que su señal no se pierda
+    # en el ruido de lo sintético, sin tocar el balance entre grupos (ese sigue en la
+    # pérdida, no aquí).
+    is_real = train_df["source_path"].str.startswith("data/real_photos_accepted/").to_numpy()
+    sample_weights = np.where(is_real, args.real_photo_boost, 1.0)
+    sampler = torch.utils.data.WeightedRandomSampler(
+        weights=torch.as_tensor(sample_weights, dtype=torch.double),
+        num_samples=len(train_dataset), replacement=True,
+    )
+    print(f"WeightedRandomSampler: {int(is_real.sum())} filas reales de {len(train_df)} "
+          f"({is_real.mean() * 100:.1f}%) sobremuestreadas x{args.real_photo_boost}.")
+
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler,
                                num_workers=args.num_workers, pin_memory=(device.type == "cuda"))
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,
                              num_workers=args.num_workers, pin_memory=(device.type == "cuda"))
@@ -355,6 +380,7 @@ def main():
             "random_state": args.random_state,
             "model_seed": args.model_seed,
             "select_by_real_bench": args.select_by_real_bench,
+            "real_photo_boost": args.real_photo_boost,
             "dataset_path": dataset_path_display,
             "n_train_rows": len(train_df),
             "n_train_specimens": int(train_df["specimen"].nunique()),

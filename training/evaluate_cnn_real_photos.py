@@ -22,9 +22,18 @@ from shared.inference.predict_cnn import classify_image
 from training.metrics_utils import format_confusion_matrix
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-BENCHMARK_DIR = BASE_DIR / "data/real_world_benchmark"
-MANIFEST_PATH = BENCHMARK_DIR / "manifest.csv"
 TARGET = "bone_group"
+
+# 2026-08-03: dos bancos de fotos reales disponibles — `benchmark` es el
+# original (63 fotos externas, `selection`/`held_out`, n=9 en el examen);
+# `accepted` es el pool de entrenamiento (357 fotos y creciendo) con su
+# propio split `train`/`test` (~20% reservado, 72 fotos) — mucho más grande
+# que el held_out del benchmark, mejor para medir con confianza. Ver
+# HISTORIAL.md.
+SOURCES = {
+    "benchmark": BASE_DIR / "data/real_world_benchmark",
+    "accepted": BASE_DIR / "data/real_photos_accepted",
+}
 
 
 def _git_commit() -> str:
@@ -36,12 +45,12 @@ def _git_commit() -> str:
         return "desconocido"
 
 
-def _iter_images(split: str | None):
-    df = pd.read_csv(MANIFEST_PATH)
+def _iter_images(benchmark_dir: Path, manifest_path: Path, split: str | None):
+    df = pd.read_csv(manifest_path)
     if split is not None and "split" in df.columns:
         df = df[df["split"] == split]
     for _, row in df.iterrows():
-        path = BENCHMARK_DIR / row["bone_group"] / row["filename"]
+        path = benchmark_dir / row["bone_group"] / row["filename"]
         if not path.exists():
             print(f"AVISO: en manifest.csv pero no existe en disco: {path}")
             continue
@@ -53,26 +62,34 @@ def parse_args():
     p.add_argument("--model-type", choices=["cnn_only", "hybrid"], default="hybrid")
     p.add_argument("--segmenter", choices=["classic", "fastsam", "grounded_sam"], default="grounded_sam",
                    help="backend de segmentación (solo afecta a 'hybrid', 'cnn_only' no usa geometría)")
-    p.add_argument("--split", choices=["all", "selection", "held_out"], default="all",
-                   help="2026-08-03: si train_cnn.py seleccionó el checkpoint maximizando "
-                        "real_bench_acc sobre el subconjunto 'selection' de este mismo banco "
-                        "(ver HISTORIAL.md), evaluar con --split=all o --split=selection es "
-                        "circular — para un número honesto de generalización usar "
-                        "--split=held_out (las fotos que el entrenamiento nunca vio).")
+    p.add_argument("--source", choices=["benchmark", "accepted"], default="benchmark",
+                   help="'benchmark' = data/real_world_benchmark (63 fotos externas, splits "
+                        "'selection'/'held_out'). 'accepted' = data/real_photos_accepted (el pool "
+                        "de entrenamiento, 357+ fotos, splits 'train'/'test' — el 'test' es mucho "
+                        "más grande que el held_out del benchmark, 72 vs 9 fotos).")
+    p.add_argument("--split", default="all",
+                   help="'all' = sin filtrar. Con --source=benchmark: 'selection'/'held_out'. Con "
+                        "--source=accepted: 'train'/'test' (usar 'test' para el examen honesto, "
+                        "NUNCA 'train' — esas fotos ya las vio el modelo). 2026-08-03: si "
+                        "train_cnn.py seleccionó el checkpoint maximizando real_bench_acc sobre "
+                        "'selection', evaluar con --split=all o --split=selection en el benchmark "
+                        "es circular — ver HISTORIAL.md.")
     return p.parse_args()
 
 
 def main():
     args = parse_args()
-    if not BENCHMARK_DIR.exists():
-        raise SystemExit(f"No existe {BENCHMARK_DIR}.")
+    benchmark_dir = SOURCES[args.source]
+    manifest_path = benchmark_dir / "manifest.csv"
+    if not benchmark_dir.exists():
+        raise SystemExit(f"No existe {benchmark_dir}.")
 
     y_true, y_pred, rows = [], [], []
     probas, proba_true = [], []
     n_not_found = 0
 
     split_filter = None if args.split == "all" else args.split
-    for path, true_group, meta in _iter_images(split_filter):
+    for path, true_group, meta in _iter_images(benchmark_dir, manifest_path, split_filter):
         with path.open("rb") as f:
             result = classify_image(f, model_type=args.model_type, backend=args.segmenter)
         if not result["found"]:
@@ -123,6 +140,7 @@ def main():
         mlflow.log_param("n_images", len(y_true))
         mlflow.log_param("n_not_found", n_not_found)
         mlflow.log_param("segmenter", args.segmenter)
+        mlflow.log_param("source", args.source)
         mlflow.log_param("split", args.split)
         mlflow.set_tag("model_type", args.model_type)
         mlflow.set_tag("segmenter", args.segmenter)

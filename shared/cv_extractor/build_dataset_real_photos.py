@@ -14,7 +14,17 @@ el nombre lo diga explícitamente).
 
 Uso:
     python -m shared.cv_extractor.build_dataset_real_photos
+    python -m shared.cv_extractor.build_dataset_real_photos --split test
+
+2026-08-03: `manifest.csv` ganó una columna `split` (`train`/`test`, ~80/20
+estratificado por `bone_group`, `random_state=42`, mínimo 3 filas de test por
+grupo) — antes de esto, el único banco de examen "de verdad" era
+`real_world_benchmark` con 1 foto/grupo (n=9), demasiado poco para medir nada
+con confianza. Ahora hay ~4-18 fotos de test por grupo (72 en total) sacadas
+directamente del pool de entrenamiento, nunca vistas por el modelo si se usa
+`--split train` para construir `combined.csv`. Ver HISTORIAL.md.
 """
+import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -26,15 +36,28 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ACCEPTED_DIR = REPO_ROOT / "data/real_photos_accepted"
 MANIFEST_PATH = ACCEPTED_DIR / "manifest.csv"
 OUT = REPO_ROOT / "data/processed/bone_geometric_features_real_photos.csv"
+OUT_TEST = REPO_ROOT / "data/processed/bone_geometric_features_real_photos_test.csv"
 CROPS_OUT_DIR = REPO_ROOT / "data/segmented_crops/real_photos"
 
 
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--split", choices=["train", "test", "all"], default="train",
+                   help="qué subconjunto de manifest.csv procesar — 'train' (default) es lo que "
+                        "entra a combined.csv; 'test' es el examen final reservado, nunca debe "
+                        "mezclarse con 'train'.")
+    return p.parse_args()
+
+
 def main():
+    args = parse_args()
     if not MANIFEST_PATH.exists():
         raise SystemExit(f"No existe {MANIFEST_PATH}.")
 
     manifest = pd.read_csv(MANIFEST_PATH)
-    print(f"{len(manifest)} fotos aceptadas en el manifest")
+    if args.split != "all" and "split" in manifest.columns:
+        manifest = manifest[manifest["split"] == args.split]
+    print(f"{len(manifest)} fotos ({args.split}) en el manifest")
 
     rows, skipped = [], []
     for _, m in manifest.iterrows():
@@ -70,10 +93,11 @@ def main():
         for filename, reason in skipped:
             print(f"  - {filename}: {reason}")
 
+    out_path = OUT if args.split == "train" else OUT_TEST
     df = pd.DataFrame(rows)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(OUT, index=False)
-    print(f"\nTabla escrita en: {OUT}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_path, index=False)
+    print(f"\nTabla escrita en: {out_path}")
     print(f"Filas: {len(df)}  Columnas: {len(df.columns)}")
     if not df.empty:
         print(df.groupby("bone_group").size().to_string())

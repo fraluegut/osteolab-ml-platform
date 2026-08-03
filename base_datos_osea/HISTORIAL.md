@@ -1895,6 +1895,53 @@ ruido individual; la tendencia de fondo (varias rondas, no una sola) es la que h
 40. Class-balanced sampling (pendiente #39) gana urgencia: ahora hay grupos con 90 fotos reales
     (hueso_largo) y grupos con 18 (costilla) — el desequilibrio entre grupos de fotos reales es tan
     grande como el que había entre grupos sintéticos al principio del proyecto.
-41. Ampliar el banco `real_world_benchmark` held_out (hoy 1 foto/grupo, n=9 total) sigue siendo la
-    mejora de infraestructura más urgente para que estas comparaciones dejen de tener ±11 puntos de
-    margen de error cada ronda.
+41. ~~Ampliar el banco held_out~~ — hecho a lo grande, ver más abajo.
+
+### Quinta ronda: `WeightedRandomSampler` + examen final 8x más grande (de `real_world_benchmark`, n=9, a `real_photos_accepted`, n=72)
+
+Dos piezas implementadas a la vez:
+
+**1. `WeightedRandomSampler` (real vs sintético dentro de cada grupo).** Se confirmó que
+`class_weight="balanced"` en la pérdida YA compensaba el desequilibrio ENTRE grupos (hueso_largo con
+952 filas vs pelvis con 132) — eso no era nuevo. Lo que faltaba: DENTRO de cada grupo, las fotos
+reales son minoría frente a las sintéticas (costilla: 18 reales de 360 filas, 5%; cada ronda de
+fotos reales de esta sesión se diluye entre muchas más filas sintéticas del mismo grupo). Nuevo flag
+`--real-photo-boost` (default 4.0): `WeightedRandomSampler` sobremuestrea las filas reales x4 dentro
+de su grupo, sin tocar el balance entre grupos (eso sigue en la pérdida).
+
+**2. Examen final mucho más grande, sacado del propio pool de entrenamiento.** El held_out de
+`real_world_benchmark` (1 foto/grupo, n=9) tenía demasiado margen de error para juzgar nada con
+confianza. Con `data/real_photos_accepted` ya en 357 fotos, tiene sentido reservar una porción fija
+como examen — nuevo `manifest.csv` gana columna `split` (`train`/`test`, ~20% estratificado por
+grupo, `random_state=42`, mínimo 3 por grupo): **72 fotos de examen** (4-18 por grupo) en vez de 9.
+`build_dataset_real_photos.py` gana `--split {train,test,all}` (default `train`, lo único que entra
+a `combined.csv`); `evaluate_cnn_real_photos.py` gana `--source {benchmark,accepted}` para poder
+examinar contra cualquiera de los dos bancos.
+
+Reentrenado el híbrido (`model_seed=42`, sampler activo, `combined.csv` con solo las 285 filas
+`train` de fotos reales — las 72 de `test` nunca entran):
+- `real_bench_acc` (banco viejo, 48 fotos `selection`) sube fuerte a 0.8542 en la última epoch —
+  el sampler sí mueve la aguja en ese banco.
+- Val sintético: `sacro` cae a 0.083 recall (raro, aislado) pero el resto razonable
+  (cranio 0.762, hueso_largo 0.865, hueso_pequeno 0.842, hueso_plano 0.861, vertebra 0.816). Banco
+  sintético limpio: 0.7917 (baja un poco).
+- **Examen honesto NUEVO (`--source accepted --split test`, 72 fotos): accuracy 0.8472, balanced
+  0.7631** — el número más fiable de toda la sesión con diferencia (8x más muestra que cualquier
+  medida anterior). `hueso_largo` (18/18), `pelvis` (5/5) y `sacro` (5/5) perfectos; `cranio` 13/14;
+  `vertebra` 8/9. Débiles de verdad: `costilla` (1/4 recall) y `hueso_plano` (1/4 recall) — aquí el
+  n ya es suficiente para tomárselo en serio, no es ruido de 1 sola foto.
+
+**Nota importante sobre esta cifra**: el examen de `accepted/test` viene de la MISMA fuente/estilo
+que las fotos de entrenamiento (mismas tandas de búsqueda de imágenes, fondos parecidos) — es un
+examen honesto en el sentido de que el modelo nunca vio esas fotos concretas, pero no es tan
+"externo" como `real_world_benchmark` (fuente totalmente distinta, Wikimedia Commons). Mantener
+ambos bancos: `accepted/test` (n=72) para seguimiento fino por grupo epoch a epoch, y
+`real_world_benchmark/held_out` (n=9, cuando crezca) como control de generalización a fuentes que ni
+siquiera aportaron nada al pool de entrenamiento.
+
+### Pendiente
+42. `costilla` y `hueso_plano` con recall 0.25 real en el examen de 72 fotos — con n=4 cada uno ya
+    empieza a ser una señal seria, no solo ruido. Revisar qué está fallando (confusión con qué
+    clases, ver matriz) antes de simplemente añadir más fotos a ciegas.
+43. Considerar ampliar también `real_world_benchmark` (sigue en n=9 el held_out) para tener un
+    segundo control totalmente externo con más muestra.
