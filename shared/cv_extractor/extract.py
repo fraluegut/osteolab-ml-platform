@@ -810,7 +810,8 @@ def segment_and_crop(image_file, backend: str = "grounded_sam", bg_gray: int = C
     return _crop_masked(image, binary, x, y, w, h, bg_gray)
 
 
-def extract_features(image_file, backend: str = "grounded_sam", include_crop: bool = False) -> dict:
+def extract_features(image_file, backend: str = "grounded_sam", include_crop: bool = False,
+                      bg_gray: int = CROP_BG_GRAY) -> dict:
     """`backend`: "grounded_sam" (segmentación aprendida por texto, por
     defecto desde 2026-07-26 — ver `_segment_grounded_sam` y HISTORIAL.md),
     "fastsam" (segmentación aprendida por punto central, ver
@@ -853,10 +854,11 @@ def extract_features(image_file, backend: str = "grounded_sam", include_crop: bo
     image = _resize_to_canonical(image)
 
     binary, contour = _locate_bone(image, backend)
-    return _compute_all_features(image, binary, contour, include_crop)
+    return _compute_all_features(image, binary, contour, include_crop, bg_gray)
 
 
-def extract_features_from_mask(image_file, mask_file, include_crop: bool = False) -> dict:
+def extract_features_from_mask(image_file, mask_file, include_crop: bool = False,
+                                bg_gray: int = CROP_BG_GRAY) -> dict:
     """Igual que `extract_features`, pero con la máscara de segmentación YA
     dada (p.ej. la máscara ground-truth que exporta BlenderProc desde la
     propia geometría 3D, ver `render_bone_bproc.py` y HISTORIAL.md
@@ -882,10 +884,11 @@ def extract_features_from_mask(image_file, mask_file, include_crop: bool = False
     img_area = image.shape[0] * image.shape[1]
     if contour is None or cv2.contourArea(contour) < img_area * MIN_CONTOUR_AREA_RATIO:
         binary, contour = None, None
-    return _compute_all_features(image, binary, contour, include_crop)
+    return _compute_all_features(image, binary, contour, include_crop, bg_gray)
 
 
-def _compute_all_features(image: np.ndarray, binary, contour, include_crop: bool) -> dict:
+def _compute_all_features(image: np.ndarray, binary, contour, include_crop: bool,
+                           bg_gray: int = CROP_BG_GRAY) -> dict:
     img_h, img_w = image.shape[:2]
     img_area = img_h * img_w
 
@@ -936,5 +939,5 @@ def _compute_all_features(image: np.ndarray, binary, contour, include_crop: bool
             image, contour, box_points, (x, y, w, h), (long_side, short_side, angle), shape_stats
         ),
         "mask_overlay_base64": _mask_overlay_image(image, binary),
-        **({"crop_image": _crop_masked(image, binary, x, y, w, h)} if include_crop else {}),
+        **({"crop_image": _crop_masked(image, binary, x, y, w, h, bg_gray)} if include_crop else {}),
     }

@@ -71,12 +71,17 @@ def _missing_model_msg(model_type: str) -> str:
     )
 
 
-@lru_cache(maxsize=2)
-def _load(model_type: str):
-    model_path = MODEL_DIR / f"cnn_model_{model_type}_{TARGET}.pt"
-    encoder_path = MODEL_DIR / f"cnn_encoder_{model_type}_{TARGET}.joblib"
+@lru_cache(maxsize=4)
+def _load(model_type: str, run_name: str | None = None):
+    """`run_name` (default `None` -> usa `model_type`) es el sufijo de fichero
+    real — permite cargar variantes de pipeline paralelas (ej. 'hybrid_blackbg',
+    ver `train_cnn.py --run-name`) sin que `model_type` deje de controlar la
+    arquitectura (hybrid/cnn_only)."""
+    suffix = run_name or model_type
+    model_path = MODEL_DIR / f"cnn_model_{suffix}_{TARGET}.pt"
+    encoder_path = MODEL_DIR / f"cnn_encoder_{suffix}_{TARGET}.joblib"
     if not model_path.exists():
-        raise FileNotFoundError(_missing_model_msg(model_type))
+        raise FileNotFoundError(_missing_model_msg(suffix))
 
     checkpoint = torch.load(model_path, map_location=_DEVICE, weights_only=False)
     encoder = joblib.load(encoder_path)
@@ -90,15 +95,19 @@ def _load(model_type: str):
 
     feature_cols, scaler, fallback_means = None, None, None
     if model_type == "hybrid":
-        feature_cols = joblib.load(MODEL_DIR / f"cnn_feature_columns_{model_type}_{TARGET}.joblib")
-        scaler = joblib.load(MODEL_DIR / f"cnn_scaler_{model_type}_{TARGET}.joblib")
+        feature_cols = joblib.load(MODEL_DIR / f"cnn_feature_columns_{suffix}_{TARGET}.joblib")
+        scaler = joblib.load(MODEL_DIR / f"cnn_scaler_{suffix}_{TARGET}.joblib")
         fallback_means = pd.read_csv(TRAINING_TABLE_PATH, usecols=feature_cols).mean(numeric_only=True).to_dict()
 
     return model, encoder, feature_cols, scaler, fallback_means
 
 
-def classify_image(image_file, model_type: str = "hybrid", backend: str = "grounded_sam") -> dict:
+def classify_image(image_file, model_type: str = "hybrid", backend: str = "grounded_sam",
+                    run_name: str | None = None, bg_gray: int = 128) -> dict:
     """Clasifica una imagen (path o file-like) con la CNN.
+
+    `run_name`/`bg_gray`: para evaluar variantes de pipeline paralelas (ver
+    `_load`) — con el pipeline normal, dejar los defaults.
 
     Devuelve:
         {
@@ -108,9 +117,9 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
           "cv_features": {...} | None,  # solo si model_type="hybrid"
         }
     """
-    model, encoder, feature_cols, scaler, fallback_means = _load(model_type)
+    model, encoder, feature_cols, scaler, fallback_means = _load(model_type, run_name)
 
-    raw_features = extract_features(image_file, backend=backend, include_crop=True)
+    raw_features = extract_features(image_file, backend=backend, include_crop=True, bg_gray=bg_gray)
     if not raw_features.get("found"):
         return {"found": False, "cv_features": raw_features if model_type == "hybrid" else None}
 

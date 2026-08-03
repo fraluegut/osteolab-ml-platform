@@ -74,6 +74,13 @@ def parse_args():
                         "train_cnn.py seleccionó el checkpoint maximizando real_bench_acc sobre "
                         "'selection', evaluar con --split=all o --split=selection en el benchmark "
                         "es circular — ver HISTORIAL.md.")
+    p.add_argument("--run-name", default=None,
+                    help="Cargar un modelo guardado con --run-name distinto en train_cnn.py (ej. "
+                         "'hybrid_blackbg') en vez del nombre por defecto de --model-type.")
+    p.add_argument("--bg-gray", type=int, default=128,
+                    help="Color de fondo (0-255) para la segmentación en vivo de este examen — "
+                         "debe coincidir con el que se usó para entrenar el modelo que se está "
+                         "evaluando (0 para la variante 'blackbg', 128 = gris, el normal).")
     return p.parse_args()
 
 
@@ -91,7 +98,8 @@ def main():
     split_filter = None if args.split == "all" else args.split
     for path, true_group, meta in _iter_images(benchmark_dir, manifest_path, split_filter):
         with path.open("rb") as f:
-            result = classify_image(f, model_type=args.model_type, backend=args.segmenter)
+            result = classify_image(f, model_type=args.model_type, backend=args.segmenter,
+                                     run_name=args.run_name, bg_gray=args.bg_gray)
         if not result["found"]:
             n_not_found += 1
             pred = "sin_segmentar"
@@ -141,6 +149,8 @@ def main():
         mlflow.log_param("n_not_found", n_not_found)
         mlflow.log_param("segmenter", args.segmenter)
         mlflow.log_param("source", args.source)
+        mlflow.log_param("run_name", args.run_name)
+        mlflow.log_param("bg_gray", args.bg_gray)
         mlflow.log_param("split", args.split)
         mlflow.set_tag("model_type", args.model_type)
         mlflow.set_tag("segmenter", args.segmenter)

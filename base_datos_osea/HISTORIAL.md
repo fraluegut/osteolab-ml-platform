@@ -2006,3 +2006,47 @@ Reentrenado el híbrido (`model_seed=42`, todo lo demás igual que la ronda ante
     aún (ej. número de bifurcaciones del esqueleto, propuesta del usuario no implementada por
     complejidad/prioridad más baja — huesos con forma en Y o ramificada, ninguno de los 9 grupos
     actuales la tiene marcadamente, bajo valor esperado por ahora).
+
+### Pipeline paralelo "blackbg": fondo negro en vez de gris, para comparar — empate técnico
+
+Propuesta del usuario: un pipeline COMPLETO en paralelo (sin tocar el de siempre) donde el fondo de
+todos los recortes segmentados sea negro puro en vez del gris neutro habitual (`CROP_BG_GRAY=128`),
+aplicado a TODO — sintético (train/val), fotos reales (entrenamiento/examen), y el examen final.
+
+**Implementación, atajo clave**: `_crop_masked` usa máscara DURA (sin difuminado en el borde), así
+que cada píxel de fondo en un recorte ya generado es EXACTAMENTE `(128,128,128)` — no hace falta
+volver a segmentar nada con Grounding DINO+SAM, basta con sustituir ese color por `(0,0,0)` en los
+PNG ya existentes (resultado matemáticamente idéntico a haber corrido la segmentación desde cero con
+`bg_gray=0`). Nuevo `shared/cv_extractor/build_blackbg_variant.py`: recolorea los recortes de las 6
+tablas (limpio/ruido clásico/ruido bproc/reales train/reales test/banco sintético) a
+`data/segmented_crops_blackbg/`, escribe CSVs paralelos con sufijo `_blackbg` — 0 filas perdidas,
+todas las 4343+216 filas convertidas en segundos (vs ~25-30 min si hubiera hecho falta resegmentar).
+
+Para el examen final (fotos que se segmentan EN VIVO, sin recorte cacheado, ej.
+`real_world_benchmark`), `extract.py` gana un parámetro `bg_gray` enhebrado por `extract_features`/
+`extract_features_from_mask`/`_compute_all_features` (default sigue en 128, no cambia nada del
+pipeline normal). `train_cnn.py` gana `--run-name` (nombre de fichero de salida distinto de
+`--model-type`, para no pisar `cnn_model_hybrid_bone_group.pt`) y `--bg-gray`. `predict_cnn.py`
+(`_load`/`classify_image`) y `evaluate_cnn_real_photos.py` ganan los mismos dos flags a juego.
+`.gitignore` gana `data/segmented_crops_blackbg/` (el patrón exacto anterior no cubría variantes).
+
+**Resultado — entrenado igual que el mejor híbrido actual** (`model_seed=42`, mismo sampler, mismas
+features nuevas, guardado como `hybrid_blackbg` sin pisar el modelo normal):
+- Val sintético: banco limpio 0.824 (vs 0.838 gris) — comparable, algo por debajo.
+- **Examen honesto (77 fotos): accuracy 0.8442 (IDÉNTICA a la gris), balanced accuracy 0.8102 (vs
+  0.7959 gris, +1.4 puntos)**. Por grupo: `costilla` perfecta 9/9 (vs 8/9 gris), `mandibula_maxilar`
+  perfecta 5/5 (vs 4/5), `sacro` igual 5/5 — pero `cranio` baja a 0.71 (vs 0.79) y `vertebra` a 0.78
+  (vs 0.89). **`hueso_plano` exactamente igual de mal (0.25) en los dos** — confirma que ese fallo no
+  tiene que ver con el fondo.
+
+**Conclusión honesta**: empate técnico. Quitar el fondo del todo no arruina el modelo ni lo dispara
+— cambia QUÉ clases van mejor/peor (costilla y mandíbula mejoran, cráneo y vértebra empeoran un
+poco), sin ganador claro en la cifra global. Con n=77 (y menos por grupo) la diferencia de 1-2 fotos
+por clase ya explica buena parte del vaivén — no hay señal fuerte de que uno sea sistemáticamente
+mejor que el otro con los datos actuales.
+
+### Pendiente
+47. Si se quiere seguir explorando el pipeline blackbg, entrenar con 2-3 semillas más (como se hizo
+    para descartar `lr_head_finetune`) antes de sacar conclusiones firmes — con un solo run cada uno,
+    la diferencia de 1.4 puntos en balanced accuracy está dentro del ruido esperado de inicialización
+    ya documentado en esta sesión (pendiente #21 y el hallazgo de `--model-seed`).

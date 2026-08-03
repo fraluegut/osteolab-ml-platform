@@ -12,6 +12,7 @@ data/backgrounds/
 data/real_photos_review/
 data/real_photos_accepted/
 data/segmented_crops/
+data/segmented_crops_blackbg/
 data/bone_ingest/
 base_datos_osea/Fotos entrenamiento/
 mlruns/

@@ -99,6 +99,18 @@ def parse_args():
     p.add_argument("--backbone", default="resnet18")
     p.add_argument("--dataset-path", type=Path, default=DEFAULT_DATASET)
     p.add_argument("--benchmark-path", type=Path, default=DEFAULT_BENCHMARK)
+    p.add_argument("--bg-gray", type=int, default=128,
+                    help="Color de fondo (0-255, gris neutro por defecto) usado SOLO para "
+                         "precomputar el banco real externo de monitoreo (real_bench_acc) — el "
+                         "dataset de entrenamiento en sí ya trae su propio fondo horneado en los "
+                         "recortes de --dataset-path, esto no lo cambia. Pasar 0 al entrenar la "
+                         "variante 'blackbg' para que este monitoreo sea consistente.")
+    p.add_argument("--run-name", default=None,
+                    help="Sufijo de los ficheros de salida (modelo/encoder/scaler/meta), en vez de "
+                         "--model-type. Para variantes de pipeline paralelas (ej. 'hybrid_blackbg') "
+                         "que no deben pisar los ficheros del pipeline normal — --model-type sigue "
+                         "controlando la arquitectura (hybrid/cnn_only), esto solo el nombre de "
+                         "fichero.")
     p.add_argument("--epochs-frozen", type=int, default=5)
     p.add_argument("--epochs-finetune", type=int, default=10)
     p.add_argument("--batch-size", type=int, default=32)
@@ -182,7 +194,8 @@ def evaluate_external(model, df, target_col, label_encoder, feature_cols, scaler
     return accuracy, report
 
 
-def precompute_real_bench(label_encoder, feature_cols, scaler, fallback_means, backend="grounded_sam"):
+def precompute_real_bench(label_encoder, feature_cols, scaler, fallback_means, backend="grounded_sam",
+                           bg_gray: int = 128):
     """Segmenta UNA VEZ (Grounding DINO + SAM, ~0.5s/imagen en GPU) el subconjunto
     de SELECCIÓN del banco de fotos reales externo (`data/real_world_benchmark/`)
     y devuelve tensores ya listos. La segmentación no depende de los pesos del
@@ -209,7 +222,7 @@ def precompute_real_bench(label_encoder, feature_cols, scaler, fallback_means, b
         if not path.exists():
             continue
         with path.open("rb") as fh:
-            raw = extract_features(fh, backend=backend, include_crop=True)
+            raw = extract_features(fh, backend=backend, include_crop=True, bg_gray=bg_gray)
         if not raw.get("found"):
             n_not_found += 1
             continue
@@ -314,6 +327,7 @@ def main():
     real_bench = precompute_real_bench(
         label_encoder, feature_cols, scaler,
         col_means.to_dict() if feature_cols is not None else None,
+        bg_gray=args.bg_gray,
     )
     if real_bench is not None and args.select_by_real_bench:
         print("Selección de checkpoint por val_acc en el banco real externo (con guardarraíl "
@@ -381,6 +395,8 @@ def main():
             "model_seed": args.model_seed,
             "select_by_real_bench": args.select_by_real_bench,
             "real_photo_boost": args.real_photo_boost,
+            "bg_gray": args.bg_gray,
+            "run_name": args.run_name,
             "dataset_path": dataset_path_display,
             "n_train_rows": len(train_df),
             "n_train_specimens": int(train_df["specimen"].nunique()),
@@ -524,7 +540,7 @@ def main():
                 mlflow.log_metric(f"bench_recall_{class_name}", bench_report[class_name]["recall"])
 
         run_id = mlflow.active_run().info.run_id
-        suffix = args.model_type
+        suffix = args.run_name or args.model_type
         model_path = MODEL_DIR / f"cnn_model_{suffix}_{TARGET}.pt"
         encoder_path = MODEL_DIR / f"cnn_encoder_{suffix}_{TARGET}.joblib"
         torch.save({
