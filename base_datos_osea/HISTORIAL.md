@@ -1787,8 +1787,65 @@ Reentrenado el híbrido (`model_seed=42`, criterio de selección val_acc sintét
   algoritmo, es lo que mueve el número).
 
 ### Pendiente
-34. Confirmar la mejora con más fotos reales en otros grupos débiles (`cranio` 0.553 recall,
-    `sacro` con solo 1 fila en val) — mismo patrón que mandíbula: más fotos, no más ajuste de
-    algoritmo.
+34. ~~Confirmar la mejora con más fotos reales en otros grupos débiles~~ — hecho a lo grande, ver
+    más abajo.
 35. Aplicar el criterio corregido (sin rechazo unilateral) a los lotes huérfanos del pendiente #33
     cuando se retomen.
+
+### Barrido completo: 138 fotos nuevas en 5 grupos a la vez, delegado en 5 forks en paralelo
+
+El usuario dejó las mismas carpetas crudas de siempre (`Fotos entrenamiento/costilla|craneo|pelvis|
+sacro|vertebra`, más "nuevos 1" con PDFs de papers de referencia, sin fotos) y pidió aplicar el
+criterio ya corregido (sin rechazo unilateral, solo dividir imágenes con más de un hueso) a TODO,
+no solo a mandíbula. Confirmado por hash MD5 que las 5 carpetas son bit a bit idénticas a las que ya
+estaban en `base_datos_osea/Fotos entrenamiento/` de la sesión anterior — no había fotos nuevas en
+sí, pero sí fotos que en su momento se rechazaron con el criterio viejo (especie/ilustración/marca
+de agua/anotación) y que ahora tocaba reconsiderar.
+
+Delegado en 5 forks en paralelo (uno por grupo, mismo protocolo que mandíbula: comparar contra lo ya
+aceptado para no duplicar, copiar/recortar el resto, anotar en `manifest.csv`). Resultado:
+
+| Grupo | Antes | Después | Nuevas | Notas |
+|---|---|---|---|---|
+| cranio | 5 | 72 | +67 | 4 collages divididos en recortes individuales (uno de ~22 cráneos pequeños en baja resolución, calidad de recorte floja — señalado) |
+| vertebra | 13 | 47 | +34 | 31 recortes de 6 imágenes multi-espécimen (grid learnmuscles.com, figuras de paper) + 3 sin recortar |
+| sacro | 8 (+4 huérfanas) | 26 | +18 | Encontrados `sacro_001-004` en disco sin fila en manifest (huérfanos de antes, no tocados, quedan invisibles para el pipeline) |
+| pelvis | 14 | 23 | +9 | 13 duplicados exactos descartados (mismas fotos Bone Clones ya aceptadas) |
+| costilla | 8 | 18 | +10 | 6 imágenes con 7-24 costillas apiladas MUY densas dejadas sin recortar (no separables limpio de forma automática) |
+| mandibula_maxilar | — | 23 | (ya hecho antes en la sesión) | |
+
+Manifest.csv: 210 filas totales, sin duplicados de `(bone_group, filename)`, todos los ficheros
+verificados en disco. `bone_geometric_features_real_photos.csv` regenerado: 210/210 segmentaron bien
+(0 descartadas). `combined.csv`: 3915→4053 filas.
+
+Reentrenado el híbrido (`model_seed=42`, criterio de selección val_acc sintético + guardarraíl):
+- **Las 9 clases con recall > 0 por primera vez en toda la sesión** (antes `sacro`/`mandibula_maxilar`
+  se turnaban para caer a 0 por n=1 en val) — guardarraíl satisfecho sin caer a fallback.
+- `cranio` sube de 0.553 a 0.679, `mandibula_maxilar` 0.878, `hueso_pequeno` 0.890.
+- Banco sintético limpio: 0.875.
+- **Examen honesto (`--split held_out`, 9 fotos nunca vistas): 0.5556 — BAJA desde el 0.7778
+  anterior**, pese a que todos los números sintéticos mejoran. Matriz de confusión: `costilla` y
+  `hueso_pequeno` (antes acertaban) ahora fallan, `hueso_pequeno`→`cranio` y `pelvis`→`cranio` (este
+  último ya fallaba antes, se mantiene). Sospecha: los 72 cráneos reales metidos de golpe (frente a
+  1-26 del resto de grupos) desequilibran el modelo hacia sobre-predecir `cranio` cuando duda. Con
+  n=9 cada fallo pesa ~11 puntos, así que no es concluyente estadísticamente, pero 2 fallos nuevos
+  cayendo ambos hacia la misma clase sobre-representada no parece puro azar. **No confundir "sube en
+  sintético" con "mejora de verdad"** — la lección de siempre en esta sesión, ahora con un ejemplo
+  más grande y más claro que los anteriores.
+
+### Pendiente
+36. `sacro_001.jpg` a `sacro_004.jpg` existen en disco (`data/real_photos_accepted/sacro/`) pero NO
+    tienen fila en `manifest.csv` — invisibles para `build_dataset_real_photos.py`. Añadir sus filas
+    o confirmar por qué se dejaron fuera.
+37. Imágenes densas con muchos especímenes dejadas sin recortar por los forks (6 de costilla, 4 de
+    vertebra, 1 collage de cráneo de baja calidad) — recorte manual pendiente si se quiere ese
+    volumen extra.
+38. `hueso_plano` y `hueso_pequeno` siguen en 0 fotos reales de entrenamiento — ningún lote de esta
+    sesión tocó esos grupos (el usuario no dejó fotos de esos dos). Siguen siendo la prioridad más
+    clara para la próxima ronda.
+39. **Investigar el desequilibrio de cráneo (72 fotos) sobre-prediciendo frente al resto** — probar
+    class-balanced sampling (`WeightedRandomSampler`, ya propuesto y no implementado antes en la
+    sesión) o simplemente capar cuántas fotos reales por grupo entran a cada epoch, para que un
+    grupo con muchas más fotos no arrastre la predicción hacia sí cuando el modelo duda. Con n=9 en
+    el held_out no se puede confirmar la causa con certeza — ampliar el banco held_out ayudaría
+    también a diagnosticar esto (pendiente #30/#31).
