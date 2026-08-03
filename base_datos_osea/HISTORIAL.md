@@ -1712,7 +1712,40 @@ explícito, que en las tandas anteriores dieron mucho mejor ratio de aceptación
 predominante: Wikimedia Commons, ver `source_url` en el resto del manifest).
 
 ### Pendiente
-32. `mandibula_maxilar` sigue en 0 fotos reales de entrenamiento. Próximo intento: buscar con
-    términos más específicos ("human mandible specimen", "mandíbula humana osteológica") y
-    priorizar Wikimedia Commons / colecciones museísticas (mismo patrón que ya funcionó para
-    cráneo/costilla/vértebra) en vez de búsqueda de imágenes genérica.
+32. ~~`mandibula_maxilar` sigue en 0 fotos reales de entrenamiento~~ — corregido el criterio de
+    curación (ver más abajo), 5 fotos aceptadas de ese mismo lote.
+
+### Corrección de criterio: especie NO descalifica, solo el grupo anatómico importa
+
+El usuario frenó la revisión anterior: rechazar por "especie incorrecta" (perro/lobo/ciervo) era un
+error — el objetivo es pasar el filtro por grupo anatómico (¿se reconoce la forma de mandíbula/
+cráneo/etc.?), la especie es un problema aparte que se resuelve después, no bloqueante aquí. No es
+un cambio de código (nunca hubo filtro de especie en `extract_features`/`build_dataset_real_photos.py`,
+solo era juicio manual de curación) — corregido también en memoria persistente para no repetirlo.
+
+Re-revisadas las 21 fotos de mandíbula con el criterio correcto: **5 aceptadas** (de 0 antes).
+Motivos de rechazo de las 16 restantes, todos independientes de especie: ilustración/diagrama/CGI
+(4), marca de agua o stock sin licencia clara (3), figura de paper con anotaciones superpuestas —
+flechas/números/letras en post-producción (5), especímenes solapados en una imagen (1), ambigüedad/
+imposible identificar un hueso único con certeza (1), figura de artículo científico con copyright
+explícito (1), borderline con anotación mínima descartado por consistencia (1).
+
+Aceptadas (`data/real_photos_accepted/mandibula_maxilar/mandibula_01..05.jpg`) — 3 de las 5 son de
+especie NO primate (perro/lobo, y dos probables carnívoros pequeños), aceptadas a propósito bajo el
+criterio nuevo. `bone_geometric_features_real_photos.csv` 49→54 filas, `combined.csv` 3892→3897.
+
+Reentrenado el híbrido (criterio validado: val_acc sintético + guardarraíl, model_seed=42):
+- Banco sintético limpio: 0.8704 (sube).
+- `mandibula_maxilar` sigue en 0.000 en la tabla de val sintético — mismo artefacto de siempre (el
+  split de espécimen mandó las 5 fotos nuevas a train, 0 a val; no significa que el modelo falle,
+  solo que no hay medición ahí).
+- **Examen honesto (`--split held_out`, 9 fotos nunca vistas)**: accuracy 0.6667 (antes 0.4444 con
+  el mismo held_out) — `mandibula_maxilar` acierta 1/1 en el held_out. Mejora, pero n=9 sigue
+  siendo demasiado pequeño para afirmar nada con confianza (~11 puntos de margen por foto).
+
+### Pendiente
+33. Los lotes huérfanos de fotos ya descargadas pero nunca fusionadas (`manifest_hueso_largo.csv`
+    23 filas, `manifest_hueso_plano.csv` 3, `manifest_sacro.csv` 4, `manifest_vertebra.csv` 1 —
+    ver pendiente de la sección anterior) necesitan revisión con el criterio corregido (algunas
+    notas ya dicen "escápula de ciervo/perro", que ahora no descalifica) antes de fusionar. Uno de
+    esos CSV tiene además una fila mal formada (columna con coma sin comillas) a arreglar al pasar.
