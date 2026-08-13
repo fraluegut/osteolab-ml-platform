@@ -7,13 +7,19 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
+        libgl1 \
         libxcb1 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
 RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision && \
     pip install -r requirements.txt
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY . .
 

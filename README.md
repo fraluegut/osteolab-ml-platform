@@ -18,7 +18,7 @@ chmod +x run.sh
 ```
 
 Levanta `postgres` + `mlflow` + `app` (API) + `ui` (Streamlit). Web de producto y API en
-`http://localhost:8000`, UI Streamlit en `http://localhost:8501`, MLflow en
+`http://localhost:8017`, UI Streamlit en `http://localhost:8501`, MLflow en
 `http://localhost:5000`. Ver [Cómo levantarlo](#cómo-levantarlo) para logs/parar/limpiar.
 
 **Solo API + web (sin Docker, si ya tienes el entorno Python y los modelos entrenados en `models/`):**
@@ -37,7 +37,7 @@ hacen falta para entrenar y trackear experimentos nuevos.
 | Componente | Tecnología | Puerto |
 |---|---|---|
 | UI de demo | Streamlit | `8501` |
-| API de inferencia | FastAPI | `8000` |
+| API de inferencia | FastAPI | `8017` en Docker (`8000` sin Docker) |
 | Tracking de experimentos | MLflow | `5000` |
 | Backend de MLflow | PostgreSQL | `5432` (interno) |
 | Entrenamiento | scikit-learn | — |
@@ -76,13 +76,13 @@ docker compose -f mlops/docker/docker-compose.yml down -v   # además borra dato
 
 ## Probar que funciona
 
-- **Web de producto**: abre `http://localhost:8000`, sección "Probarlo" — sube una imagen y compara la predicción del modelo geométrico y del híbrido lado a lado. También trae la presentación del proyecto, resultados y contacto (`serving/backend/static/`).
+- **Web de producto**: abre `http://localhost:8017`, sección "Probarlo" — sube una imagen y compara la predicción del modelo geométrico y del híbrido lado a lado. También trae la presentación del proyecto, resultados y contacto (`serving/backend/static/`).
 - **UI Streamlit (pipeline paso a paso)**: abre `http://localhost:8501`, sube una imagen de hueso y mira el grupo morfológico predicho, las probabilidades y dónde cae en el espacio PCA respecto a lo ya conocido.
 - **API directa**:
   ```bash
-  curl http://localhost:8000/health
-  curl -X POST "http://localhost:8000/classify" -F "file=@/ruta/a/tu/imagen.jpg"
-  curl http://localhost:8000/pca/reference   # las ~1300 vistas de referencia, en coordenadas PCA
+  curl http://localhost:8017/health
+  curl -X POST "http://localhost:8017/classify" -F "file=@/ruta/a/tu/imagen.jpg"
+  curl http://localhost:8017/pca/reference   # las ~1300 vistas de referencia, en coordenadas PCA
   ```
 - **MLflow UI**: `http://localhost:5000` — experimentos, métricas y modelos registrados.
 
