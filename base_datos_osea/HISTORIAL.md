@@ -2129,3 +2129,82 @@ cambie algo de fondo (más datos reales, por ejemplo) que pueda cambiar la concl
 49. Backlog de 803 fotos candidatas en `data/real_photos_review/` sin triar — usar
     `scripts/review_app.py` para ir aceptando/descartando, empezando por `hueso_plano` (84
     candidatas) que es el grupo con peor recall hoy (pendiente #44).
+
+## 2026-08-13 (sesión larga) — Rediseño completo del render sintético: escena de laboratorio
+
+Motivación: comparando sintético vs real con la app nueva (`scripts/compare_synth_real_app.py`,
+sesión anterior) quedó claro que el 63% del sintético (`renders/`) es silueta plana sin sombreado —
+"de risa" según el usuario. Petición: rehacer la escena desde cero imitando una foto de laboratorio
+real (mesa, hueso soltado con física, cámara de persona de pie, luz de estudio, suciedad con
+sentido físico) — no otro parche sobre la escena vieja.
+
+**`base_datos_osea/blender/render_bone_lab.py`** (nuevo, no toca `render_bone.py` ni
+`render_bone_bproc.py` — pipeline paralelo, mismo patrón que el experimento blackbg). Usa
+`blender --background --python`, NO `blenderproc run` (la física necesita un único objeto de
+colisión por hueso vía `bpy.ops.object.join()`, poco fiable bajo blenderproc sin contexto de UI).
+
+**Iteración larga con el usuario, bugs reales encontrados y corregidos**:
+- **Malla no recentrada** tras importar: el pivote heredado de Sketchfab podía quedar a decenas de
+  unidades del origen — mesa y punto de caída no coincidían con dónde estaba la geometría de
+  verdad. `center_on_bbox()` lo arregla.
+- **Escala inconsistente entre mallas** (bug de fondo grave): radio local visto entre 2 y 106
+  unidades según la malla, sin relación con el tamaño real del hueso — a escala grande el solver de
+  rigid body fallaba EN SILENCIO (objeto "flotando" a medio caer, sin error). `normalize_scale()`
+  fuerza un radio fijo (10 unidades) al importar, antes de todo lo demás — con esto, luces/mesa/
+  física se calibran una vez y sirven para cualquier malla.
+- **`MESH` (colisión exacta) inestable** para huesos delgados/curvos: una costilla rodaba como
+  mecedora sin parar nunca (la fricción frena el deslizamiento, no la rodadura) y se salía de una
+  mesa de 32x su radio — error numérico, no vuelco físico real. `CONVEX_HULL` (más simple, estándar
+  para cuerpos dinámicos) asienta de forma estable.
+- **Huesos alargados "de pie" a medio volcar**: amortiguación angular insuficiente + pocos frames
+  dejaba al fémur balanceado sobre un extremo en vez de completar el vuelco. Subida la amortiguación
+  angular y los frames de caída.
+- **`has_natural_resting_orientation()`**: el chequeo de "¿está de pie?" solo cubría huesos tipo
+  barra (un eje largo). Una escápula (forma de plato, un eje CORTO) fallaba el mismo chequeo sin
+  que existiera para su caso — ampliado a cubrir también forma de plato.
+- **Escápula que nunca asienta tumbada por más reintentos que se den**: no es mala suerte, es SU
+  mínimo de energía estable con `CONVEX_HULL` para esa malla en concreto. Se probó a forzar la
+  rotación a mano (matriz de cambio de base) pero `obj.matrix_world` no reflejaba el cambio al
+  leerlo justo después sin volver a pasar por `settle_drop` (con o sin rigid body de por medio,
+  ninguna combinación de `view_layer.update()`/`frame_set()` lo sincronizaba de forma fiable) —
+  descartado por frágil. Solución robusta: si tras los reintentos normales ninguno pasa el chequeo
+  estricto, se acepta el último intento tal cual (con tal de que siga sobre la mesa) en vez de
+  forzar o descartar la caída.
+- **Sin sombra de contacto** (se veía "flotando"): margen de colisión del solver deja un hueco de
+  aire pequeño pero visible — "encaje" final que corrige solo la Z (traslación pura) tras asentar.
+- **Luces**: primer intento con 1 sola luz salió ínfimo de energía (~40W a 60 unidades de distancia,
+  caída inversa al cuadrado de Cycles) — subida a millones de vatios en unidades de escena
+  normalizada. 2-3 luces IGUALES se cancelan entre sí y aplanan (probado); la solución fue una key
+  dominante + secundaria a intensidad claramente distinta (nunca cerca de 1:1).
+- **Material "de plástico"**: rugosidad demasiado baja (mínimo 0.35) daba brillo especular duro.
+  Subida a 0.55-0.9. Además, si la malla trae SU PROPIO material descargado (fotogrametría real,
+  se conserva para no perder textura), ese material puede traer un acabado PBR genérico/plástico de
+  fábrica — `force_bone_reflectivity()` fuerza mate+sin metal en TODOS los materiales del objeto
+  pase lo que pase, conservando color/textura.
+- **Color de mancha verdoso** (efecto hongo) daba tinte antinatural a la pieza entera — cambiado a
+  marrón tierra.
+- **Craquelado (Voronoi) demasiado basto** y **polvo (acumulado en caras hacia arriba) cubriendo
+  media pieza en huesos redondeados** (un cráneo sin superficie plana de verdad hace que "algo
+  hacia arriba" sea casi toda la bóveda) — ambos apretados con `POWER` alto sobre la señal y techo
+  de opacidad bajo, para que sean detalle sutil, no una capa que tape el hueso.
+- **Encuadre con demasiado aire**: `--fill` subido de 0.72 (heredado de los otros scripts) a 0.97 —
+  la gente hace la foto de cerca.
+- **Mesa demasiado limpia**: acabado tipo tela/terciopelo oscuro (ruido de pliegues suave + Sheen),
+  no un plano perfecto ni una textura "quemada".
+- **Malla de cráneo mala descartada**: `sketchfab_32a69b1fc0ba45a2ac2d91889657407f` daba una forma
+  deformada/hinchada pase lo que pase con el material — se confirmó comparando contra otras 2 mallas
+  de cráneo disponibles, borrada de `data/meshes/` (no versionada en git, sin pérdida).
+- **`LIGHT_PRESETS`**: 5 combinaciones de luz (neutro/tungsteno_calido/calido_suave/frio_exterior/
+  ambiente_mixto) para que el usuario comparase — `calido_suave` fue la elegida (cálida, foco más
+  grande/suave que el resto, sombra menos dura que un estudio de examen).
+
+**Herramientas nuevas de apoyo**: `scripts/lab_render_viewer.py` (visor Streamlit local, puerto
+8505, selector de espécimen + checkbox de máscara) y `base_datos_osea/scripts/render_lab_batch.py`
+(runner por lote, mismo patrón que `render_noisy_batch.py` — un proceso Blender por espécimen).
+
+### Pendiente
+50. Lote completo lanzado sobre los 121 especímenes de `data/meshes/` (`render_lab_batch.py`,
+    `--light-preset calido_suave`, 2 caídas x 3 vistas = 6 vistas/espécimen, ~2.5s/vista) — falta
+    construir el dataset de entrenamiento a partir de estos renders (features + `segmented_path`,
+    reusando la máscara ya generada por el propio script en vez de resegmentar) y comparar contra
+    el híbrido actual en el examen honesto.
