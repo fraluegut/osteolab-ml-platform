@@ -2110,9 +2110,22 @@ con DVC (remote local ya configurado en `/root/dvc-storage` desde antes, solo se
 de pipeline) — primer `dvc push`, 6040 ficheros subidos. `data/segmented_crops_blackbg/` y
 `data/bone_ingest/` se quedan fuera por ahora (experimental/staging transitorio).
 
+### `gated_hybrid` entrenado y evaluado — pierde contra el híbrido normal
+
+Entrenado igual que el mejor híbrido (`model_seed=42`, mismo dataset/sampler), requirió levantar
+`postgres`+`mlflow` de `docker compose` que estaban parados (el primer intento crasheó en
+`mlflow.set_experiment` por `localhost:5000` sin escuchar, sin llegar a entrenar nada).
+
+Val sintético 0.7217, banco fijo limpio 0.8333 — cifras razonables en sintético. Pero en el
+**examen honesto (77 fotos reales de test)**: accuracy **0.8052**, balanced accuracy **0.7757** —
+peor que el híbrido normal (0.8442 / 0.7959) y que `hybrid_blackbg` (0.8442 / 0.8102). `hueso_plano`
+sigue en recall 0.25 (1/4), sin mejora — la puerta aprendida no arregla el punto débil de siempre.
+Con una sola semilla no se puede descartar que sea ruido de inicialización, pero no hay ninguna
+señal a favor de la complejidad extra (más parámetros, pérdidas auxiliares, forward más caro) frente
+al híbrido simple. **Decisión: no se adopta.** No vale la pena gastar más semillas en esto salvo que
+cambie algo de fondo (más datos reales, por ejemplo) que pueda cambiar la conclusión.
+
 ### Pendiente
-48. `gated_hybrid` sin entrenar/evaluar — decidir si se corre y se compara contra el examen honesto
-    (77 fotos) o se aparca sin gastar más tiempo si no hay señal de que compense la complejidad.
 49. Backlog de 803 fotos candidatas en `data/real_photos_review/` sin triar — usar
     `scripts/review_app.py` para ir aceptando/descartando, empezando por `hueso_plano` (84
     candidatas) que es el grupo con peor recall hoy (pendiente #44).
