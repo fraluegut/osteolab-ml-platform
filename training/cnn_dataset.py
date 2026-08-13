@@ -19,9 +19,10 @@ import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
-from sklearn.model_selection import GroupShuffleSplit
 from torch.utils.data import Dataset
 from torchvision.transforms import v2
+
+from training.group_splits import subject_holdout
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
@@ -124,6 +125,9 @@ def specimen_split(df: pd.DataFrame, test_size: float = 0.2, random_state: int =
     semilla, así que aquí se acepta leer el resultado con más cautela (una
     sola partición puede tener algo de suerte/mala suerte) a cambio de que
     el entrenamiento sea viable en tiempo razonable."""
-    splitter = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=random_state)
-    train_idx, val_idx = next(splitter.split(df, groups=df["specimen"]))
-    return df.iloc[train_idx].reset_index(drop=True), df.iloc[val_idx].reset_index(drop=True)
+    return subject_holdout(
+        df,
+        target_col="bone_group",
+        test_size=test_size,
+        random_state=random_state,
+    )

@@ -39,11 +39,13 @@ import mlflow.sklearn
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, GroupKFold, cross_val_predict
+from sklearn.model_selection import StratifiedGroupKFold, cross_val_predict
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
+
+from training.group_splits import subject_ids
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 MODEL_DIR = BASE_DIR / "models"
@@ -82,7 +84,7 @@ def load_dataset(csv_path: Path, target_col: str):
     feature_cols = [c for c in df.columns if c not in NON_FEATURE_COLS]
     X = df[feature_cols].to_numpy()
     y = df[target_col].to_numpy()
-    groups = df["specimen"].to_numpy()  # para detectar fuga de espécimen entre train/test
+    groups = subject_ids(df)
     print(f"Dataset cargado: X={X.shape}, y={y.shape} ({target_col}), {len(set(y))} clases")
     return X, y, groups, feature_cols, df
 
@@ -110,30 +112,6 @@ def main():
 
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
-
-    logger.info("[2/7] Split train/test (test_size=%s)", training_params["test_size"])
-    X_train, X_test, y_train, y_test, groups_train, groups_test = train_test_split(
-        X,
-        y_encoded,
-        groups,
-        test_size=training_params["test_size"],
-        random_state=training_params["random_state"],
-        stratify=y_encoded,
-    )
-
-    # Aviso de metodología: con un solo espécimen físico por clase (24 vistas,
-    # todas del mismo hueso real), un split por fila reparte vistas del MISMO
-    # espécimen entre train y test — el modelo puede "reconocer" ese objeto
-    # concreto en vez de generalizar a huesos nuevos. No hay forma de evitarlo
-    # con los datos actuales (dejar 0 vistas de esa clase en train o en test
-    # no es mejor), pero la accuracy de estas clases hay que leerla con cautela
-    # hasta que haya >1 espécimen por hueso.
-    leaking_specimens = set(groups_train) & set(groups_test)
-    if leaking_specimens:
-        print(f"AVISO: {len(leaking_specimens)} espécimen(es) con vistas en train Y test "
-              f"(clases con un solo espécimen disponible): {sorted(leaking_specimens)}")
-
-    print(f"Train: {X_train.shape}, Test: {X_test.shape}")
 
     model = RandomForestClassifier(
         n_estimators=model_params["n_estimators"],
@@ -165,7 +143,7 @@ def main():
     repeat_accuracies = []
     per_class_recalls = {c: [] for c in le.classes_}
     for seed in range(n_repeats):
-        gkf = GroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+        gkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
         cv_preds = cross_val_predict(cv_model, X, y_encoded, groups=groups, cv=gkf)
         repeat_accuracies.append(accuracy_score(y_encoded, cv_preds))
         rep_report = classification_report(
@@ -178,7 +156,7 @@ def main():
     cv_accuracy = float(np.mean(repeat_accuracies))
     cv_accuracy_std = float(np.std(repeat_accuracies))
     print(f"\n=== Evaluación con espécimen completo fuera "
-          f"(GroupKFold×{n_repeats} barajados, {n_splits} folds cada uno) ===")
+          f"(StratifiedGroupKFold×{n_repeats} barajados, {n_splits} folds cada uno) ===")
     print(f"Accuracy por repetición: {[round(a, 3) for a in repeat_accuracies]}")
     print("\nRecall medio ± desviación por grupo (a través de las 10 repeticiones):")
     for c in le.classes_:
@@ -186,7 +164,7 @@ def main():
         print(f"  {c:<20} {np.mean(recalls):.3f} ± {np.std(recalls):.3f}  (min={min(recalls):.2f}, max={max(recalls):.2f})")
     print(f"\nAccuracy (espécimen fuera): {cv_accuracy:.4f} ± {cv_accuracy_std:.4f}")
 
-    n_train_specimens = int(df["specimen"].nunique())
+    n_train_specimens = int(len(set(groups)))
     try:
         dataset_path_display = str(csv_path.relative_to(BASE_DIR))
     except ValueError:
@@ -203,6 +181,10 @@ def main():
             "dataset_path": dataset_path_display,
             "n_train_rows": len(df),
             "n_train_specimens": n_train_specimens,
+            "cv_strategy": "RepeatedStratifiedGroupKFold",
+            "cv_folds": n_splits,
+            "cv_repeats": n_repeats,
+            "group_key": "species::specimen",
         })
         for tag in args.tag:
             if "=" not in tag:
@@ -210,28 +192,19 @@ def main():
             key, value = tag.split("=", 1)
             mlflow.set_tag(key, value)
 
-        model.fit(X_train, y_train)
+        # La CV estima generalizacion. Despues se reentrena el artefacto final
+        # con todos los sujetos; no se guarda un modelo entrenado sobre solo el
+        # 80% ni se publica una metrica optimista basada en vistas mezcladas.
+        model.fit(X, y_encoded)
 
-        preds = model.predict(X_test)
-        accuracy = accuracy_score(y_test, preds)
-        report = classification_report(
-            y_test, preds, labels=range(len(le.classes_)), target_names=le.classes_,
-            output_dict=True, zero_division=0,
-        )
-
-        mlflow.log_metric("accuracy", accuracy)
         mlflow.log_metric("accuracy_specimen_held_out_mean", cv_accuracy)
         mlflow.log_metric("accuracy_specimen_held_out_std", cv_accuracy_std)
         for class_name in le.classes_:
-            mlflow.log_metric(f"precision_{class_name}", report[class_name]["precision"])
-            mlflow.log_metric(f"recall_{class_name}", report[class_name]["recall"])
-            mlflow.log_metric(f"f1_{class_name}", report[class_name]["f1-score"])
+            mlflow.log_metric(f"cv_recall_{class_name}_mean", float(np.mean(per_class_recalls[class_name])))
+            mlflow.log_metric(f"cv_recall_{class_name}_std", float(np.std(per_class_recalls[class_name])))
 
-        print(classification_report(
-            y_test, preds, labels=range(len(le.classes_)), target_names=le.classes_, zero_division=0,
-        ))
-        print(f"Accuracy (split por vista): {accuracy:.4f}")
-        print(f"Accuracy (espécimen fuera, más honesto): {cv_accuracy:.4f}")
+        print(f"Modelo final reentrenado con las {len(df)} filas / {n_train_specimens} sujetos.")
+        print(f"Accuracy CV (sujeto fuera): {cv_accuracy:.4f} ± {cv_accuracy_std:.4f}")
 
         importances = sorted(zip(feature_cols, model.feature_importances_), key=lambda t: -t[1])
         print("\nTop 10 features más importantes:")
@@ -265,6 +238,11 @@ def main():
             "mlflow_run_id": run_id,
             "mlflow_experiment": mlflow.get_experiment(mlflow.active_run().info.experiment_id).name,
             "accuracy_specimen_held_out_mean": cv_accuracy,
+            "accuracy_specimen_held_out_std": cv_accuracy_std,
+            "cv_strategy": "RepeatedStratifiedGroupKFold",
+            "cv_folds": n_splits,
+            "cv_repeats": n_repeats,
+            "group_key": "species::specimen",
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "tags": {t.split("=", 1)[0]: t.split("=", 1)[1] for t in args.tag},
         }

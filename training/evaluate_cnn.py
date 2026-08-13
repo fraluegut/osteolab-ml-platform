@@ -37,7 +37,7 @@ def _git_commit() -> str:
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--model-type", choices=["cnn_only", "hybrid"], default="hybrid")
+    p.add_argument("--model-type", choices=["cnn_only", "hybrid", "gated_hybrid"], default="hybrid")
     return p.parse_args()
 
 

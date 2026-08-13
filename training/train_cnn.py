@@ -55,6 +55,7 @@ from training.cnn_dataset import (
     resolve_source_path,
     specimen_split,
 )
+from training.group_splits import subject_ids
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 MODEL_DIR = BASE_DIR / "models"
@@ -66,36 +67,75 @@ REAL_BENCH_MANIFEST = REAL_BENCH_DIR / "manifest.csv"
 DEFAULT_BENCHMARK = BASE_DIR / "data/processed/bone_geometric_benchmark.csv"
 
 
+GEOMETRIC_MODEL_TYPES = {"hybrid", "gated_hybrid"}
+
+
 class BoneClassifier(nn.Module):
     def __init__(self, backbone_name: str, num_classes: int, n_geom_features: int, model_type: str):
         super().__init__()
         self.model_type = model_type
         self.backbone = timm.create_model(backbone_name, pretrained=True, num_classes=0)
         embed_dim = self.backbone.num_features
-        head_in = embed_dim + (n_geom_features if model_type == "hybrid" else 0)
-        self.head = nn.Sequential(
-            nn.Linear(head_in, 128),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(128, num_classes),
-        )
+        if model_type == "gated_hybrid":
+            # Cada rama puede resolver la tarea por separado. La puerta aprende,
+            # muestra a muestra, si confiar más en apariencia o en geometría.
+            self.cnn_head = nn.Sequential(
+                nn.Linear(embed_dim, 128), nn.ReLU(), nn.Dropout(0.3),
+                nn.Linear(128, num_classes),
+            )
+            self.geom_head = nn.Sequential(
+                nn.Linear(n_geom_features, 64), nn.ReLU(), nn.Dropout(0.2),
+                nn.Linear(64, num_classes),
+            )
+            self.gate = nn.Sequential(
+                nn.Linear(embed_dim + n_geom_features, 128), nn.ReLU(), nn.Dropout(0.2),
+                nn.Linear(128, 1),
+            )
+        else:
+            head_in = embed_dim + (n_geom_features if model_type == "hybrid" else 0)
+            self.head = nn.Sequential(
+                nn.Linear(head_in, 128), nn.ReLU(), nn.Dropout(0.3),
+                nn.Linear(128, num_classes),
+            )
 
     def forward(self, image, geom):
         embedding = self.backbone(image)
+        if self.model_type == "gated_hybrid":
+            return self._gated_outputs(embedding, geom)[0]
         if self.model_type == "hybrid":
             embedding = torch.cat([embedding, geom], dim=1)
         return self.head(embedding)
+
+    def _gated_outputs(self, embedding, geom):
+        cnn_logits = self.cnn_head(embedding)
+        geom_logits = self.geom_head(geom)
+        cnn_weight = torch.sigmoid(self.gate(torch.cat([embedding, geom], dim=1)))
+        logits = cnn_weight * cnn_logits + (1.0 - cnn_weight) * geom_logits
+        return logits, cnn_logits, geom_logits, cnn_weight
+
+    def forward_with_components(self, image, geom):
+        """Salida fusionada y ramas; permite pérdidas auxiliares anti-colapso."""
+        return self._gated_outputs(self.backbone(image), geom)
 
     def backbone_params(self):
         return self.backbone.parameters()
 
     def head_params(self):
+        if self.model_type == "gated_hybrid":
+            return list(self.cnn_head.parameters()) + list(self.geom_head.parameters()) + list(self.gate.parameters())
         return self.head.parameters()
+
+    def modality_weights(self, image, geom):
+        """Peso CNN de la puerta; solo para diagnóstico del gated_hybrid."""
+        if self.model_type != "gated_hybrid":
+            raise ValueError("modality_weights solo existe para gated_hybrid")
+        embedding = self.backbone(image)
+        return torch.sigmoid(self.gate(torch.cat([embedding, geom], dim=1)))
 
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--model-type", choices=["cnn_only", "hybrid"], default="cnn_only")
+    p.add_argument("--model-type", choices=["cnn_only", "hybrid", "gated_hybrid"], default="cnn_only")
     p.add_argument("--backbone", default="resnet18")
     p.add_argument("--dataset-path", type=Path, default=DEFAULT_DATASET)
     p.add_argument("--benchmark-path", type=Path, default=DEFAULT_BENCHMARK)
@@ -159,8 +199,15 @@ def run_epoch(model, loader, device, criterion, optimizer=None):
     with torch.set_grad_enabled(train):
         for images, geom, labels in loader:
             images, geom, labels = images.to(device), geom.to(device), labels.to(device)
-            logits = model(images, geom)
-            loss = criterion(logits, labels)
+            if model.model_type == "gated_hybrid":
+                logits, cnn_logits, geom_logits, _ = model.forward_with_components(images, geom)
+                # Las pérdidas auxiliares mantienen útiles ambas ramas aunque la
+                # puerta se incline pronto hacia una de ellas.
+                loss = criterion(logits, labels)
+                loss = loss + 0.25 * criterion(cnn_logits, labels) + 0.25 * criterion(geom_logits, labels)
+            else:
+                logits = model(images, geom)
+                loss = criterion(logits, labels)
             if train:
                 optimizer.zero_grad()
                 loss.backward()
@@ -288,7 +335,7 @@ def main():
     label_encoder.fit(df[TARGET])
     num_classes = len(label_encoder.classes_)
 
-    feature_cols = geometric_feature_columns(df) if args.model_type == "hybrid" else None
+    feature_cols = geometric_feature_columns(df) if args.model_type in GEOMETRIC_MODEL_TYPES else None
     n_geom_features = len(feature_cols) if feature_cols else 0
 
     if feature_cols is not None:
@@ -305,9 +352,11 @@ def main():
             bench_df[feature_cols] = bench_df[feature_cols].fillna(col_means)
 
     train_df, val_df = specimen_split(df, test_size=args.val_size, random_state=args.random_state)
-    print(f"Train: {len(train_df)} filas / {train_df['specimen'].nunique()} especímenes  "
-          f"Val: {len(val_df)} filas / {val_df['specimen'].nunique()} especímenes")
-    leak = set(train_df["specimen"]) & set(val_df["specimen"])
+    train_subjects = set(subject_ids(train_df))
+    val_subjects = set(subject_ids(val_df))
+    print(f"Train: {len(train_df)} filas / {len(train_subjects)} sujetos  "
+          f"Val: {len(val_df)} filas / {len(val_subjects)} sujetos")
+    leak = train_subjects & val_subjects
     if leak:
         raise RuntimeError(f"Fuga de espécimen entre train/val: {leak}")
 
@@ -399,9 +448,11 @@ def main():
             "run_name": args.run_name,
             "dataset_path": dataset_path_display,
             "n_train_rows": len(train_df),
-            "n_train_specimens": int(train_df["specimen"].nunique()),
+            "n_train_specimens": len(train_subjects),
             "n_val_rows": len(val_df),
-            "n_val_specimens": int(val_df["specimen"].nunique()),
+            "n_val_specimens": len(val_subjects),
+            "partition_strategy": "StratifiedGroupKFold_holdout",
+            "group_key": "species::specimen",
         })
         mlflow.set_tag("model_type", args.model_type)
         for tag in args.tag:
@@ -568,7 +619,11 @@ def main():
             "backbone": args.backbone,
             "dataset_path": dataset_path_display,
             "n_train_rows": len(train_df),
-            "n_train_specimens": int(train_df["specimen"].nunique()),
+            "n_train_specimens": len(train_subjects),
+            "n_val_rows": len(val_df),
+            "n_val_specimens": len(val_subjects),
+            "partition_strategy": "StratifiedGroupKFold_holdout",
+            "group_key": "species::specimen",
             "mlflow_run_id": run_id,
             "mlflow_experiment": mlflow.get_experiment(mlflow.active_run().info.experiment_id).name,
             "best_val_accuracy": best_val_accuracy,

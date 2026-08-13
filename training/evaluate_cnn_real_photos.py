@@ -59,7 +59,7 @@ def _iter_images(benchmark_dir: Path, manifest_path: Path, split: str | None):
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--model-type", choices=["cnn_only", "hybrid"], default="hybrid")
+    p.add_argument("--model-type", choices=["cnn_only", "hybrid", "gated_hybrid"], default="hybrid")
     p.add_argument("--segmenter", choices=["classic", "fastsam", "grounded_sam"], default="grounded_sam",
                    help="backend de segmentación (solo afecta a 'hybrid', 'cnn_only' no usa geometría)")
     p.add_argument("--source", choices=["benchmark", "accepted"], default="benchmark",

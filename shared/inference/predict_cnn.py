@@ -36,6 +36,7 @@ TRAINING_TABLE_PATH = BASE_DIR / "data/processed/bone_geometric_features_combine
 
 _TRANSFORM = build_transform(train=False)
 _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+GEOMETRIC_MODEL_TYPES = {"hybrid", "gated_hybrid"}
 
 
 class BoneClassifier(nn.Module):
@@ -49,19 +50,43 @@ class BoneClassifier(nn.Module):
         self.model_type = model_type
         self.backbone = timm.create_model(backbone_name, pretrained=False, num_classes=0)
         embed_dim = self.backbone.num_features
-        head_in = embed_dim + (n_geom_features if model_type == "hybrid" else 0)
-        self.head = nn.Sequential(
-            nn.Linear(head_in, 128),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(128, num_classes),
-        )
+        if model_type == "gated_hybrid":
+            self.cnn_head = nn.Sequential(
+                nn.Linear(embed_dim, 128), nn.ReLU(), nn.Dropout(0.3), nn.Linear(128, num_classes),
+            )
+            self.geom_head = nn.Sequential(
+                nn.Linear(n_geom_features, 64), nn.ReLU(), nn.Dropout(0.2), nn.Linear(64, num_classes),
+            )
+            self.gate = nn.Sequential(
+                nn.Linear(embed_dim + n_geom_features, 128), nn.ReLU(), nn.Dropout(0.2), nn.Linear(128, 1),
+            )
+        else:
+            head_in = embed_dim + (n_geom_features if model_type == "hybrid" else 0)
+            self.head = nn.Sequential(
+                nn.Linear(head_in, 128), nn.ReLU(), nn.Dropout(0.3), nn.Linear(128, num_classes),
+            )
 
     def forward(self, image, geom):
         embedding = self.backbone(image)
+        if self.model_type == "gated_hybrid":
+            return self._gated_outputs(embedding, geom)[0]
         if self.model_type == "hybrid":
             embedding = torch.cat([embedding, geom], dim=1)
         return self.head(embedding)
+
+    def _gated_outputs(self, embedding, geom):
+        cnn_logits = self.cnn_head(embedding)
+        geom_logits = self.geom_head(geom)
+        cnn_weight = torch.sigmoid(self.gate(torch.cat([embedding, geom], dim=1)))
+        logits = cnn_weight * cnn_logits + (1.0 - cnn_weight) * geom_logits
+        return logits, cnn_logits, geom_logits, cnn_weight
+
+    def forward_with_components(self, image, geom):
+        return self._gated_outputs(self.backbone(image), geom)
+
+    def modality_weights(self, image, geom):
+        embedding = self.backbone(image)
+        return torch.sigmoid(self.gate(torch.cat([embedding, geom], dim=1)))
 
 
 def _missing_model_msg(model_type: str) -> str:
@@ -94,7 +119,7 @@ def _load(model_type: str, run_name: str | None = None):
     model.eval()
 
     feature_cols, scaler, fallback_means = None, None, None
-    if model_type == "hybrid":
+    if model_type in GEOMETRIC_MODEL_TYPES:
         feature_cols = joblib.load(MODEL_DIR / f"cnn_feature_columns_{suffix}_{TARGET}.joblib")
         scaler = joblib.load(MODEL_DIR / f"cnn_scaler_{suffix}_{TARGET}.joblib")
         fallback_means = pd.read_csv(TRAINING_TABLE_PATH, usecols=feature_cols).mean(numeric_only=True).to_dict()
@@ -121,10 +146,10 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
 
     raw_features = extract_features(image_file, backend=backend, include_crop=True, bg_gray=bg_gray)
     if not raw_features.get("found"):
-        return {"found": False, "cv_features": raw_features if model_type == "hybrid" else None}
+        return {"found": False, "cv_features": raw_features if model_type in GEOMETRIC_MODEL_TYPES else None}
 
     geom_tensor = torch.zeros((1, 0), dtype=torch.float32)
-    if model_type == "hybrid":
+    if model_type in GEOMETRIC_MODEL_TYPES:
         flat = flatten_features(raw_features)
         row = [[
             flat[col] if flat[col] is not None else fallback_means[col]
@@ -137,7 +162,14 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
     image_tensor = _TRANSFORM(image).unsqueeze(0)
 
     with torch.no_grad():
-        logits = model(image_tensor.to(_DEVICE), geom_tensor.to(_DEVICE))
+        if model_type == "gated_hybrid":
+            logits, _, _, weight_tensor = model.forward_with_components(
+                image_tensor.to(_DEVICE), geom_tensor.to(_DEVICE),
+            )
+            cnn_weight = float(weight_tensor[0, 0].cpu())
+        else:
+            logits = model(image_tensor.to(_DEVICE), geom_tensor.to(_DEVICE))
+            cnn_weight = None
         probs = torch.softmax(logits, dim=1)[0].cpu().numpy()
 
     class_probabilities = {
@@ -150,7 +182,9 @@ def classify_image(image_file, model_type: str = "hybrid", backend: str = "groun
         "found": True,
         "prediction": prediction,
         "probabilities": class_probabilities,
-        "cv_features": raw_features if model_type == "hybrid" else None,
+        "cv_features": raw_features if model_type in GEOMETRIC_MODEL_TYPES else None,
+        "modality_weights": ({"cnn": round(cnn_weight, 6), "geometric": round(1.0 - cnn_weight, 6)}
+                             if cnn_weight is not None else None),
     }
 
 
@@ -184,7 +218,7 @@ def explain_gradcam(image_file, model_type: str = "hybrid", backend: str = "grou
         return {"found": False}
 
     geom_tensor = torch.zeros((1, 0), dtype=torch.float32)
-    if model_type == "hybrid":
+    if model_type in GEOMETRIC_MODEL_TYPES:
         flat = flatten_features(raw_features)
         row = [[
             flat[col] if flat[col] is not None else fallback_means[col]
