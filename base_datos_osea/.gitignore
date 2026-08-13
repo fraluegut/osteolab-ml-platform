@@ -8,6 +8,9 @@ renders/
 renders_noisy/
 renders_noisy_composited/
 renders_noisy_bproc/
+renders_lab/
+renders_lab_test/
+renders_lab_lightgallery/
 hdris/
 .env
 
