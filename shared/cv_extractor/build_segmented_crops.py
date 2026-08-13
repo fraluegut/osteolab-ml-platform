@@ -53,8 +53,10 @@ TABLES = [
     ("data/processed/bone_geometric_features.csv", "grounded_sam"),
     ("data/processed/bone_geometric_features_noisy.csv", "grounded_sam"),
     ("data/processed/bone_geometric_features_noisy_bproc.csv", "mask"),
+    ("data/processed/bone_geometric_features_lab.csv", "mask"),
     ("data/processed/bone_geometric_benchmark.csv", "grounded_sam"),
     ("data/processed/bone_geometric_benchmark_noisy_bproc_excluded.csv", "mask"),
+    ("data/processed/bone_geometric_benchmark_lab_excluded.csv", "mask"),
 ]
 
 
