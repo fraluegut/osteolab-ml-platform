@@ -2203,8 +2203,44 @@ colisión por hueso vía `bpy.ops.object.join()`, poco fiable bajo blenderproc s
 (runner por lote, mismo patrón que `render_noisy_batch.py` — un proceso Blender por espécimen).
 
 ### Pendiente
-50. Lote completo lanzado sobre los 121 especímenes de `data/meshes/` (`render_lab_batch.py`,
-    `--light-preset calido_suave`, 2 caídas x 3 vistas = 6 vistas/espécimen, ~2.5s/vista) — falta
-    construir el dataset de entrenamiento a partir de estos renders (features + `segmented_path`,
-    reusando la máscara ya generada por el propio script en vez de resegmentar) y comparar contra
-    el híbrido actual en el examen honesto.
+50. ~~Lote completo lanzado...~~ RESUELTO, ver abajo.
+
+### Resultado del render de laboratorio: mejora clara en el examen honesto
+
+Lote completo (121 especímenes de `data/meshes/`, `render_lab_batch.py`, `--light-preset
+calido_suave`, 2 caídas x 3 vistas = 6 vistas/espécimen): **121/121 sin fallos**, 726 imágenes,
+672 filas útiles (54 reservadas como banco de evaluación por `BENCHMARK_SPECIMENS`, igual criterio
+que las otras ramas). `build_dataset_lab.py` (nuevo, mismo patrón que `build_dataset_bproc.py`:
+usa la máscara ground-truth que ya trae cada vista, sin resegmentar) + recortes vía
+`build_segmented_crops.py` (tabla `"mask"`, 0 fallos) + `build_combined_lab_variant.py` (misma
+receta que `combined.csv` pero sustituyendo `renders/` por `renders_lab/`: 2471 filas final).
+
+Entrenado el híbrido igual que el mejor actual (`model_seed=42`, `--run-name hybrid_lab`).
+Val sintético bajó (0.5984 vs ~0.75+ de antes) — pero es una comparación contra el banco VIEJO de
+renders planos (`bone_geometric_benchmark.csv`), dominio distinto al que entrenó ahora, no es la
+métrica que importa. **Examen honesto (77 fotos reales) — comparación**:
+
+| Modelo | Accuracy | Balanced accuracy |
+|---|---|---|
+| hybrid (el de referencia hasta hoy) | 0.8442 | 0.7959 |
+| hybrid_blackbg | 0.8442 | 0.8102 |
+| gated_hybrid | 0.8052 | 0.7757 |
+| **hybrid_lab** | **0.8701** | **0.8323** |
+
+**Mejor resultado de toda la sesión.** Por grupo: costilla, pelvis y sacro perfectos (1.0),
+hueso_largo 0.94, vertebra 0.89, cranio 0.86, mandibula_maxilar sube a 0.80 (venía flojeando).
+**`hueso_plano` sigue en recall 0.25 (1/4)** — sin cambio, confirma (tercera vez que se ve el mismo
+patrón: aquí, con blackbg, y con gated_hybrid) que es un problema de volumen de foto real para ese
+grupo, no de arquitectura ni de realismo del render. Con una sola semilla no se puede descartar
+ruido de inicialización del todo, pero la mejora (+2.6 accuracy, +3.6 balanced) es mayor que el
+ruido típico visto en este proyecto (±1-2 puntos entre semillas).
+
+### Pendiente
+51. Confirmar la mejora con 2-3 semillas más antes de adoptar `hybrid_lab` como modelo por defecto
+    (mismo criterio que se aplicó para descartar `lr_head_finetune` — un solo run no basta para
+    separar señal de ruido de inicialización).
+52. Curar el backlog de fotos reales de `hueso_plano` (pendiente #44/#49) sigue siendo la palanca
+    más clara para ese grupo en concreto — el render de laboratorio no lo mueve.
+53. Si `hybrid_lab` se confirma, plantear renderizar más vistas por espécimen (ahora solo 6) o sumar
+    más especímenes/mallas por grupo — el volumen sintético actual (672 filas) es mucho menor que
+    el de `renders/` (2544) y aun así ganó; más volumen con la escena nueva podría dar más margen.
