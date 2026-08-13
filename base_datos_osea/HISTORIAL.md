@@ -2050,3 +2050,69 @@ mejor que el otro con los datos actuales.
     para descartar `lr_head_finetune`) antes de sacar conclusiones firmes — con un solo run cada uno,
     la diferencia de 1.4 puntos en balanced accuracy está dentro del ruido esperado de inicialización
     ya documentado en esta sesión (pendiente #21 y el hallazgo de `--model-seed`).
+
+## 2026-08-13 — Fix de agrupación por sujeto, gated_hybrid, comparación ROC, app de revisión + DVC
+
+Sesión de cierre de varios frentes abiertos, sin entrenar nada nuevo salvo lo ya hecho para el
+pipeline blackbg (ver arriba).
+
+**1. Agrupación train/val por `species::specimen`, no solo `specimen`** (`training/group_splits.py`,
+nuevo, con tests en `tests/test_group_splits.py`): `specimen` por sí solo puede colisionar entre
+especies o colecciones distintas — la clave combinada evita juntar dos sujetos distintos por
+casualidad de numeración. Centraliza `subject_ids`/`stratified_group_folds`/`subject_holdout`,
+usado ahora desde `train_cnn.py` (vía `cnn_dataset.specimen_split`, que delega en
+`subject_holdout`) y `train_geometric.py` (que además pasa de un split train/test optimista a
+**solo CV honesta** — `StratifiedGroupKFold` repetida — y reentrena el modelo final publicado con
+el 100% de los datos, ya no se guarda ni se reporta accuracy de un modelo entrenado solo con el 80%).
+
+**Auditoría de leakage repetida con la clave nueva** (motivada por dudas del usuario sobre si había
+fuga): `combined.csv` (4343 filas / 418 sujetos) partido con `subject_holdout` da 0 sujetos
+compartidos entre train y val. Cruce contra el banco sintético limpio: 1 sujeto compartido
+(`macaca_radiata::nmnhvz_7049315`) pero con `bone_group` distinto en cada lado (mandíbula en
+`combined`, cráneo en el banco) — mismo animal, silueta distinta, no es fuga real (ya se había visto
+esto el 2026-08-03 con la clave vieja; se confirma con la nueva). Cruce contra el examen honesto
+(77 fotos reales de test): 0 sujetos compartidos. **Conclusión: sigue sin haber fuga real.**
+
+**2. `gated_hybrid`** (`train_cnn.py`, `shared/inference/predict_cnn.py`): arquitectura nueva,
+mezcla de expertos — rama CNN, rama geométrica y una puerta aprendida (`sigmoid` sobre la
+concatenación de ambos embeddings) que decide, muestra a muestra, cuánto pesa cada rama. Pérdidas
+auxiliares (0.25× cada rama por separado, sumadas a la pérdida de la salida fusionada) para que
+ninguna rama quede atrofiada aunque la puerta se incline pronto hacia la otra. `predict_cnn.py`
+expone el peso de la puerta como `modality_weights` en la respuesta, para poder ver qué modelo confía
+más en apariencia vs en forma en cada foto. **Implementado pero sin entrenar ni evaluar todavía** —
+pendiente decidir si vale la pena frente al híbrido normal.
+
+**3. Comparación AUC/ROC entre las 4 variantes** (`training/plot_roc_cnn.py`,
+`training/plot_roc_curves.py`, salida en `reports/roc_curves/`): sobre el val sintético, macro AUC
+geometric 0.977, cnn_only 0.966, hybrid 0.990, **hybrid_blackbg 0.993** (el mejor, por poco) — coherente
+con el empate técnico ya documentado en el examen honesto de fotos reales (sección de arriba).
+
+**4. Infra Docker**: `Dockerfile` instala `torch`/`torchvision` cpu explícitamente antes de
+`requirements.txt` y suma `libgl1`/`libglib2.0-0` (runtime de opencv, faltaban). `README.md`
+documenta que en Docker la API queda expuesta en el puerto `8017` (antes decía `8000`, que sigue
+siendo el puerto correcto solo para correr sin Docker).
+
+**5. App de revisión "Tinder" del backlog de fotos candidatas** (`scripts/review_app.py`, Streamlit
+en el puerto 8502): se descubrió que `data/real_photos_review/manifest.csv` tiene **803 fotos
+candidatas, todas en `status=pending`** — nunca se había revisado el lote entero, la promoción a
+`real_photos_accepted/` siempre fue 100% manual (mirar archivo por archivo, copiar a mano, editar
+el CSV a mano). Por grupo: pelvis 185, cranio 126, costilla 123, mandibula_maxilar 112,
+**hueso_plano 84** (el grupo más flojo del modelo hoy — pendiente #44), vertebra 69, sacro 56,
+hueso_pequeno 30, hueso_largo 18. La app muestra una foto a la vez con botones + atajos de teclado
+(`→` aceptar, `←` descartar, `↓` duda con nota obligatoria); aceptar mueve el archivo y añade la
+fila al manifest de `real_photos_accepted/` con el split elegido a mano (recordando en pantalla
+cuántas train/test tiene ya el grupo); descartar/duda solo cambian `status`, sin mover archivo. Cola
+reanudable sin estado propio (se recalcula del CSV en cada carga).
+
+**6. DVC**: `data/real_photos_review/`, `data/real_photos_accepted/`, `data/segmented_crops/` y
+`data/real_world_benchmark/` pasan de estar en `.gitignore` sin ningún respaldo a estar versionadas
+con DVC (remote local ya configurado en `/root/dvc-storage` desde antes, solo se usaba para 1 stage
+de pipeline) — primer `dvc push`, 6040 ficheros subidos. `data/segmented_crops_blackbg/` y
+`data/bone_ingest/` se quedan fuera por ahora (experimental/staging transitorio).
+
+### Pendiente
+48. `gated_hybrid` sin entrenar/evaluar — decidir si se corre y se compara contra el examen honesto
+    (77 fotos) o se aparca sin gastar más tiempo si no hay señal de que compense la complejidad.
+49. Backlog de 803 fotos candidatas en `data/real_photos_review/` sin triar — usar
+    `scripts/review_app.py` para ir aceptando/descartando, empezando por `hueso_plano` (84
+    candidatas) que es el grupo con peor recall hoy (pendiente #44).
