@@ -2539,3 +2539,201 @@ manda a `vertebra_otro` con 0.87 de probabilidad, coincide con la duda humana.
     podrían resolverse pidiendo el paper original en mejor resolución, si se quiere recuperar esas
     5 fotos en vez de dejarlas en `vertebra_otro` para siempre.
 
+### Cuarta dimensión: taxón (humano/no_humano) para cráneo y mandíbula_maxilar
+
+El usuario preguntó por una tercera dimensión (taxón/especie) además de bone_group y hueso fino, y
+si debería ir antes, a la vez, o después de la etapa 2 -- observando que a veces el taxón ayuda a
+adivinar el tipo de hueso y a veces al revés, y que el tamaño es útil para taxón.
+
+**Auditoría antes de tocar nada** (mismo criterio que el resto de la sesión):
+- Tamaño: **no disponible de forma fiable**. El vector de features geométricas es todo invariante a
+  escala (momentos de Hu, aspect ratio, circularidad...) a propósito, y el pipeline sintético
+  normaliza el tamaño de cada malla al importar (`normalize_scale()`, necesario para que la física
+  de caída sea estable) -- eso borra las diferencias de tamaño real entre especies en los datos de
+  entrenamiento. Usar tamaño de verdad requeriría detectar un objeto de escala en la foto (regla,
+  moneda) y dejar de normalizar en el render -- trabajo nuevo, no activado en este piloto.
+- Diversidad de especie en lo sintético: solo `cranio` (7 especies, todas primates) y
+  `mandibula_maxilar` (8, todas primates) tienen variedad real. El resto de grupos es
+  homo_sapiens + un token de homo_naledi (15-20 filas) -- sin base para taxón todavía.
+- Señal de especie en fotos reales de esos 2 grupos: **mismatch fuerte con lo sintético**. Cráneo:
+  22 fotos de roedor, 7 de ungulado, 3 de carnívoro, solo 3-4 de humano/homínido -- CERO de esas
+  32 fotos no-humanas tiene malla sintética equivalente (todo lo sintético es primate). Mandíbula:
+  parecido pero con menos volumen (7 no-humano identificable, 1 humana). Es el mismatch inverso al
+  de astrágalo: aquí SÍ hay señal real rica, pero CERO malla -- y a diferencia de talus, no hay una
+  malla ya ingerida esperando (se probó un job de ingesta de cráneo de cerdo/ungulado,
+  `data/bone_ingest/7c23e52144a9/`, pero falló: el zip descargado como "pig-skull" en realidad
+  contenía un "okapi-1.zip" por dentro, mismatch de la fuente, no arreglado en esta sesión).
+
+**Decisión del usuario**: no perseguir roedor/ungulado/carnívoro por especie exacta todavía (eso
+necesitaría sourcing de mallas nuevas, proyecto aparte) -- piloto de **humano vs no_humano**, el
+único corte que hoy tiene datos limpios en ambos lados.
+
+**Sobre el orden (la pregunta central del usuario)**: en vez de una cascada estricta antes/después
+de la etapa 2 de hueso fino, se optó por una **salida paralela**, no secuencial -- ningún grupo
+tiene hoy ambas cosas a la vez (cráneo/mandíbula tienen taxón pero no hueso fino porque no lo
+necesitan; hueso_largo/hueso_pequeno/vertebra tienen hueso fino pero no taxón). Si algún grupo
+llegase a necesitar las dos, lo recomendado (documentado en el docstring de
+`predict_two_stage.py`) es fusionarlas en un solo modelo multi-cabeza entrenado junto (mismo
+backbone/embedding, una cabeza por tarea) en vez de encadenarlas -- evita que el error de una etapa
+se arrastre a la otra, y evita partir los datos (ya escasos) en celdas hueso×taxón aún más finas.
+
+**Implementación**: `stage2_taxon_cranio` y `stage2_taxon_mandibula_maxilar` (`--target taxon`,
+2 clases, dataset filtrado a cada grupo). Etiqueta sintética = `species` mapeado a humano
+(homo_sapiens/homo_naledi) vs no_humano (el resto, todos primates). Etiqueta real = de `notes`
+(mismo patrón de extracción por palabra clave que el resto de la sesión). `taxon` añadida a
+`NON_FEATURE_COLS` (mismo bug que `bone_fine` tuvo al principio -- ya se sabía el patrón).
+`predict_two_stage.py` gana `STAGE2_TAXON_MODELS` y una clave `"taxon"` en la respuesta, en
+paralelo a `"fine_bone"`.
+
+**Resultado**: examen honesto con muestra mínima (n=6, todo lo que hay etiquetado en split test para
+estos 2 grupos) -- 4/6 acertaron taxón, pero 2/6 ni siquiera llegaron a la etapa de taxón porque la
+etapa 1 (bone_group) falló el grupo primero (`mandibula_06`→costilla, `cranio_107`→pelvis). De los
+4 casos donde SÍ se llamó al modelo de taxón, **4/4 correctos**. n=6 es demasiado pequeño para
+concluir nada sobre la calidad real del modelo -- solo confirma que el mecanismo funciona.
+
+### Pendiente
+66. Curar más fotos reales de humano/no_humano para cráneo y mandíbula (hoy solo 3-4 humano en cada
+    grupo) antes de confiar en el examen de taxón -- mismo problema de volumen que cervical/lumbar.
+67. Si se quiere ir más allá de humano/no_humano (roedor/ungulado/carnívoro como clases propias),
+    hace falta sourcing de mallas nuevas -- no hay atajo de "esqueleto ya ingerido" como con talus/
+    vértebra. Arreglar el job de ingesta de cráneo de cerdo (`7c23e52144a9`, mismatch con okapi) es
+    el candidato más barato si se retoma esto. RESUELTO vía sourcing manual del usuario, ver abajo.
+
+### Sourcing de mallas no-primate para cráneo: cierra el mismatch sintético/real
+
+El usuario trajo `references.txt` (36 URLs únicas de Sketchfab: ciervo, perro, gato, cerdo, vaca,
+perrito de las praderas) para tapar el hueco encontrado arriba -- taxón real dominado por
+roedor/ungulado/carnívoro sin ninguna malla sintética equivalente.
+
+**Bug encontrado y arreglado en `sketchfab_client.py::download_and_extract`**: el zip "source" de
+Sketchfab a veces trae el archivo original del autor tal cual lo subió éste, que puede ser a su vez
+OTRO `.zip` sin extraer (ej. un FBX+texturas que el autor ya empaquetó antes de subir). La función
+solo descomprimía un nivel -- con la mayoría de estos 36 modelos, eso dejaba "sin archivo de escena
+encontrado" pese a haberse descargado bien. Arreglado: extracción recursiva de zips anidados (tope
+de 5 iteraciones). Pasó de 1/36 a 30/36 descargas exitosas con el mismo cambio.
+
+**`shared/bone_ingest/convert_join_glb.py`** (nuevo): complementa a `export_object_glb.py` (que
+exporta un objeto SUELTO sin fundir, para escenas multi-hueso como el esqueleto) -- este importa
+una escena de UN espécimen (que puede traer varias piezas, ej. cráneo+mandíbula por separado),
+funde todo en un único objeto (mismo patrón que `render_bone_lab.py::import_mesh`) y exporta un
+`.glb`. Usado para las 30 mallas descargadas -> `data/meshes/<especie>/cranium/sketchfab_<uid>/`.
+
+Especies nuevas (mapeadas del slug de la URL, sin ambigüedad real dado que cada colección viene ya
+agrupada por especie): `canis_familiaris` (perro, 10), `felis_catus` (gato, 7), `sus_domesticus`
+(cerdo, 4), `bos_taurus` (vaca, 4), `odocoileus_sp.`/`odocoileus_virginianus` (ciervo, 4),
+`cynomys_sp.` (perrito de las praderas -- roedor pese al nombre común "dog", cuidado con el mapeo
+por slug: "prairie-dog" tenía que evaluarse ANTES que el patrón genérico "dog"). 6 fallos sin
+resolver: 2 modelos no descargables con este token (permiso del autor), 4 con una estructura de zip
+más rara aún (no perseguidos, retorno decreciente).
+
+Renderizadas las 30 (`render_lab_batch.py --only <especie>/cranium`, 0 fallos) -> cráneo pasó de 54
+a 234 filas sintéticas / de 9 a 39 especímenes. Taxón `no_humano` sintético pasó de 147 a 327 filas
+(antes solo primates, ahora también las 6 especies nuevas). Reentrenado `stage2_taxon_cranio`.
+**Examen honesto sin cambio (n=6, idéntico a antes)** -- el set de test no creció (las fotos reales
+nuevas de esta ronda son sintéticas, no fotos de examen), así que no hay forma de medir la mejora
+todavía con el examen actual. El valor real es que el respaldo sintético ahora refleja la
+composición del tráfico real esperado (roedor/ungulado/carnívoro) en vez de solo primates -- debería
+generalizar mejor a fotos futuras aunque el número de hoy no lo muestre.
+
+### Pendiente
+68. El bug de zip anidado en `download_and_extract` puede haber afectado descargas ANTERIORES de
+    este proyecto (silenciosamente, con "sin archivo de escena" como único síntoma) -- si algún
+    modelo de la cola de ingesta (`data/bone_ingest/queue.json`) tiene ese error y parecía "no
+    descargable", vale la pena reintentarlo ahora con el fix. RESUELTO -- se revisó la cola
+    completa, solo había un job en error (el mismo pig-skull de arriba), ya reconciliado.
+69. Con más fotos reales de roedor/ungulado/carnívoro específicas (no solo agregadas en
+    no_humano), se podría subir de humano/no_humano a una clase por familia -- hoy no hay volumen
+    real por familia individual (ver auditoría más arriba), pero la malla sintética ya está lista
+    para cuando lo haya. RESUELTO, ver abajo.
+
+### Taxón multi-clase en cráneo: humano/carnivoro/ungulado/roedor/otro_primate
+
+Con las mallas nuevas ya en pie, se subió de humano/no_humano a 5 clases: humano, carnivoro
+(canis_familiaris + felis_catus), ungulado (bos_taurus + sus_domesticus + sus_scrofa +
+odocoileus), roedor (cynomys_sp.), y `otro_primate` (el resto de especies sintéticas -- primates
+no-humanos, bucket sin respaldo real, solo para no perder esas filas de entrenamiento).
+Reetiquetado real de cráneo con las 4 categorías específicas en vez de la binaria (`manifest.csv`,
+mismo criterio de notas que antes: roedor 22, ungulado 7, carnivoro 3, humano 3).
+
+**Resultado con alarma real**: `ungulado` sale con **recall 0.0 en validación sintética**
+(especímenes nunca vistos) -- ninguna epoch del entrenamiento cumplió el guardarraíl de "todas las
+clases con recall > 0", cayó al criterio de respaldo (max val_acc). El resto de clases van bien:
+carnivoro 0.722, humano 0.938, roedor 1.000, otro_primate 0.571. Sospecha: `ungulado` mezcla 3
+especies bastante distintas entre sí (bóvido/suido/cérvido) con solo 12 especímenes en total --
+puede que la clase sea demasiado heterogénea para el volumen que tiene, no un problema de features
+o arquitectura. **No hay foto real de ungulado en el split de test para confirmar o desmentir esto**
+(las 7 fotos reales de ungulado quedaron en train) -- la alarma es solo del lado sintético.
+
+Examen honesto (n=6, igual que siempre): accuracy 0.6667, balanced 0.6667 (leve mejora sobre el
+0.6250 del binario). Los 2 casos que antes resolvían a "no_humano" genérico ahora resuelven
+`roedor` específico y correcto (`cranio_150`, `cranio_165`) -- la ganancia real de ir a multi-clase
+se ve ahí. Nada de carnivoro/ungulado/otro_primate en el test actual (0 fotos), así que la mejora
+real vs la alarma de ungulado quedan ambas sin poder confirmarse con el examen honesto de hoy.
+
+### Pendiente
+70. `ungulado` en cráneo necesita atención antes de confiar en el modelo: o más especímenes
+    sintéticos (dividir en 3 clases separadas -- bóvido/suido/cérvido -- si hay volumen, o
+    aceptar que con solo 12 especímenes heterogéneos hoy no da para una clase sólida) o más foto
+    real específica de ungulado en el split de test para poder medirlo de verdad. RESUELTO
+    parcialmente, ver abajo -- foto real sumada, `ungulado` sigue siendo la clase más débil.
+71. Si se quiere confirmar la mejora de roedor (2/2 en el examen actual, n mínimo), lo mismo de
+    siempre: más foto real de esa categoría en el split de test antes de creerse el número.
+    RESUELTO, ver abajo.
+
+### Fotos reales de ungulado/roedor/carnívoro: Openverse, con un error de proceso real
+
+El usuario pidió buscar fotos reales de cráneo de esas 3 categorías por internet para crecer
+entrenamiento/validación/test. Se usó `scripts/search_openverse.py` (ya existente en el proyecto,
+mismo patrón que el resto del banco real: descarga a `data/real_photos_review/`, `status=pending`,
+nada se acepta automáticamente) con 18 búsquedas (vaca/cerdo/ciervo/cabra/oveja/caballo/jabalí/
+bóvido, roedor/rata/ardilla/ratón/castor, perro/gato/lobo/zorro/coyote skull specimen photo) -- 40
+candidatas descargadas.
+
+**Error real cometido**: se avisó al usuario de que las candidatas estaban listas sin revisarlas
+primero. El usuario las miró en la app de revisión y notó que muchas NO eran cráneos individuales
+-- razón: la búsqueda de Openverse hace coincidencia de texto en TODOS los metadatos, no solo
+"¿es foto de un cráneo?", así que "skull" en la query no filtra figuras comparativas (varios
+cráneos con etiquetas en una sola imagen), fragmentos de mandíbula/dientes sueltos, diagramas
+educativos ilustrados, arte/esculturas con forma de cráneo, ni fotos de gabinetes con objetos
+mezclados. **Lección para la próxima vez que se use `search_openverse.py` con fines de dataset
+(no solo exploración)**: revisar el contenido de cada descarga antes de avisar que está lista,
+no basta con que la query mencione "skull".
+
+Revisión manual de las 40 (identificación robusta por timestamp de archivo, no por posición en
+`manifest.csv` -- la cola cambia en paralelo si el usuario está revisando al mismo tiempo, un
+`tail(N)` filtrado por status puede capturar filas viejas no relacionadas si hay huecos
+intercalados; el orden real de inserción SÍ es estable porque `search_openverse.py` solo hace
+append). Resultado: 17 rechazadas por no ser cráneo individual (7 compuestas, 4 fragmentos, 3
+diagramas, 1 escultura, 1 gabinete, 1 par de sirenios), y 3 más rechazadas en una segunda pasada
+por ser murciélagos con nombre común engañoso ("flying fox", "dog-faced bat", "mouse-eared bat" --
+ninguno es roedor/cánido/ratón de verdad, son Chiroptera). Quedaron 20 buenas: 3 ungulado (Bovidae/
+cabra/cabra montés), 6 roedor (rata x3, otros roedores), 11 carnívoro (perro mapache, gato pescador
+x4, gato montés x2, zorro orejudo, zorro gris x2, zorro pampa).
+
+`scripts/review_app.py` ganó un buscador de texto en la barra lateral (filtra por nombre de
+archivo o nota) -- antes solo filtraba por `bone_group`, no servía para encontrar un lote
+específico dentro de las 800+ candidatas acumuladas.
+
+**Aceptadas y usadas** (a pedido explícito del usuario, "entrenemos con esas"): movidas a
+`data/real_photos_accepted/cranio/`, con columna `taxon` nueva en su manifest (ungulado/roedor/
+carnivoro por especie) y split train/test (2/1, 4/2, 8/3 respectivamente -- al menos 1 de test por
+categoría). Cráneo real pasó de 77 a 91 filas. Reentrenado `stage2_taxon_cranio`.
+
+**Resultado**: esta vez el guardarraíl anti-clase-cero SÍ se cumplió (antes caía a fallback
+siempre). `ungulado` en validación sintética pasó de recall 0.0 a **0.600**. Resto de clases:
+carnivoro 0.688, humano 0.700, otro_primate 0.784, roedor 0.750 -- todas razonables por primera
+vez. Examen honesto (n=12, el doble que antes gracias a las 6 fotos de test nuevas): roedor 3/4,
+carnivoro 2/3, humano 1/2, no_humano(mandibula) 1/2, **ungulado 0/1** -- accuracy total 0.5833
+(baja del 0.6667 anterior, pero es un examen MÁS duro con más clases con dato real por primera
+vez, no que el modelo haya empeorado). Con n=1 en ungulado no se puede concluir nada del examen
+real todavía, aunque la validación sintética sí mejoró claramente.
+
+### Pendiente
+72. `ungulado` sigue siendo la clase más floja (única foto de test falló, aunque n=1 no permite
+    concluir nada) -- más foto real específica (o esperar a que el banco de Openverse dé más con
+    otra ronda de búsqueda, esta vez revisada ANTES de avisar) es el siguiente paso obvio.
+73. El patrón "identificar mi propio lote por timestamp de archivo, no por posición en CSV" es
+    reutilizable si se repite este flujo con la app de revisión abierta en paralelo -- guardar el
+    momento exacto (o mejor, hacer que `search_openverse.py` devuelva la lista de filenames que
+    escribió, no inferirla después) evitaría el problema de raíz la próxima vez.
+

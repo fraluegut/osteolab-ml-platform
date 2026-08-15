@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 # Mismo criterio que train_geometric.py: img_width/img_height son constantes (512x512) en
 # entrenamiento y explotan en z-score sobre fotos reales de otra resolución.
-NON_FEATURE_COLS = {"species", "bone", "bone_group", "bone_fine", "specimen", "view",
+NON_FEATURE_COLS = {"species", "bone", "bone_group", "bone_fine", "taxon", "specimen", "view",
                      "source_path", "found", "img_width", "img_height", "segmented_path"}
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]

@@ -90,6 +90,19 @@ def download_and_extract(uid: str, dest_dir: Path) -> Path:
         with zipfile.ZipFile(zip_path) as zf:
             zf.extractall(dest_dir)
 
+    # El zip "source" a veces trae el archivo original del autor tal cual lo
+    # subió éste -- que puede ser a su vez OTRO .zip (ej. un FBX+texturas que
+    # el autor ya empaquetó antes de subirlo a Sketchfab), sin extraer.
+    # Repetir hasta que no queden zips nuevos (con tope de seguridad).
+    for _ in range(5):
+        nested = [p for p in dest_dir.rglob("*.zip") if p != zip_path]
+        if not nested:
+            break
+        for nested_zip in nested:
+            with zipfile.ZipFile(nested_zip) as zf:
+                zf.extractall(nested_zip.parent)
+            nested_zip.unlink()
+
     return dest_dir
 
 

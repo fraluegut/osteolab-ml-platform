@@ -90,6 +90,17 @@ groups = ["Todos"] + sorted(queue_all["bone_group"].unique().tolist())
 group_choice = st.sidebar.selectbox("Grupo", groups)
 queue = queue_all if group_choice == "Todos" else queue_all[queue_all["bone_group"] == group_choice]
 
+search_text = st.sidebar.text_input(
+    "Buscar (nombre o nota)",
+    help="Filtra por texto en el nombre de archivo o la nota — ej. 'wolf', 'Canis', 'cow' para "
+         "encontrar solo las candidatas de una búsqueda concreta.",
+)
+if search_text.strip():
+    needle = search_text.strip().lower()
+    mask = (queue["filename"].str.lower().str.contains(needle, regex=False)
+            | queue["notes"].str.lower().str.contains(needle, regex=False))
+    queue = queue[mask]
+
 st.sidebar.markdown("---")
 counts = review_df["status"].value_counts()
 for status in ["pending", "accepted", "rejected", "flagged"]:
