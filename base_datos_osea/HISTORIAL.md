@@ -2244,3 +2244,35 @@ ruido típico visto en este proyecto (±1-2 puntos entre semillas).
 53. Si `hybrid_lab` se confirma, plantear renderizar más vistas por espécimen (ahora solo 6) o sumar
     más especímenes/mallas por grupo — el volumen sintético actual (672 filas) es mucho menor que
     el de `renders/` (2544) y aun así ganó; más volumen con la escena nueva podría dar más margen.
+
+### `hybrid_lab` confirmado con 3 semillas y promovido a modelo por defecto
+
+Pendiente #51 resuelto. Mismo split (`--random-state 42`), solo cambia `--model-seed` (1 y 7,
+sumados al 42 original) para separar señal de ruido de inicialización (mismo patrón que la sesión
+2026-08-03). Examen honesto (77 fotos, `--split test`) por semilla:
+
+| Semilla | Accuracy | Balanced accuracy |
+|---|---|---|
+| 42 (original) | 0.8701 | 0.8323 |
+| 1 | 0.8571 | 0.8314 |
+| 7 | 0.8831 | 0.8242 |
+
+Las 3 semillas quedan por encima de `hybrid` (0.8442/0.7959) por un margen mayor que el ruido de
+init visto dentro del propio `hybrid_lab` (~0.026 de spread). **Mejora real, no ruido.**
+`hueso_plano` sigue débil en las 3 semillas (recall 0.50/0.67/0.40) — confirma otra vez que es
+volumen de foto real, no arquitectura ni semilla.
+
+**`hybrid_lab` (semilla 42, el run original, sin cherry-picking de la mejor semilla) promovido a
+modelo por defecto** — pasa a ser `cnn_model_hybrid_bone_group.pt` y compañía. El `hybrid` anterior
+se conserva como backup en `models/cnn_*_hybrid_pre_lab_bone_group.*` (encoder/scaler/
+feature_columns/model/meta) por si hace falta revertir. `mlflow` (servidor en `localhost:5000`)
+estaba caído en esta sesión — reentrenar apuntando a `sqlite:///mlruns_local/mlflow.db` vía
+`MLFLOW_TRACKING_URI` funciona sin servidor levantado (el backend de fichero plano `./mlruns` está
+bloqueado por MLflow, "maintenance mode", desde esta versión).
+
+### Pendiente
+54. Curar backlog de fotos reales de `hueso_plano` sigue siendo la palanca más clara (ver #52) —
+    ahora con `hybrid_lab` como base.
+55. Evaluar #53 (más vistas/especímenes por grupo en el render de laboratorio) como siguiente paso
+    de mejora sintética.
+
