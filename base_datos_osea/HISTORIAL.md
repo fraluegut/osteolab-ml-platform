@@ -2737,3 +2737,21 @@ real todavía, aunque la validación sintética sí mejoró claramente.
     momento exacto (o mejor, hacer que `search_openverse.py` devuelva la lista de filenames que
     escribió, no inferirla después) evitaría el problema de raíz la próxima vez.
 
+## 2026-08-15 -- `stage2_pending` explícito en /hybrid/classify, para no confundir "no aplica" con "falta entrenar"
+
+`predict_two_stage.py` ya encadenaba etapa 2 (hueso fino o taxón) para cráneo, mandíbula/maxilar,
+hueso_largo, hueso_pequeño y vértebra -- confirmado funcionando end-to-end (curl real contra
+`cranio_150.jpg`: taxón `roedor` 0.999). Pero para los 4 grupos SIN clasificador de etapa 2 todavía
+(costilla, hueso_plano, pelvis, sacro) el resultado dejaba `fine_bone`/`taxon` en `None`, indistinguible
+en la UI de un grupo donde ese campo simplemente no aplica por diseño (ej. cráneo nunca tendrá
+`fine_bone`, es taxón en paralelo, no cascada -- ver 2026-08-14).
+
+Se añadió `result["stage2_pending"]` (bool) en `classify_image_two_stage`: `True` solo cuando el
+grupo predicho no está en `STAGE2_MODELS` ni en `STAGE2_TAXON_MODELS`. El frontend
+(`serving/backend/static/app.js::renderResult`) pinta "Hueso concreto / taxón: pendiente" cuando es
+`True`, en vez de dejar el hueco en blanco.
+
+### Pendiente
+74. Etapa 2 real para costilla, hueso_plano, pelvis, sacro -- hoy solo dicen "pendiente" en la UI.
+    hueso_plano ya se sabe débil en etapa 1 (colapsaba a 0.00 recall, ver 2026-08-14), así que
+    primero tocaría reforzar esa etapa 1 antes de invertir en una etapa 2 sobre una base floja.

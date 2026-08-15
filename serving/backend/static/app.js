@@ -207,6 +207,14 @@ function renderResult(container, result) {
     container.appendChild(block);
   });
 
+  // Grupos sin etapa 2 entrenada todavía (costilla/hueso_plano/pelvis/sacro,
+  // ver HISTORIAL.md 2026-08-15): decirlo en vez de dejar el hueco en blanco.
+  if (result.stage2_pending) {
+    const pending = document.createElement("div");
+    pending.className = "result-top result-stage2 result-stage2-pending";
+    pending.innerHTML = `<span class="result-top-label">Hueso concreto / taxón: pendiente</span>`;
+    container.appendChild(pending);
+  }
 
   sorted.slice(0, 5).forEach(([label, value]) => {
     const row = document.createElement("div");

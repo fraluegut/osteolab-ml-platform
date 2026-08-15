@@ -49,10 +49,17 @@ def classify_image_two_stage(image_file, backend: str = "grounded_sam", bg_gray:
     result = classify_image(image_file, model_type="hybrid", backend=backend, bg_gray=bg_gray)
     result["fine_bone"] = None
     result["taxon"] = None
+    result["stage2_pending"] = False
     if not result["found"]:
         return result
 
     group = result["prediction"]
+
+    # Grupos sin ningún clasificador de etapa 2 todavía (ni hueso fino ni
+    # taxón) -- costilla/hueso_plano/pelvis/sacro a fecha 2026-08-15, ver
+    # HISTORIAL.md. Se marca explícito para que la UI diga "pendiente" en
+    # vez de quedarse en blanco como si no aplicara.
+    result["stage2_pending"] = group not in STAGE2_MODELS and group not in STAGE2_TAXON_MODELS
 
     stage2_run_name = STAGE2_MODELS.get(group)
     if stage2_run_name is not None:
