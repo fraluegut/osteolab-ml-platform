@@ -40,6 +40,10 @@ TARGET_BONES = {
     "proximal_phalanx_1": {"whole": [r"first proximal phalanx"], "partial": []},
     "trapezium": {"whole": [r"\btrapezium\b"], "partial": []},
     "sesamoid": {"whole": [r"sesamoid bone"], "partial": []},
+    "talus": {"whole": [r"\btalus\b"], "partial": []},
+    "cervical_vertebra": {"whole": [r"cervical vertebra"], "partial": []},
+    "thoracic_vertebra": {"whole": [r"thoracic vertebra"], "partial": []},
+    "lumbar_vertebra": {"whole": [r"lumbar vertebra"], "partial": []},
 }
 
 # Grupo morfológico general de cada hueso canónico: para el clasificador de
@@ -73,6 +77,10 @@ BONE_GROUPS = {
     "proximal_phalanx_1": "hueso_pequeno",
     "trapezium": "hueso_pequeno",
     "sesamoid": "hueso_pequeno",
+    "talus": "hueso_pequeno",
+    "cervical_vertebra": "vertebra",
+    "thoracic_vertebra": "vertebra",
+    "lumbar_vertebra": "vertebra",
 }
 
 # Categorías que aparecen en los datos pero no son "un hueso limpio": se

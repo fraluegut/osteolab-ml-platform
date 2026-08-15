@@ -2276,3 +2276,266 @@ bloqueado por MLflow, "maintenance mode", desde esta versión).
 55. Evaluar #53 (más vistas/especímenes por grupo en el render de laboratorio) como siguiente paso
     de mejora sintética.
 
+### Auditoría de confianza estadística: accuracy cruda no bastaba, balanced accuracy sí separa
+
+El usuario preguntó "¿cómo de seguros estamos de que el modelo mejoró?" — pregunta correcta, la
+comparación de accuracy 0.8442→0.8701 de una sola corrida no aguanta escrutinio con n=77.
+
+**McNemar pareado** sobre las mismas 77 fotos (`hybrid` viejo vs `hybrid_lab` semilla 42): solo 8
+discordantes de 77 (5 mejoran, 3 empeoran), p=0.73 — no significativo. Bootstrap pareado (10000
+remuestreos): IC 95% de la diferencia = [-3.9%, +9.1%], cruza cero. La comparación de 3 semillas
+nuevas contra 1 sola vieja (hecha antes) era asimétrica y optimista.
+
+**Arreglo**: entrenar `hybrid` (dataset viejo, `combined.csv`) también con `--model-seed` 1 y 7,
+para comparar 3 semillas contra 3 semillas de verdad:
+
+| Semilla | hybrid (viejo) | hybrid_lab (nuevo) |
+|---|---|---|
+| 42 | 0.8442 / 0.7959 | 0.8701 / 0.8323 |
+| 1 | 0.8571 / 0.7925 | 0.8571 / 0.8314 |
+| 7 | 0.8571 / 0.8039 | 0.8831 / 0.8242 |
+
+**Accuracy cruda: rangos se solapan** (viejo llega a 0.8571, nuevo baja a 0.8571 — empatan) — no es
+señal limpia, coincide con el McNemar no significativo.
+
+**Balanced accuracy: separación total, sin solape** — viejo 0.7925-0.8039, nuevo 0.8242-0.8323, el
+peor caso nuevo (0.8242) sigue 2 puntos por encima del mejor caso viejo (0.8039), con 6 corridas
+independientes. Esta sí es la métrica que da confianza real, y tiene sentido: el examen de 77 fotos
+está desbalanceado por grupo (costilla n=9, hueso_plano n=4), balanced accuracy pesa cada grupo
+igual y no deja que hueso_largo/cranio (grupos grandes) tapen el ruido de los chicos.
+
+**Conclusión**: `hybrid_lab` se mantiene como modelo por defecto, pero la justificación correcta es
+la separación limpia en balanced accuracy entre 6 semillas, no el +2.6 de accuracy cruda de la
+primera comparación (esa cifra sola no alcanzaba significancia). `hueso_plano` sigue flojo en las 6
+corridas (ambos datasets) — confirma otra vez, con más fuerza todavía, que es problema de volumen
+de foto real y no de qué dataset sintético se usa.
+
+### Pendiente
+56. Si se repite este patrón de "confirmar con N semillas" en el futuro, usar balanced accuracy
+    como métrica principal de comparación desde el principio (no accuracy cruda) — el examen de 77
+    fotos es demasiado desbalanceado para que accuracy cruda separe señal de ruido con confianza.
+
+### Piloto de granularidad fina: hueso_largo -> fémur/húmero/otro
+
+El usuario preguntó "hasta qué nivel llegamos" (¿bone_group o hueso concreto?). Se auditó qué
+grupos tienen huesos distintos de verdad dentro (columna `bone`, ya existente en el dataset
+sintético pero nunca usada como target): solo `hueso_largo` (7 huesos), `hueso_pequeno` (6),
+`mandibula_maxilar` (2) — el resto de grupos ya son ~1 hueso, bajar de nivel ahí no aporta nada.
+
+Las fotos reales de `real_photos_accepted` solo tenían `bone_group`, no hueso concreto — pero la
+columna `notes` (0 vacías en las 90 de hueso_largo) ya traía el nombre del hueso escrito en texto
+libre. Se extrajo con regex + propagación por archivo de origen (para los "Recorte N/M de
+imagesX.jpg" que no repetían el nombre en cada fila): **fémur 44, húmero 35, radio 4, cúbito 2,
+peroné 2, tibia 2, clavícula 0**. Solo fémur/húmero tienen volumen viable — confirma otra vez el
+patrón de hueso_plano (poca foto real = clase que no va a rendir), esta vez de antemano en vez de
+descubierto tras entrenar.
+
+**Decisión del usuario**: pilotar binario fémur/húmero + resto en `hueso_largo_otro` (radio/cúbito/
+peroné/tibia/clavícula/ambiguos), no las 7 clases completas ni curar más fotos antes de probar.
+
+**Cambios de infraestructura** (generales, no solo para este piloto):
+- `train_cnn.py`, `evaluate_cnn_real_photos.py`, `shared/inference/predict_cnn.py`: nuevo flag/
+  parámetro `--target`/`target` (default `"bone_group"`, backward-compatible) — permite entrenar/
+  evaluar/servir contra cualquier columna del dataset, no solo `bone_group`. Mismo patrón que
+  `--run-name`.
+- `training/cnn_dataset.py`: `NON_FEATURE_COLS` necesitaba incluir `bone_fine` (columnas de target
+  nuevas se cuelan como feature geométrica si no se excluyen explícitamente — dio
+  `ValueError: could not convert string to float: 'cranio'` hasta arreglarlo).
+- `precompute_real_bench()` en `train_cnn.py` (monitoreo con el banco `real_world_benchmark`, 63
+  fotos externas) está hardcodeado a `bone_group` — con un target más fino, filas cuya clase
+  `bone_group` no exista en el encoder del target actual (ej. `'hueso_largo'` ya no es clase de
+  `bone_fine`) reventaban con `ValueError: y contains previously unseen labels`. Arreglado: esas
+  filas se saltan (monitoreo parcial) en vez de tirar el entrenamiento entero.
+- Dataset piloto: `data/processed/bone_geometric_features_combined_lab_finebones.csv` (derivado de
+  `combined_lab.csv`, añade columna `bone_fine` — `bone_group` sin cambio salvo dentro de
+  `hueso_largo`, que se reparte en fémur/húmero/hueso_largo_otro vía la columna `bone` en filas
+  sintéticas y vía el mapeo de `notes` en filas reales). `manifest.csv` de
+  `real_photos_accepted` también gana la columna `bone_fine` (persistida, no derivada al vuelo).
+
+**Resultado** (`--run-name hueso_largo_pilot`, `--target bone_fine`, resto de hiperparámetros
+igual que `hybrid_lab`, examen honesto sobre las mismas 77 fotos, ahora 11 clases en vez de 9):
+accuracy 0.8442, balanced 0.8236 (vs 0.8701/0.8323 de `hybrid_lab` a 9 clases — baja un poco,
+esperable con más clases). El detalle importa más que el agregado:
+
+| Clase | Precision | Recall |
+|---|---|---|
+| femur | 0.54 | 1.00 |
+| humero | 1.00 | 0.43 |
+| hueso_largo_otro | 1.00 | 0.75 |
+
+**El modelo confunde húmero con fémur**: 4 de 7 húmeros de test se predicen como fémur (fémur
+nunca falla, recall 1.00, pero a costa de tragarse casi toda la ambigüedad — precision 0.54). No
+parece bug de entrenamiento: en un recorte segmentado sin escala de referencia, húmero y fémur son
+ambos huesos largos robustos con silueta parecida — el vector de features geométricas actual
+(pensado para separar bone_group, formas muy distintas entre sí) puede no capturar lo que sí
+distingue estos dos huesos concretos entre ellos (proporciones de cabeza articular, curvatura
+relativa, etc.).
+
+### Pendiente
+57. Antes de replicar este patrón en hueso_pequeno/mandibula_maxilar: decidir si se ataca la
+    confusión fémur/húmero primero (más fotos de húmero real, o features geométricas nuevas
+    específicas para huesos largos) o si se acepta como limitación conocida y se avanza igual.
+    RESUELTO parcialmente, ver abajo -- el usuario pidió "replicar" y se intentó en los otros 2
+    grupos.
+58. Si se decide sumar más fotos reales por hueso concreto, el patrón de extracción vía `notes` +
+    propagación por archivo de origen (este pendiente) es reutilizable para hueso_pequeno/
+    mandibula_maxilar si sus notas tienen el mismo nivel de detalle -- revisar antes de asumir que
+    hace falta curación desde cero. RESUELTO, ver abajo -- no aplicaba igual en ambos grupos.
+
+### Intento de replicar el piloto en hueso_pequeno y mandibula_maxilar
+
+**mandibula_maxilar**: 23/23 fotos reales son mandíbula, 0 son maxilar. Nada que separar --
+descartado (decisión del usuario), no se tocó.
+
+**hueso_pequeno**: de 38 fotos, solo 7 mencionaban el hueso por nombre en `notes` ("astrágalo/
+talus"). Las 31 restantes se revisaron a mano (una por una, visualmente) -- **36 de 38 son
+astrágalo** (forma de tróclea inconfundible), no la mezcla de metatarsal_1/patela/metacarpal_1/
+trapecio/falange/sesamoideo que sugería el catálogo sintético actual. Astrágalo no tenía malla
+sintética en el pipeline de renders, pero SÍ existía ya: un esqueleto humano completo ingerido hace
+tiempo (`data/bone_ingest/3882aa51f321/`, de Sketchfab, `human-skeleton.zip`) con item de talus
+(izq+der) ya revisado y aceptado (`final_bone_group: hueso_pequeno` en `queue.json`) pero nunca
+extraído a `data/meshes/` -- el pipeline de ingesta (`shared/bone_ingest/pipeline.py`) solo genera
+miniaturas de revisión, nunca exportó mallas individuales usables. Ese esqueleto trae además
+calcáneo, cuboides, navicular, cuneiformes y cada hueso del carpo por separado -- más material sin
+usar del que hace falta para este piloto en concreto.
+
+**Trabajo de infraestructura nuevo**:
+- `shared/bone_ingest/export_object_glb.py`: script de Blender nuevo, falta que tenía el pipeline
+  de ingesta -- importa la escena completa (misma lógica que `blender_split_render.py`, sin
+  fusionar objetos) y exporta UN objeto concreto como `.glb` independiente. Usado para sacar
+  `l talus`/`r_talus` (nombres inconsistentes en el FBX original, con espacio y con guion bajo) del
+  esqueleto ya ingerido hacia `data/meshes/homo_sapiens/talus/bone_ingest_3882aa51f321_{l,r}_talus/`.
+- `talus` faltaba en el diccionario `BONE_GROUPS` (bone -> bone_group) duplicado en
+  `shared/cv_extractor/build_dataset.py` y `base_datos_osea/scripts/bones.py` -- sin esto,
+  `build_dataset_lab.py` etiquetaba las filas de talus como `sin_grupo`. Añadido `"talus":
+  "hueso_pequeno"` a ambas copias.
+- Renderizado con `render_lab_batch.py --only homo_sapiens/talus` (2 especímenes, 0 fallos, 12
+  imágenes). Reextracción completa de `bone_geometric_features_lab.csv` (684 filas, antes 672) +
+  **`build_segmented_crops.py` (paso que se había saltado al reconstruir `bone_geometric_features_
+  lab.csv` a mano -- sin él, `segmented_path` queda vacío para TODAS las filas lab, no solo talus,
+  y `cnn_dataset.py` revienta con `TypeError: argument should be a str ... not 'float'` al intentar
+  abrir la ruta. Lección: cualquier regeneración de `*_lab.csv` necesita este paso antes de volver a
+  combinar/entrenar, no solo `build_dataset_lab.py` + `build_combined_lab_variant.py`.**
+
+**Resultado del piloto extendido** (`--run-name fine_bone_pilot`, `--target bone_fine`, 12 clases:
+las 9 de bone_group menos hueso_largo/hueso_pequeno, más fémur/húmero/hueso_largo_otro/astrágalo/
+hueso_pequeno_otro): accuracy 0.7532, balanced 0.6628 -- peor que el piloto anterior de 11 clases
+(0.8442/0.8236) y que el `hybrid_lab` de 9 clases (0.8701/0.8323). **`hueso_plano` se desploma a
+0/4 (recall y precision 0.00)** -- un grupo que rendía 0.50-0.67 en las corridas anteriores, SIN
+tocarlo ni cambiar sus datos. Astrágalo: recall 0.57 (4/7), razonable para su volumen (29 reales +
+12 sintéticas). No hay relación de confusión directa entre hueso_plano y las clases nuevas en la
+matriz -- no es "se confunden entre sí", es que **meter más clases finas en el mismo clasificador
+plano interfiere con grupos no relacionados**. Señal real de coste arquitectónico, no ruido de una
+sola corrida (mismo patrón de deterioro ya visto de forma más leve en el piloto de 11 clases:
+0.8701→0.8442 solo por pasar de 9 a 11 clases).
+
+### Pendiente
+59. Antes de seguir sumando granularidad al mismo clasificador plano: evaluar una arquitectura de
+    2 etapas (clasificar bone_group primero, luego un clasificador aparte solo para el hueso
+    concreto DENTRO del grupo que lo necesite) -- evitaría que fémur/húmero/astrágalo interfieran
+    con grupos que no tienen nada que ver, como pasó con hueso_plano aquí. RESUELTO, ver abajo.
+60. Con la infraestructura de ingesta -> malla ahora completa (`export_object_glb.py`), el resto
+    del esqueleto ya ingerido (calcáneo, cuboides, navicular, cuneiformes, huesos del carpo) está
+    disponible sin volver a descargar nada -- útil si se decide ampliar hueso_pequeno más allá de
+    solo astrágalo.
+
+### Arquitectura de 2 etapas: confirma la hipótesis, arregla la interferencia Y mejora la finura
+
+Etapa 1 = el `hybrid_lab` de siempre (bone_group, 9 clases, sin retocar). Etapa 2 = un clasificador
+`hybrid` aparte por grupo, entrenado SOLO con las filas de ese grupo (`--target bone_fine`
+filtrado): `stage2_hueso_largo` (700 filas: fémur/húmero/hueso_largo_otro) y
+`stage2_hueso_pequeno` (314 filas: astrágalo/hueso_pequeno_otro). En inferencia, etapa 1 predice el
+grupo; si es hueso_largo o hueso_pequeno, se llama a la etapa 2 correspondiente para afinar: si no,
+la predicción final es la de etapa 1 tal cual.
+
+Examen honesto (77 fotos, cascada completa vs el clasificador plano de 12 clases del intento
+anterior):
+
+| Métrica | Plano (12 clases) | Cascada 2 etapas |
+|---|---|---|
+| Accuracy | 0.7532 | 0.8182 |
+| Balanced accuracy | 0.6628 | 0.7360 |
+| hueso_plano recall | 0.00 (colapsado) | 0.25 (vuelve a su rango ya documentado, 0.25-0.67 según semilla) |
+| fémur recall/precision | 1.00 / 0.54 | 0.71 / 0.71 |
+| húmero recall/precision | 0.43 / 1.00 | 0.86 / 0.86 |
+| astrágalo recall | 0.57 | 0.71 |
+
+**hueso_plano vuelve a su comportamiento normal** (deja de estar en 0.00, sin haber tocado sus
+datos ni su modelo -- confirma que el colapso anterior era interferencia del clasificador plano, no
+un problema de hueso_plano en sí). **Además, fémur/húmero/astrágalo mejoran solos**: al competir
+solo dentro de su propio grupo (3 clases en vez de 12, o 2 en vez de 12) en vez de contra las 9
+clases enteras, cada etapa 2 separa mejor -- la confusión asimétrica fémur/húmero del piloto plano
+(fémur se tragaba casi todo) se corrige a algo mucho más equilibrado.
+
+**Conclusión**: la arquitectura de 2 etapas es el camino correcto para seguir bajando de nivel
+(hueso concreto) sin pagar el coste de interferencia entre grupos no relacionados que tiene meter
+todo en un solo clasificador plano. No se cambió el modelo de producción (`hybrid_lab`/etapa 1
+sigue siendo el default) -- los modelos de etapa 2 (`stage2_hueso_largo`, `stage2_hueso_pequeno`)
+existen en disco pero aún no están conectados a `predict_cnn.py`/`serving/backend/main.py` para
+servir en producción.
+
+### Pendiente
+61. Conectar la cascada de 2 etapas a `shared/inference/predict_cascade.py` (o un módulo nuevo) y
+    al backend de serving si se quiere usar esto más allá de scripts de evaluación sueltos.
+    RESUELTO, ver abajo.
+62. Si se amplía mandibula_maxilar/otros grupos en el futuro, replicar el patrón de etapa 2 aislada
+    (dataset filtrado a solo ese grupo) en vez de volver a meterlo en el clasificador plano --
+    evidencia clara de que el plano no escala.
+
+### Cascada de 2 etapas conectada a producción
+
+`shared/inference/predict_two_stage.py` (nuevo): envuelve `predict_cnn.classify_image` — llama a
+etapa 1 (`hybrid` normal, bone_group) y, si el grupo predicho tiene modelo de etapa 2
+(`STAGE2_MODELS = {"hueso_largo": "stage2_hueso_largo", "hueso_pequeno": "stage2_hueso_pequeno"}`),
+llama también a ese modelo con `target="bone_fine"`. Devuelve el mismo dict de siempre más
+`"fine_bone"` (`None` si el grupo no tiene etapa 2, o dict `{"prediction", "probabilities"}` si sí).
+
+`serving/backend/main.py`: `/hybrid/classify` (el endpoint de producción) ahora llama a
+`classify_image_two_stage` en vez de `classify_image` directo -- mismo contrato de respuesta,
+con `fine_bone` de más. `tests/test_hybrid_endpoint.py` actualizado (mockeaba
+`hybrid_classify_image`, que dejó de usarse en `main.py` -- ahora mockea
+`classify_image_two_stage`). Probado también sin mock, extremo a extremo, contra fotos reales de
+`data/real_photos_accepted/`: `hueso_largo_005.jpg` -> `prediction: hueso_largo`, `fine_bone:
+{"prediction": "humero", "probabilities": {...}}`.
+
+### Tercera etapa 2: vértebra (cervical/torácica/lumbar)
+
+El usuario preguntó qué haría falta para el resto de grupos. Se revisaron las notas de los 5 grupos
+sin subdivisión (costilla, cráneo, pelvis, sacro, hueso_plano): 0 traían nivel/tipo identificable, y
+ninguno tiene una subdivisión anatómica que valga la pena entrenar aparte (cráneo/pelvis/hueso_plano
+no tienen "tipos" reales; costilla tendría número 1-12 pero ninguna nota lo especifica). **Vértebra
+sí**: 28/47 notas ya decían cervical/torácica/lumbar (mismo patrón que fémur/húmero). Las 19
+restantes se revisaron visualmente (forma del cuerpo vertebral, apófisis espinosa, agujero
+transverso -- diagnóstico anatómico estándar): 14 clasificadas con confianza razonable, 5 dejadas
+sin clasificar (`vertebra_136` a `vertebra_140`, recorte de una figura de paper en blanco y negro,
+muy baja resolución, sin confianza suficiente para etiquetar). Total: cervical 11, torácica 21,
+lumbar 10, 5 sin clasificar (bucket `vertebra_otro`).
+
+**Mallas sintéticas**: igual que talus, el esqueleto ya ingerido (`data/bone_ingest/3882aa51f321/`)
+trae cada vértebra por separado (c1-c7, t1-t12, l1-l5, 24 objetos, sin duplicar L/R por ser hueso de
+línea media) -- exportadas con `export_object_glb.py` a `data/meshes/homo_sapiens/
+{cervical,thoracic,lumbar}_vertebra/`, renderizadas con `render_lab_batch.py` (0 fallos), y sumadas
+a `BONE_GROUPS` en las 2 copias (`cervical_vertebra`/`thoracic_vertebra`/`lumbar_vertebra` ->
+`"vertebra"`).
+
+Etapa 2 (`stage2_vertebra`, `--target bone_fine`, dataset filtrado a solo `bone_group==vertebra`,
+4 clases: cervical/torácica/lumbar/vertebra_otro) entrenada y conectada (`STAGE2_MODELS` en
+`predict_two_stage.py`). Examen honesto completo (cascada con las 3 etapas 2 activas):
+accuracy 0.7922, balanced 0.6983. **hueso_plano se mantiene en 0.25** (no colapsa al añadir una
+tercera etapa 2 -- confirma otra vez que el aislamiento por grupo no tiene coste cruzado).
+Torácica 4/4 (recall 1.00, el grupo con más volumen real: 17 fotos de entrenamiento). Cervical 1/3
+y lumbar 1/2 -- **n de test demasiado pequeño para sacar conclusiones** (3 y 2 fotos respectivamente),
+solo confirma que el mecanismo funciona, no que el modelo sea bueno separando estos 2 tipos
+todavía. Probado extremo a extremo vía el endpoint real: `vertebra_108.jpg` (lumbar, clasificada a
+mano) -> `fine_bone: {"prediction": "lumbar", "probabilities": {"lumbar": 0.784, ...}}`;
+`vertebra_136.jpg` (una de las 5 sin clasificar por baja confianza) -> el propio modelo también la
+manda a `vertebra_otro` con 0.87 de probabilidad, coincide con la duda humana.
+
+### Pendiente
+64. Cervical y lumbar de vértebra tienen muy poca foto real de test (2-3) para confiar en su
+    recall -- crecer el volumen de esos 2 tipos (o esperar a que el pool de `real_photos_accepted`
+    crezca orgánicamente) antes de sacar conclusiones sobre si el modelo los separa bien de verdad.
+65. Las 5 fotos de vértebra sin clasificar (`vertebra_136`-`140`, figura de paper en blanco y negro)
+    podrían resolverse pidiendo el paper original en mejor resolución, si se quiere recuperar esas
+    5 fotos en vez de dejarlas en `vertebra_otro` para siempre.
+

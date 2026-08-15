@@ -139,6 +139,10 @@ def parse_args():
     p.add_argument("--backbone", default="resnet18")
     p.add_argument("--dataset-path", type=Path, default=DEFAULT_DATASET)
     p.add_argument("--benchmark-path", type=Path, default=DEFAULT_BENCHMARK)
+    p.add_argument("--target", default="bone_group",
+                    help="Columna del dataset a predecir. Por defecto 'bone_group'; para pilotos de "
+                         "granularidad más fina dentro de un grupo (ej. 'bone_fine') pasar la "
+                         "columna nueva junto con --dataset-path apuntando al csv que la trae.")
     p.add_argument("--bg-gray", type=int, default=128,
                     help="Color de fondo (0-255, gris neutro por defecto) usado SOLO para "
                          "precomputar el banco real externo de monitoreo (real_bench_acc) — el "
@@ -264,7 +268,15 @@ def precompute_real_bench(label_encoder, feature_cols, scaler, fallback_means, b
     transform = build_transform(train=False)
     images, geoms, labels = [], [], []
     n_not_found = 0
+    n_unseen_label = 0
     for _, row in manifest.iterrows():
+        # este banco solo trae `bone_group`, no la granularidad más fina de
+        # `--target` (ej. 'bone_fine') -- si la clase de una fila no existe en
+        # el encoder del target actual, se salta (monitoreo parcial en vez de
+        # reventar el entrenamiento entero).
+        if row["bone_group"] not in label_encoder.classes_:
+            n_unseen_label += 1
+            continue
         path = REAL_BENCH_DIR / row["bone_group"] / row["filename"]
         if not path.exists():
             continue
@@ -279,6 +291,9 @@ def precompute_real_bench(label_encoder, feature_cols, scaler, fallback_means, b
             flat = flatten_features(raw)
             geoms.append([flat[c] if flat[c] is not None else fallback_means[c] for c in feature_cols])
         labels.append(int(label_encoder.transform([row["bone_group"]])[0]))
+    if n_unseen_label:
+        print(f"Banco real externo: {n_unseen_label} filas saltadas (su bone_group no existe en "
+              f"el target actual, ej. target más fino que agrupa/reetiqueta esa clase).")
     if not images:
         return None
     print(f"Banco real precomputado (subconjunto de selección): {len(images)} imágenes "
@@ -303,7 +318,9 @@ def eval_real_bench(model, real_bench, device):
 
 
 def main():
+    global TARGET
     args = parse_args()
+    TARGET = args.target
     if args.lr_head_finetune is None:
         # 2026-08-03: la hipótesis era que lr_head/10 en fase 2 ayudaría (menos
         # descalibración de la cabeza al descongelar el backbone) — probado con

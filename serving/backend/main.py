@@ -7,8 +7,8 @@ from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from shared.inference.predict_cnn import classify_image as hybrid_classify_image
 from shared.inference.predict_cnn import explain_gradcam
+from shared.inference.predict_two_stage import classify_image_two_stage
 from shared.inference.predict_geometric import classify_image, get_reference_points
 from shared.bone_filter.predict import is_bone
 from shared.clip_filter.predict import classify_image as clip_classify
@@ -66,12 +66,19 @@ async def hybrid_classification(file: UploadFile = File(...)):
     Este endpoint usa la segmentación de la imagen, extrae las features
     geométricas y las combina con el embedding del backbone CNN para obtener
     una predicción más robusta basada en el mejor modelo disponible.
+
+    Cascada de 2 etapas (ver HISTORIAL.md 2026-08-14 y
+    `shared/inference/predict_two_stage.py`): además del grupo morfológico
+    (`prediction`), la respuesta trae `fine_bone` — el hueso concreto DENTRO
+    del grupo (ej. fémur/húmero dentro de hueso_largo, astrágalo dentro de
+    hueso_pequeño) cuando ese grupo tiene un clasificador de etapa 2
+    entrenado; `None` en el resto de grupos (aún no hay etapa 2 para ellos).
     """
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
 
     try:
-        return hybrid_classify_image(file.file, model_type="hybrid")
+        return classify_image_two_stage(file.file)
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:

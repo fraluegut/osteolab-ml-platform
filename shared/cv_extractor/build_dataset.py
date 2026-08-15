@@ -51,6 +51,10 @@ BONE_GROUPS = {
     "proximal_phalanx_1": "hueso_pequeno",
     "trapezium": "hueso_pequeno",
     "sesamoid": "hueso_pequeno",
+    "talus": "hueso_pequeno",
+    "cervical_vertebra": "vertebra",
+    "thoracic_vertebra": "vertebra",
+    "lumbar_vertebra": "vertebra",
 }
 
 # Especímenes reservados como banco de evaluación fijo: nunca entran en el

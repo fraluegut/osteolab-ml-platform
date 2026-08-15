@@ -185,6 +185,29 @@ function renderResult(container, result) {
   `;
   container.appendChild(top);
 
+  // Cascada de 2 etapas (ver HISTORIAL.md 2026-08-14): si el grupo predicho tiene
+  // hueso concreto y/o taxón afinados en etapa 2, mostrarlos aparte — antes esta
+  // función solo pintaba el grupo (`prediction`/`probabilities`) y estas dos claves
+  // nuevas de /hybrid/classify quedaban invisibles en la UI aunque el backend ya
+  // las devolviera.
+  [
+    { key: "fine_bone", title: "Hueso concreto" },
+    { key: "taxon", title: "Taxón" },
+  ].forEach(({ key, title }) => {
+    const stage2 = result[key];
+    if (!stage2) return;
+    const stage2Sorted = Object.entries(stage2.probabilities).sort((a, b) => b[1] - a[1]);
+    const [stage2Label, stage2Value] = stage2Sorted[0];
+    const block = document.createElement("div");
+    block.className = "result-top result-stage2";
+    block.innerHTML = `
+      <span class="result-top-label">${title}: ${stage2Label.replace(/_/g, " ")}</span>
+      <span class="result-top-value">${(stage2Value * 100).toFixed(1)}%</span>
+    `;
+    container.appendChild(block);
+  });
+
+
   sorted.slice(0, 5).forEach(([label, value]) => {
     const row = document.createElement("div");
     row.className = "prob-row";

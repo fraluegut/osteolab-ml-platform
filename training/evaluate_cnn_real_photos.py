@@ -45,7 +45,7 @@ def _git_commit() -> str:
         return "desconocido"
 
 
-def _iter_images(benchmark_dir: Path, manifest_path: Path, split: str | None):
+def _iter_images(benchmark_dir: Path, manifest_path: Path, split: str | None, target: str):
     df = pd.read_csv(manifest_path)
     if split is not None and "split" in df.columns:
         df = df[df["split"] == split]
@@ -54,7 +54,7 @@ def _iter_images(benchmark_dir: Path, manifest_path: Path, split: str | None):
         if not path.exists():
             print(f"AVISO: en manifest.csv pero no existe en disco: {path}")
             continue
-        yield path, row["bone_group"], row.to_dict()
+        yield path, row[target], row.to_dict()
 
 
 def parse_args():
@@ -77,6 +77,10 @@ def parse_args():
     p.add_argument("--run-name", default=None,
                     help="Cargar un modelo guardado con --run-name distinto en train_cnn.py (ej. "
                          "'hybrid_blackbg') en vez del nombre por defecto de --model-type.")
+    p.add_argument("--target", default="bone_group",
+                    help="Columna del manifest a usar como etiqueta verdadera (debe existir en "
+                         "manifest.csv) — usar la misma columna con la que se entrenó el modelo "
+                         "(ver --target en train_cnn.py).")
     p.add_argument("--bg-gray", type=int, default=128,
                     help="Color de fondo (0-255) para la segmentación en vivo de este examen — "
                          "debe coincidir con el que se usó para entrenar el modelo que se está "
@@ -96,10 +100,10 @@ def main():
     n_not_found = 0
 
     split_filter = None if args.split == "all" else args.split
-    for path, true_group, meta in _iter_images(benchmark_dir, manifest_path, split_filter):
+    for path, true_group, meta in _iter_images(benchmark_dir, manifest_path, split_filter, args.target):
         with path.open("rb") as f:
             result = classify_image(f, model_type=args.model_type, backend=args.segmenter,
-                                     run_name=args.run_name, bg_gray=args.bg_gray)
+                                     run_name=args.run_name, bg_gray=args.bg_gray, target=args.target)
         if not result["found"]:
             n_not_found += 1
             pred = "sin_segmentar"

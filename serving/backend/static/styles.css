@@ -433,6 +433,9 @@ a { color: inherit; }
 }
 .result-top-label { font-size: 1.3rem; font-weight: 700; text-transform: capitalize; }
 .result-top-value { font-size: 1.1rem; font-weight: 700; color: var(--terracotta); }
+.result-stage2 { margin-top: -0.5rem; opacity: 0.85; }
+.result-stage2 .result-top-label { font-size: 1rem; font-weight: 600; color: var(--ink-soft); }
+.result-stage2 .result-top-value { font-size: 0.9rem; color: var(--ink-soft); }
 .prob-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; font-size: 0.85rem; }
 .prob-label { width: 130px; flex-shrink: 0; text-transform: capitalize; color: var(--ink-soft); }
 .prob-bar-track { flex: 1; height: 8px; background: var(--sand); border-radius: 999px; overflow: hidden; }
