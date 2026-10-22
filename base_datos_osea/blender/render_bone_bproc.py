@@ -38,6 +38,9 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from bone_material import apply_layered_bone_material  # noqa: E402
+
 HDRI_DIR = Path(__file__).resolve().parents[1] / "hdris"
 
 BONE_COLOR_PALETTE = [
@@ -190,8 +193,7 @@ def main():
 
     rng_material = random.Random(args.seed or abs(hash(args.prefix)) % (2**31))
     if not keep_original:
-        for o in mesh_objs:
-            apply_procedural_dirt(o, rng_material)
+        apply_layered_bone_material(mesh_objs, rng_material, bone_size=radius)
 
     # Suelo shadow-catcher para sombra de contacto real (igual que antes)
     bpy.ops.mesh.primitive_plane_add(size=radius * 12, location=(center.x, center.y, bbox_min[2]))
