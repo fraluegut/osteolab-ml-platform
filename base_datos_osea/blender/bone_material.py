@@ -227,7 +227,126 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     mix_color.inputs["Fac"].default_value = rng.uniform(0.25, 0.5)  # algo más visible que antes, ahora que tiene lógica
     links.new(macro_ramp.outputs["Color"], mix_color.inputs["Color1"])
     links.new(stain_ramp.outputs["Color"], mix_color.inputs["Color2"])
-    links.new(mix_color.outputs["Color"], bsdf.inputs["Base Color"])
+
+    # ── Capa 2b: estado de conservación -- un hueso real casi nunca está
+    # "limpio de museo" homogéneo. Varía mucho pieza a pieza: mineralización
+    # (óxidos de hierro/manganeso infiltrados desde el sedimento, parches
+    # grandes de borde difuso, tono óxido/negruzco) y moho/biopelícula
+    # (colonias puntuales, verdosas-negras, de borde más duro que un ruido
+    # orgánico difuso). Antes solo existía la capa 2 (veta ligada a
+    # cavidad/AO) con opacidad baja (0.25-0.5) -- consistentemente sutil, sin
+    # variedad entre piezas. Aquí cada material sortea su propio "nivel de
+    # desgaste" (weathering) para que, con el mismo código, salgan tanto
+    # huesos casi limpios como piezas muy manchadas -- la variedad es el
+    # punto, no un valor fijo "bien calibrado".
+    weathering = rng.uniform(0.15, 1.0)
+
+    # Mineralización: manchas grandes de borde difuso, NO ligadas a
+    # cavidad/AO (a diferencia de la capa 2) -- en hueso real, la
+    # infiltración mineral desde el sedimento tizna superficies planas igual
+    # que huecos, a veces más. Voronoi de baja frecuencia + Smooth F1 da
+    # blotches orgánicos de tamaño grande en vez del patrón puntual de un
+    # Noise.
+    mineral_voronoi = nodes.new("ShaderNodeTexVoronoi")
+    links.new(world_coord, mineral_voronoi.inputs["Vector"])
+    mineral_voronoi.inputs["Scale"].default_value = rng.uniform(0.8, 2.5)  # blotches grandes
+    mineral_voronoi.feature = "SMOOTH_F1"
+
+    mineral_ramp = nodes.new("ShaderNodeValToRGB")
+    mineral_ramp.color_ramp.interpolation = "EASE"
+    mineral_ramp.color_ramp.elements[0].position = rng.uniform(0.2, 0.4)
+    # óxido de hierro/manganeso: de marrón-rojizo a casi negro según la pieza
+    mineral_tone = rng.uniform(0.0, 1.0)
+    mineral_dark = (
+        0.10 + 0.08 * mineral_tone,
+        0.05 + 0.02 * mineral_tone,
+        0.03,
+        1.0,
+    )
+    mineral_ramp.color_ramp.elements[0].color = mineral_dark
+    mineral_ramp.color_ramp.elements[1].position = rng.uniform(0.55, 0.75)
+    mineral_ramp.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 1.0)  # transparente
+    links.new(mineral_voronoi.outputs["Distance"], mineral_ramp.inputs["Fac"])
+
+    mineral_mix = nodes.new("ShaderNodeMixRGB")
+    mineral_mix.blend_type = "MULTIPLY"
+    mineral_mix.inputs["Fac"].default_value = weathering * rng.uniform(0.35, 0.8)
+    links.new(mix_color.outputs["Color"], mineral_mix.inputs["Color1"])
+    links.new(mineral_ramp.outputs["Color"], mineral_mix.inputs["Color2"])
+
+    # Moho/biopelícula: colonias puntuales, no un degradado difuso --
+    # Voronoi de alta frecuencia recortado con un umbral duro (no EASE) para
+    # que salgan manchas redondeadas discretas, verdosas-negras, en vez de
+    # una tinta uniforme. Solo aparece si esta pieza "le tocó" moho en el
+    # sorteo (has_mold) -- no todas las piezas deben tenerlo, igual que en
+    # la realidad no todo hueso expuesto desarrolla biopelícula visible.
+    has_mold = rng.random() < 0.4
+    if has_mold:
+        mold_voronoi = nodes.new("ShaderNodeTexVoronoi")
+        links.new(world_coord, mold_voronoi.inputs["Vector"])
+        mold_voronoi.inputs["Scale"].default_value = rng.uniform(3.0, 7.0)
+        mold_voronoi.feature = "F1"
+
+        mold_ramp = nodes.new("ShaderNodeValToRGB")
+        mold_ramp.color_ramp.elements[0].position = rng.uniform(0.04, 0.12)  # colonias pequeñas y dispersas
+        mold_ramp.color_ramp.elements[0].color = (0.04, 0.06, 0.03, 1.0)  # verde-negruzco
+        mold_ramp.color_ramp.elements[1].position = rng.uniform(0.15, 0.22)
+        mold_ramp.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 1.0)  # transparente
+        links.new(mold_voronoi.outputs["Distance"], mold_ramp.inputs["Fac"])
+
+        # El moho se concentra en zonas húmedas/ocluidas (cavidades), igual
+        # que la suciedad de la capa 2 -- se modula con la misma cavity_ramp.
+        mold_mask = nodes.new("ShaderNodeMixRGB")
+        mold_mask.blend_type = "ADD"
+        mold_mask.inputs["Fac"].default_value = 0.5
+        mold_mask.inputs["Color1"].default_value = (0.5, 0.5, 0.5, 1.0)
+        links.new(cavity_ramp.outputs["Color"], mold_mask.inputs["Color2"])
+
+        mold_lerp = nodes.new("ShaderNodeMixRGB")  # blanquea el ramp de moho donde la máscara dice "seco"
+        mold_lerp.blend_type = "LIGHTEN"
+        links.new(mold_ramp.outputs["Color"], mold_lerp.inputs["Color1"])
+        links.new(mold_mask.outputs["Color"], mold_lerp.inputs["Color2"])
+
+        mold_mix = nodes.new("ShaderNodeMixRGB")
+        mold_mix.blend_type = "MULTIPLY"
+        mold_mix.inputs["Fac"].default_value = weathering * rng.uniform(0.4, 0.9)
+        links.new(mineral_mix.outputs["Color"], mold_mix.inputs["Color1"])
+        links.new(mold_lerp.outputs["Color"], mold_mix.inputs["Color2"])
+        final_color_output = mold_mix.outputs["Color"]
+    else:
+        final_color_output = mineral_mix.outputs["Color"]
+
+    # Contacto/absorción puntual (p.ej. apoyo contra tierra/metal/otro
+    # hueso): un parche oscuro ASIMÉTRICO, no centrado -- se logra
+    # desplazando el centro del ruido con un offset aleatorio por eje en vez
+    # de usar world_coord sin más (que siempre está centrado en el origen de
+    # la malla).
+    contact_offset = nodes.new("ShaderNodeVectorMath")
+    contact_offset.operation = "ADD"
+    contact_offset.inputs[1].default_value = (
+        rng.uniform(-2.0, 2.0), rng.uniform(-2.0, 2.0), rng.uniform(-2.0, 2.0)
+    )
+    links.new(world_coord, contact_offset.inputs[0])
+
+    contact_noise = nodes.new("ShaderNodeTexNoise")
+    links.new(contact_offset.outputs["Vector"], contact_noise.inputs["Vector"])
+    contact_noise.inputs["Scale"].default_value = rng.uniform(0.6, 1.4)  # una sola mancha grande, no un patrón
+    contact_noise.inputs["Detail"].default_value = rng.uniform(1.0, 2.0)
+
+    contact_ramp = nodes.new("ShaderNodeValToRGB")
+    contact_ramp.color_ramp.elements[0].position = rng.uniform(0.55, 0.7)  # umbral alto -- mancha chica y localizada
+    contact_ramp.color_ramp.elements[0].color = (1.0, 1.0, 1.0, 1.0)
+    contact_ramp.color_ramp.elements[1].position = rng.uniform(0.72, 0.85)
+    contact_ramp.color_ramp.elements[1].color = (0.08, 0.06, 0.05, 1.0)  # mancha de contacto oscura
+    links.new(contact_noise.outputs["Fac"], contact_ramp.inputs["Fac"])
+
+    contact_mix = nodes.new("ShaderNodeMixRGB")
+    contact_mix.blend_type = "MULTIPLY"
+    contact_mix.inputs["Fac"].default_value = weathering * rng.uniform(0.3, 0.7)
+    links.new(final_color_output, contact_mix.inputs["Color1"])
+    links.new(contact_ramp.outputs["Color"], contact_mix.inputs["Color2"])
+
+    links.new(contact_mix.outputs["Color"], bsdf.inputs["Base Color"])
 
     # ── Capa 3: porosidad física (bump real), más marcada en las cavidades
     # (poros reales se notan más en huecos) y en las crestas de inserción
