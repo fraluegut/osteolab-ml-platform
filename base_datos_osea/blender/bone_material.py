@@ -3,19 +3,29 @@
 planos) por un acabado físico con más capas, usando la paleta real extraída
 por extract_bone_palette.py en vez de colores fijos a mano.
 
-Todo determinista (mismo seed -> mismo material) y 100% nodos procedurales de
-Blender (Noise/Voronoi/ColorRamp/Bump) — nada de texturas descargadas ni de
-IA generativa, para que sea repetible con solo el repo + Blender.
+Determinista (mismo seed -> mismo material). La base de color ahora es una
+textura real de superficie de hueso (textures/bone_base_diffuse.png, CC0,
+ver HISTORIAL.md) proyectada en Box/triplanar sobre world_coord -- YA NO es
+100% procedural como en la versión anterior (esa garantía de "repetible
+con solo el repo + Blender, sin assets externos" se pierde a cambio de
+poro/veta con detalle fotográfico real en vez de aproximado con Noise).
+Todo lo demás (AO/cavidad, manchas, mineralización, moho, bump, roughness)
+sigue siendo 100% nodos procedurales de Blender, aplicados ENCIMA de la
+textura -- es la textura la que gana una capa de variación física, no al
+revés.
 
 Capas:
-  1. Color macro  — qué tono de hueso domina en cada zona de la malla
-     (mezcla 2-3 colores de la paleta real vía ColorRamp sobre ruido de
-     baja frecuencia, en vez de un tinte único).
-  2. Manchas/vetas micro — suciedad localizada oscura, igual que antes pero
-     ahora mezclada SOBRE el color macro, no sustituyéndolo.
-  3. Porosidad (bump) — relieve físico real: Voronoi de alta frecuencia ->
-     Bump -> Normal del BSDF. Es la capa que faltaba y la que más cambia el
-     aspecto "plástico pintado" a "hueso con superficie".
+  1. Color base — textura real de poro/veta (triplanar, sin costuras entre
+     sub-mallas), teñida con 2-3 colores de la paleta real extraída de
+     fotos (extract_bone_palette.py) para variar tono entre piezas/especies
+     sin tener que fotografiar cada una.
+  2. Manchas/vetas micro — suciedad localizada oscura, concentrada en
+     cavidades (AO), mezclada SOBRE el color base.
+  2b. Mineralización/moho/mancha de contacto — variabilidad de estado de
+      conservación (weathering), no todas las piezas igual de "limpias".
+  3. Porosidad (bump) — relieve físico procedural: Voronoi de alta
+     frecuencia -> Bump -> Normal del BSDF, complementa el relieve que la
+     textura ya aporta en color pero no en geometría/sombra real.
   4. Roughness combinando macro+micro (dos octavas, no una sola).
   5. Subsurface — hueso deja pasar algo de luz en bordes finos; opaco total
      se ve falso. Peso bajo, tintado con el color macro.
@@ -31,6 +41,7 @@ import bpy
 import numpy as np
 
 PALETTE_PATH = Path(__file__).resolve().parent / "bone_palette.json"
+BASE_TEXTURE_PATH = Path(__file__).resolve().parent / "textures" / "bone_base_diffuse.png"
 
 _palette_cache: dict | None = None
 
@@ -162,6 +173,33 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
         mid.color = (*macro_colors[2]["rgb"], 1.0)
     links.new(macro_remap.outputs["Result"], macro_ramp.inputs["Fac"])
 
+    # ── Capa 1b: textura base real de superficie de hueso (porosidad/vetas
+    # fotografiadas, no solo aproximadas con Noise/Voronoi) -- se proyecta
+    # con Box (triplanar) sobre world_coord, igual que el resto de capas,
+    # para que no tenga costuras en las uniones entre sub-mallas del glTF.
+    # Se reescala aparte del resto (texture_scale, no 1/bone_size a secas)
+    # porque la imagen en sí ya tiene su propio tamaño de poro de referencia
+    # -- bone_size sola daría un texel gigante en huesos grandes.
+    base_tex_mapping = nodes.new("ShaderNodeMapping")
+    texture_scale = rng.uniform(8.0, 16.0) / max(bone_size, 1e-6)
+    base_tex_mapping.inputs["Scale"].default_value = (texture_scale, texture_scale, texture_scale)
+    links.new(geometry.outputs["Position"], base_tex_mapping.inputs["Vector"])
+
+    base_tex = nodes.new("ShaderNodeTexImage")
+    base_tex.image = bpy.data.images.load(str(BASE_TEXTURE_PATH), check_existing=True)
+    base_tex.projection = "BOX"
+    base_tex.projection_blend = 0.3
+    links.new(base_tex_mapping.outputs["Vector"], base_tex.inputs["Vector"])
+
+    # La paleta real sigue aportando la variedad de tono entre piezas/especies
+    # -- se funde con la textura (no la sustituye) para que el detalle de
+    # poro/veta fotografiado quede teñido del tono que le tocó en el sorteo.
+    base_tint_mix = nodes.new("ShaderNodeMixRGB")
+    base_tint_mix.blend_type = "MULTIPLY"
+    base_tint_mix.inputs["Fac"].default_value = rng.uniform(0.35, 0.6)
+    links.new(base_tex.outputs["Color"], base_tint_mix.inputs["Color1"])
+    links.new(macro_ramp.outputs["Color"], base_tint_mix.inputs["Color2"])
+
     # ── Señal de cavidad (como un mapa de AO/curvatura de Substance
     # Painter) -- la suciedad y la porosidad de un hueso real NO están
     # repartidas al azar: se acumulan en huecos, grietas y surcos.
@@ -225,7 +263,7 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     mix_color = nodes.new("ShaderNodeMixRGB")
     mix_color.blend_type = "MULTIPLY"
     mix_color.inputs["Fac"].default_value = rng.uniform(0.25, 0.5)  # algo más visible que antes, ahora que tiene lógica
-    links.new(macro_ramp.outputs["Color"], mix_color.inputs["Color1"])
+    links.new(base_tint_mix.outputs["Color"], mix_color.inputs["Color1"])
     links.new(stain_ramp.outputs["Color"], mix_color.inputs["Color2"])
 
     # ── Capa 2b: estado de conservación -- un hueso real casi nunca está

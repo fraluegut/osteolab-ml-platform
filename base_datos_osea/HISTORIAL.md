@@ -2755,3 +2755,114 @@ grupo predicho no está en `STAGE2_MODELS` ni en `STAGE2_TAXON_MODELS`. El front
 74. Etapa 2 real para costilla, hueso_plano, pelvis, sacro -- hoy solo dicen "pendiente" en la UI.
     hueso_plano ya se sabe débil en etapa 1 (colapsaba a 0.00 recall, ver 2026-08-14), así que
     primero tocaría reforzar esa etapa 1 antes de invertir en una etapa 2 sobre una base floja.
+
+## 2026-10-22 -- Material procedural de hueso con más capas (paleta real + bump físico), para la
+   charla -- NO integrado en el pipeline de producción todavía
+
+Motivación: preparando material visual para la charla "¿Qué hueso es?" se notó que el render
+sintético seguía viéndose "plástico pintado" -- `apply_procedural_dirt` (render_bone_bproc.py,
+2026-07-26) solo modula color base + roughness con un Noise Texture, sin bump/normal ni
+subsurface. Es una limitación puramente VISUAL -- ya se sabe (2026-08-14) que más realismo de
+render no mueve el recall de `hueso_plano`, el cuello de botella ahí es volumen de foto real, no
+fidelidad del shader. Se hace como experimento aparte (`base_datos_osea/blender/`), sin tocar
+`render_bone_bproc.py` ni el dataset de entrenamiento.
+
+**Paleta real, no inventada a mano**: `extract_bone_palette.py` (puro Python, numpy + sklearn
+KMeans con `random_state=42`, nada de IA generativa) lee las 426 fotos reales ya segmentadas en
+`data/segmented_crops/real_photos/` (fondo gris neutro exacto 128,128,128 descartado por
+coincidencia exacta antes de clusterizar), saca 8 colores de 21.7M píxeles de hueso real con su
+peso real de aparición → `bone_palette.json`, versionado y repetible (mismo input, misma salida
+siempre).
+
+**Material multicapa** (`bone_material.py`): color macro desde la paleta real + manchas/vetas
+micro + porosidad (bump real vía Voronoi → nodo Bump → Normal del BSDF, la capa que antes faltaba
+del todo) + roughness de dos octavas + subsurface sutil tintado con el color macro. Todo nodos
+procedurales de Blender, sin descargar texturas ni usar generación por IA.
+
+**Dos bugs encontrados y corregidos durante la prueba** (`test_bone_material.py`, script aislado,
+no toca producción):
+- Un hueso importado de glTF no es un único objeto, son ~30 sub-mallas sueltas. La primera versión
+  llamaba a construir el material UNA VEZ POR SUB-MALLA, cada una con sus propias coordenadas de
+  ruido "Generated" (normalizadas al bounding box de esa pieza suelta) -- el resultado eran cortes
+  de color visibles exactamente en las uniones entre piezas, un patchwork, no una variación
+  continua. Fix: un solo material compartido entre todas las piezas (`apply_layered_bone_material`
+  ahora recibe la lista completa, no un objeto), con las coordenadas de ruido en espacio World real
+  (`Geometry.Position`, ya que `ShaderNodeTexCoord` no expone una salida "World" directa en Blender
+  4.5) en vez del espacio local por objeto.
+- Con eso arreglado, el material salía casi plano/blanco (std de luminosidad ~6/255 en vez de los
+  ~12-15 de la versión con el bug de cortes). Dos causas combinadas: (1) las coordenadas World están
+  en metros reales y el `Scale` de los nodos de ruido estaba calibrado para coordenadas 0-1 --
+  arreglado con un `ShaderNodeMapping` que reescala por `1/bone_size` (el mismo `radius` que ya
+  calcula `render_bone_bproc.py`) antes del ruido; (2) un Noise Texture de pocas octavas rara vez
+  visita los extremos 0/1 de su `Fac`, se queda concentrado cerca de 0.5 -- poner ahí los 3 colores
+  de la paleta (como se hizo al principio) hacía que casi toda la superficie cayera en el color del
+  medio. Arreglado con un `ShaderNodeMapRange` que estira el rango real que el ruido visita
+  (empíricamente ~0.35-0.65) a 0-1 completo antes del ColorRamp.
+
+Comparación antes/después (mismo fémur, mismo seed=42, mismo HDRI fijo `ahornsteig.hdr` para que
+sea comparable) mostrada al usuario en el chat -- resultado: sin cortes, veta de color continua y
+natural a lo largo de la diáfisis, relieve de porosidad visible de cerca. Mejora real pero modesta,
+no un salto dramático.
+
+### Pendiente
+75. ~~Decidir si se integra en `render_bone_bproc.py`~~ RESUELTO: se integró (ver sesión siguiente).
+76. Si se integra, recalibrar `extract_bone_palette.py` cada vez que el banco de fotos reales
+    crezca (hoy 426 fotos) -- la paleta quedaría desactualizada en silencio si no.
+
+## 2026-10-22 (continuación) -- Integración en producción, variabilidad de conservación, textura real de superficie
+
+Sesión interrumpida por caída de VSC a mitad de la anterior -- se retomó con `bone_material.py` ya
+escrito pero sin enganchar al pipeline de producción.
+
+- **Integración**: `render_bone_bproc.py` ahora llama a `apply_layered_bone_material` en vez de
+  `apply_procedural_dirt` cuando la malla no trae textura/color real propios. `apply_procedural_dirt`
+  y `BONE_COLOR_PALETTE` se dejan intactos en el archivo porque `test_bone_material_before.py` los
+  importa para la comparación antes/después. Verificado con render real de producción (máscara GT +
+  HDRI random + focal variable): sin errores, mismo resultado visual que el test aislado.
+- **Comparativa antes/después con mismo seed/cámara** en 4 mallas distintas (húmero humano, fémur
+  humano, fémur de gorila, cráneo de bos taurus): confirma lo mismo en todas -- sin cortes de color
+  entre sub-mallas, veta en cavidades reales, poro visible. El fémur humano "antes" salió con un
+  artefacto de ruido radial (fireflies de sampling bajo), no relacionado con el material.
+- **Feedback del usuario tras ver la comparativa**: "me parece poca suciedad, poco realismo... a
+  veces tienen manchas de moho, de transmisión de minerales o contacto con cosas". La capa de
+  suciedad original (capa 2) era siempre sutil (opacidad fija 0.25-0.5) y solo seguía cavidad/AO --
+  variedad nula entre piezas, todas salían "limpias de museo". Fix: tres capas nuevas en
+  `bone_material.py` (commit f2024e8):
+  - Mineralización: Voronoi de baja frecuencia (blotches grandes, SMOOTH_F1), NO ligada a AO/cavidad
+    a diferencia de la capa 2 -- en hueso real la infiltración mineral tizna superficies planas
+    igual que huecos. Tono óxido-a-negro sorteado por pieza.
+  - Moho: Voronoi de alta frecuencia con umbral duro (colonias puntuales, no degradado difuso),
+    presente solo en ~40% de las piezas (`rng.random() < 0.4`) -- no todo hueso expuesto desarrolla
+    biopelícula visible.
+  - Mancha de contacto: Noise con offset de centro aleatorio por eje (`ShaderNodeVectorMath` ADD
+    antes del Noise) para que la mancha salga asimétrica/descentrada, no en el origen de la malla.
+  - Todas escaladas por un único `weathering = rng.uniform(0.15, 1.0)` sorteado una vez por
+    material, para que con el mismo código salgan tanto piezas casi limpias como muy desgastadas --
+    la variedad es el punto, no un valor "bien calibrado" fijo. Verificado con 4 seeds distintos
+    sobre el mismo húmero: resultados visiblemente distintos entre sí (de casi limpio a muy
+    manchado), ver `collage_variabilidad.png` mostrado al usuario.
+- **Textura real de superficie** (propuesta del usuario: "¿y si la base fuera una textura de hueso,
+  con las capas de curvatura/AO encima?"). Rompe deliberadamente la garantía previa de
+  `bone_material.py` de "100% procedural, repetible solo con el repo + Blender, sin descargas" --
+  decisión consciente, documentada en el docstring del módulo. Se buscó primero en Poly Haven (igual
+  que los HDRIs) vía su API pública (`api.polyhaven.com/assets?t=textures`): NO tiene textura de
+  hueso, solo falsos positivos por substring ("herringbone" matcheaba "bone"). Se descartó aproximar
+  con mármol/coral de Poly Haven por ser engañoso si se audita el dataset. El usuario aportó un
+  archivo de textura de hueso porosa tileable directamente (`textures/bone_base_diffuse.png`, CC0
+  según el usuario). Implementación: `ShaderNodeTexImage` con proyección `BOX` (triplanar, sin
+  costuras entre sub-mallas, igual criterio que el resto de capas) sobre `Geometry.Position`
+  reescalado por un `texture_scale` propio (no el mismo `1/bone_size` del resto de capas -- la
+  textura necesita su propia densidad de tileado, probado primero con `1.5-3.0/bone_size` -> salía
+  como veteado de mármol/madera a escala demasiado grande; subido a `8.0-16.0/bone_size` -> poro fino
+  reconocible). La paleta real de `extract_bone_palette.py` se conserva como tinte multiplicado sobre
+  la textura (no la sustituye), para seguir variando tono entre piezas/especies sin fotografiar cada
+  una. Todas las capas procedurales previas (AO/cavidad, manchas, mineralización, moho, bump,
+  roughness) quedan sin cambios, aplicadas ENCIMA de la textura.
+
+### Pendiente
+77. Relanzar el dataset sintético completo con el material actualizado (textura + variabilidad de
+    conservación) si se decide que reemplaza a los renders ya generados.
+78. Verificar que `bone_base_diffuse.png` no pese demasiado en el repo (actualmente ~3.4MB) y que su
+    licencia CC0 quede anotada en algún README si se añaden más texturas al mismo directorio.
+79. Afinar el rango de `weathering` y la probabilidad de moho (hoy 40% fijo) con más ejemplos
+    variados de mallas/especies antes de dar por bueno el balance de variedad.
