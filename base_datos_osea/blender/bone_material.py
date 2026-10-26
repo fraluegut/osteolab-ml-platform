@@ -3,32 +3,41 @@
 planos) por un acabado físico con más capas, usando la paleta real extraída
 por extract_bone_palette.py en vez de colores fijos a mano.
 
-Determinista (mismo seed -> mismo material). La base de color ahora es una
-textura real de superficie de hueso (textures/bone_base_diffuse.png, CC0,
-ver HISTORIAL.md) proyectada en Box/triplanar sobre world_coord -- YA NO es
-100% procedural como en la versión anterior (esa garantía de "repetible
-con solo el repo + Blender, sin assets externos" se pierde a cambio de
-poro/veta con detalle fotográfico real en vez de aproximado con Noise).
-Todo lo demás (AO/cavidad, manchas, mineralización, moho, bump, roughness)
-sigue siendo 100% nodos procedurales de Blender, aplicados ENCIMA de la
-textura -- es la textura la que gana una capa de variación física, no al
-revés.
+Determinista (mismo seed -> mismo material). 100% procedural, sin assets
+externos: la base de color es ruido de Blender (Noise -> ColorRamp) teñido
+con 2-3 colores de la paleta real extraída de fotos (extract_bone_palette.py),
+no una textura fotografiada. Se probó una textura real de superficie
+(textures/bone_base_diffuse.png, CC0) proyectada en triplanar sobre esta
+base -- descartada 2026-10-24, el resultado se veía peor que el ruido
+procedural (demasiado plana/artificial incluso con el bump derivado de su
+canal de color, ver HISTORIAL.md). El código de esa capa ya no está aquí,
+solo el archivo de textura se queda en disco sin usarse.
 
 Capas:
-  1. Color base — textura real de poro/veta (triplanar, sin costuras entre
-     sub-mallas), teñida con 2-3 colores de la paleta real extraída de
-     fotos (extract_bone_palette.py) para variar tono entre piezas/especies
-     sin tener que fotografiar cada una.
+  1. Color base — ruido procedural (ColorRamp con paradas en 0/0.5/1),
+     teñido con 2-3 colores de la paleta real extraída de fotos
+     (extract_bone_palette.py) para variar tono entre piezas/especies sin
+     tener que fotografiar cada una.
   2. Manchas/vetas micro — suciedad localizada oscura, concentrada en
      cavidades (AO), mezclada SOBRE el color base.
   2b. Mineralización/moho/mancha de contacto — variabilidad de estado de
       conservación (weathering), no todas las piezas igual de "limpias".
   3. Porosidad (bump) — relieve físico procedural: Voronoi de alta
-     frecuencia -> Bump -> Normal del BSDF, complementa el relieve que la
-     textura ya aporta en color pero no en geometría/sombra real.
+     frecuencia -> Bump -> Normal del BSDF, más marcado en cavidades y
+     crestas.
   4. Roughness combinando macro+micro (dos octavas, no una sola).
   5. Subsurface — hueso deja pasar algo de luz en bordes finos; opaco total
      se ve falso. Peso bajo, tintado con el color macro.
+  6. Specular/IOR por zona + barniz/pulido (clearcoat) — el specular del
+     Principled BSDF se queda en 0.5 (dieléctrico por defecto) en las capas
+     1-5, igual en poro que en hueso compacto, lo cual no es físico: una
+     superficie porosa dispersa la luz (specular bajo, se ve mate) y una
+     zona compacta/pulida la refleja más (specular más alto). Reutiliza la
+     misma señal de cavidad (`cavity_ramp`) que ya dirige dónde va la
+     suciedad, esta vez para bajar el specular en huecos. Un subconjunto de
+     piezas (30%) sortea además un barniz/pulido sutil (Coat), simulando
+     tanto una pieza de museo preparada (barnizada) como hueso natural
+     pulido por manipulación repetida — no todas las piezas lo tienen.
 """
 
 from __future__ import annotations
@@ -41,7 +50,6 @@ import bpy
 import numpy as np
 
 PALETTE_PATH = Path(__file__).resolve().parent / "bone_palette.json"
-BASE_TEXTURE_PATH = Path(__file__).resolve().parent / "textures" / "bone_base_diffuse.png"
 
 _palette_cache: dict | None = None
 
@@ -70,8 +78,17 @@ def _weighted_pick(rng: random.Random, clusters: list[dict], k: int) -> list[dic
     luminosidad (clara/media/oscura/...) y se sortea un color por franja,
     con probabilidad proporcional al peso DENTRO de esa franja -- conserva
     el "qué tono de claro es más probable" del dato real sin perder la
-    variedad clara-a-oscura."""
-    pool = sorted(clusters, key=lambda c: sum(c["rgb"]))  # oscuro -> claro
+    variedad clara-a-oscura.
+
+    Se descartan los clusters casi negros (suma de canales < 0.3) antes de
+    repartir en franjas -- la paleta extraída de fotos trae algún cluster
+    de sombra/fondo contaminado (visto: uno a 0.05/0.04/0.03, casi negro),
+    y si cae en la franja oscura se usa como TONO BASE del hueso, que no
+    debe pasar de marrón oscuro/amarillento -- negro en la capa 1 solo se
+    debe ver si lo aporta el moho/mancha de la capa 2b, no el color macro."""
+    MIN_LUMA = 0.3
+    filtered = [c for c in clusters if sum(c["rgb"]) >= MIN_LUMA]
+    pool = sorted(filtered or clusters, key=lambda c: sum(c["rgb"]))  # oscuro -> claro
     n = min(k, len(pool))
     bands = np.array_split(np.arange(len(pool)), n) if n > 1 else [np.arange(len(pool))]
 
@@ -92,7 +109,12 @@ def _weighted_pick(rng: random.Random, clusters: list[dict], k: int) -> list[dic
     return picked
 
 
-def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "bpy.types.Material":
+def build_layered_bone_material(
+    rng: random.Random,
+    bone_size: float = 1.0,
+    stop_after: str | None = None,
+    palette: dict | None = None,
+) -> "bpy.types.Material":
     """Construye el material multicapa UNA VEZ. `rng` debe ser un
     random.Random ya sembrado por el caller, para que todo el render sea
     reproducible con el mismo --seed. `bone_size` es una medida real del
@@ -110,8 +132,21 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     de tono a lo largo de todo el hueso. Fix: UN material compartido, con
     las coordenadas de ruido explícitamente en espacio World (continuo para
     todas las piezas a la vez, a diferencia del espacio local/Generated que
-    cada sub-malla trae de fábrica)."""
-    palette = load_palette()
+    cada sub-malla trae de fábrica).
+
+    `stop_after` es solo para material de diagnóstico/charla (progresiones
+    "una capa a la vez"): corta la construcción justo después de conectar
+    esa capa al BSDF y devuelve el material tal cual, sin las capas
+    posteriores. Valores: "color" (capa 1), "stains" (+ capa 2), "weathering"
+    (+ capa 2b), "bump" (+ capa 3). None (por defecto) = material completo,
+    comportamiento sin cambios.
+
+    `palette` permite pasar una paleta ya cargada (mismo formato que
+    load_palette()) en vez de la de producción -- solo para comparar/
+    depurar con otra gama de color (p.ej. una paleta sacada de una sola
+    foto de referencia). None (por defecto) = load_palette(), sin cambios."""
+    if palette is None:
+        palette = load_palette()
 
     mat = bpy.data.materials.new("bone_layered")
     mat.use_nodes = True
@@ -163,6 +198,7 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     links.new(macro_noise.outputs["Fac"], macro_remap.inputs["Value"])
 
     macro_ramp = nodes.new("ShaderNodeValToRGB")
+    macro_ramp.label = "channel_macro_clean"
     macro_ramp.color_ramp.interpolation = "EASE"  # transición suave, no manchas con borde duro
     macro_ramp.color_ramp.elements[0].position = 0.0
     macro_ramp.color_ramp.elements[0].color = (*macro_colors[0]["rgb"], 1.0)
@@ -173,32 +209,9 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
         mid.color = (*macro_colors[2]["rgb"], 1.0)
     links.new(macro_remap.outputs["Result"], macro_ramp.inputs["Fac"])
 
-    # ── Capa 1b: textura base real de superficie de hueso (porosidad/vetas
-    # fotografiadas, no solo aproximadas con Noise/Voronoi) -- se proyecta
-    # con Box (triplanar) sobre world_coord, igual que el resto de capas,
-    # para que no tenga costuras en las uniones entre sub-mallas del glTF.
-    # Se reescala aparte del resto (texture_scale, no 1/bone_size a secas)
-    # porque la imagen en sí ya tiene su propio tamaño de poro de referencia
-    # -- bone_size sola daría un texel gigante en huesos grandes.
-    base_tex_mapping = nodes.new("ShaderNodeMapping")
-    texture_scale = rng.uniform(8.0, 16.0) / max(bone_size, 1e-6)
-    base_tex_mapping.inputs["Scale"].default_value = (texture_scale, texture_scale, texture_scale)
-    links.new(geometry.outputs["Position"], base_tex_mapping.inputs["Vector"])
-
-    base_tex = nodes.new("ShaderNodeTexImage")
-    base_tex.image = bpy.data.images.load(str(BASE_TEXTURE_PATH), check_existing=True)
-    base_tex.projection = "BOX"
-    base_tex.projection_blend = 0.3
-    links.new(base_tex_mapping.outputs["Vector"], base_tex.inputs["Vector"])
-
-    # La paleta real sigue aportando la variedad de tono entre piezas/especies
-    # -- se funde con la textura (no la sustituye) para que el detalle de
-    # poro/veta fotografiado quede teñido del tono que le tocó en el sorteo.
-    base_tint_mix = nodes.new("ShaderNodeMixRGB")
-    base_tint_mix.blend_type = "MULTIPLY"
-    base_tint_mix.inputs["Fac"].default_value = rng.uniform(0.35, 0.6)
-    links.new(base_tex.outputs["Color"], base_tint_mix.inputs["Color1"])
-    links.new(macro_ramp.outputs["Color"], base_tint_mix.inputs["Color2"])
+    if stop_after == "color":
+        links.new(macro_ramp.outputs["Color"], bsdf.inputs["Base Color"])
+        return mat
 
     # ── Señal de cavidad (como un mapa de AO/curvatura de Substance
     # Painter) -- la suciedad y la porosidad de un hueso real NO están
@@ -220,6 +233,7 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     ao_node.samples = 8
 
     cavity_ramp = nodes.new("ShaderNodeValToRGB")
+    cavity_ramp.label = "channel_cavity_dirtpass"
     cavity_ramp.color_ramp.elements[0].position = 0.35  # más contraste que el AO crudo
     cavity_ramp.color_ramp.elements[0].color = (1.0, 1.0, 1.0, 1.0)  # ocluido/hueco = máxima suciedad
     cavity_ramp.color_ramp.elements[1].position = 0.75
@@ -253,18 +267,32 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     links.new(micro_noise.outputs["Fac"], stain_mix.inputs["Color1"])
     links.new(cavity_ramp.outputs["Color"], stain_mix.inputs["Color2"])
 
+    # BUG encontrado 2026-10-24 (se verificó aislando este canal con un
+    # render de diagnóstico): un ColorRamp no extrapola -- un Fac por debajo
+    # de la posición del primer stop se clampea al color de ESE stop, no a
+    # "sin cambio". stain_mix vale ~0 (negro) en case toda la superficie
+    # expuesta (cavity_ramp~0 ahi, ver más arriba), así que con el oscuro en
+    # el stop bajo y el blanco en el alto, el resultado era justo al revés
+    # de lo que dice el comentario: oscuro en case TODA la pieza, y solo
+    # "se libra" (blanco/transparente) justo en las cavidades reales -- la
+    # suciedad salía en todas partes MENOS donde debía concentrarse.
     stain_ramp = nodes.new("ShaderNodeValToRGB")
+    stain_ramp.label = "channel_stain_dark_stop"
     stain_ramp.color_ramp.elements[0].position = rng.uniform(0.15, 0.3)
-    stain_ramp.color_ramp.elements[0].color = (0.04, 0.03, 0.025, 1.0)  # veta oscura
+    stain_ramp.color_ramp.elements[0].color = (1.0, 1.0, 1.0, 1.0)  # transparente (no tapa el macro)
     stain_ramp.color_ramp.elements[1].position = 0.6
-    stain_ramp.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 1.0)  # transparente (no tapa el macro)
+    stain_ramp.color_ramp.elements[1].color = (0.16, 0.11, 0.07, 1.0)  # veta marrón oscuro (no negro), solo donde hay cavidad real -- pedido 2026-10-26
     links.new(stain_mix.outputs["Color"], stain_ramp.inputs["Fac"])
 
     mix_color = nodes.new("ShaderNodeMixRGB")
     mix_color.blend_type = "MULTIPLY"
     mix_color.inputs["Fac"].default_value = rng.uniform(0.25, 0.5)  # algo más visible que antes, ahora que tiene lógica
-    links.new(base_tint_mix.outputs["Color"], mix_color.inputs["Color1"])
+    links.new(macro_ramp.outputs["Color"], mix_color.inputs["Color1"])
     links.new(stain_ramp.outputs["Color"], mix_color.inputs["Color2"])
+
+    if stop_after == "stains":
+        links.new(mix_color.outputs["Color"], bsdf.inputs["Base Color"])
+        return mat
 
     # ── Capa 2b: estado de conservación -- un hueso real casi nunca está
     # "limpio de museo" homogéneo. Varía mucho pieza a pieza: mineralización
@@ -327,7 +355,7 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
 
         mold_ramp = nodes.new("ShaderNodeValToRGB")
         mold_ramp.color_ramp.elements[0].position = rng.uniform(0.04, 0.12)  # colonias pequeñas y dispersas
-        mold_ramp.color_ramp.elements[0].color = (0.04, 0.06, 0.03, 1.0)  # verde-negruzco
+        mold_ramp.color_ramp.elements[0].color = (0.14, 0.09, 0.05, 1.0)  # marrón oscuro, no negro -- pedido 2026-10-26
         mold_ramp.color_ramp.elements[1].position = rng.uniform(0.15, 0.22)
         mold_ramp.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 1.0)  # transparente
         links.new(mold_voronoi.outputs["Distance"], mold_ramp.inputs["Fac"])
@@ -375,16 +403,20 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     contact_ramp.color_ramp.elements[0].position = rng.uniform(0.55, 0.7)  # umbral alto -- mancha chica y localizada
     contact_ramp.color_ramp.elements[0].color = (1.0, 1.0, 1.0, 1.0)
     contact_ramp.color_ramp.elements[1].position = rng.uniform(0.72, 0.85)
-    contact_ramp.color_ramp.elements[1].color = (0.08, 0.06, 0.05, 1.0)  # mancha de contacto oscura
+    contact_ramp.color_ramp.elements[1].color = (0.18, 0.12, 0.08, 1.0)  # mancha de contacto marrón oscuro (no negro) -- pedido 2026-10-26
     links.new(contact_noise.outputs["Fac"], contact_ramp.inputs["Fac"])
 
     contact_mix = nodes.new("ShaderNodeMixRGB")
+    contact_mix.label = "channel_final_dirty"
     contact_mix.blend_type = "MULTIPLY"
     contact_mix.inputs["Fac"].default_value = weathering * rng.uniform(0.3, 0.7)
     links.new(final_color_output, contact_mix.inputs["Color1"])
     links.new(contact_ramp.outputs["Color"], contact_mix.inputs["Color2"])
 
     links.new(contact_mix.outputs["Color"], bsdf.inputs["Base Color"])
+
+    if stop_after == "weathering":
+        return mat
 
     # ── Capa 3: porosidad física (bump real), más marcada en las cavidades
     # (poros reales se notan más en huecos) y en las crestas de inserción
@@ -401,6 +433,7 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     links.new(ridge_ramp.outputs["Color"], pore_mask.inputs["Color2"])
 
     pore_mix = nodes.new("ShaderNodeMixRGB")
+    pore_mix.label = "channel_pore_bump"
     pore_mix.blend_type = "MULTIPLY"
     pore_mix.inputs["Fac"].default_value = 1.0
     links.new(pore_voronoi.outputs["Distance"], pore_mix.inputs["Color1"])
@@ -411,6 +444,9 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
     bump.inputs["Distance"].default_value = rng.uniform(0.3, 0.8)
     links.new(pore_mix.outputs["Color"], bump.inputs["Height"])
     links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+
+    if stop_after == "bump":
+        return mat
 
     # ── Capa 4: roughness combinando macro + micro (dos octavas) ──
     rough_mix = nodes.new("ShaderNodeMixRGB")
@@ -443,15 +479,53 @@ def build_layered_bone_material(rng: random.Random, bone_size: float = 1.0) -> "
         avg = [sum(c["rgb"][i] for c in macro_colors) / len(macro_colors) for i in range(3)]
         bsdf.inputs["Subsurface Radius"].default_value = (avg[0] * 0.5, avg[1] * 0.4, avg[2] * 0.3)
 
+    # ── Capa 6: specular/IOR por zona ──
+    # cavity_ramp ya vale 1.0 en huecos (máxima suciedad) y 0.0 en superficie
+    # expuesta (ver capa 2) -- reusar esa misma señal para el specular: hueco
+    # = dispersa la luz = specular bajo (mate); expuesto/compacto = algo más
+    # de brillo especular, como la cortical lisa de un hueso real.
+    spec_ramp = nodes.new("ShaderNodeValToRGB")
+    spec_ramp.label = "channel_specular_zone"
+    spec_ramp.color_ramp.elements[0].position = 0.0  # expuesto/compacto
+    spec_ramp.color_ramp.elements[0].color = (
+        rng.uniform(0.45, 0.6),) * 3 + (1.0,)
+    spec_ramp.color_ramp.elements[1].position = 1.0  # hueco/poroso
+    spec_ramp.color_ramp.elements[1].color = (rng.uniform(0.1, 0.22),) * 3 + (1.0,)
+    links.new(cavity_ramp.outputs["Color"], spec_ramp.inputs["Fac"])
+
+    specular_socket = "Specular IOR Level" if "Specular IOR Level" in bsdf.inputs else "Specular"
+    if specular_socket in bsdf.inputs:
+        links.new(spec_ramp.outputs["Color"], bsdf.inputs[specular_socket])
+
+    # ── Capa 6b: barniz/pulido (Coat) en un subconjunto de piezas ──
+    # No todo hueso tiene esta capa -- pieza de museo barnizada o hueso
+    # pulido por manipulación repetida, frente a una pieza en bruto sin
+    # tratar. Mismo patrón que has_mold: sorteo binario por pieza, no un
+    # valor fijo "bien calibrado" para todas.
+    has_polish = rng.random() < 0.3
+    coat_weight_socket = "Coat Weight" if "Coat Weight" in bsdf.inputs else "Clearcoat"
+    coat_rough_socket = "Coat Roughness" if "Coat Roughness" in bsdf.inputs else "Clearcoat Roughness"
+    if has_polish and coat_weight_socket in bsdf.inputs:
+        bsdf.inputs[coat_weight_socket].default_value = rng.uniform(0.15, 0.35)
+        if coat_rough_socket in bsdf.inputs:
+            bsdf.inputs[coat_rough_socket].default_value = rng.uniform(0.1, 0.25)
+
     return mat
 
 
-def apply_layered_bone_material(objs: list, rng: random.Random, bone_size: float = 1.0) -> None:
+def apply_layered_bone_material(
+    objs: list,
+    rng: random.Random,
+    bone_size: float = 1.0,
+    stop_after: str | None = None,
+    palette: dict | None = None,
+) -> None:
     """Construye el material UNA VEZ y lo asigna al MISMO datablock en todas
     las piezas de `objs` (lista de objetos bproc o bpy de una misma malla
     compuesta) -- ver la nota en build_layered_bone_material sobre por qué
-    no puede ser un material nuevo por pieza. `bone_size` ver misma nota."""
-    mat = build_layered_bone_material(rng, bone_size=bone_size)
+    no puede ser un material nuevo por pieza. `bone_size`, `stop_after` y
+    `palette` ver misma nota en build_layered_bone_material."""
+    mat = build_layered_bone_material(rng, bone_size=bone_size, stop_after=stop_after, palette=palette)
     for obj in objs:
         mesh = obj.data if hasattr(obj, "data") else obj.blender_obj.data
         mesh.materials.clear()

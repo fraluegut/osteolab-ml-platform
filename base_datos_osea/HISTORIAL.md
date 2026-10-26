@@ -2866,3 +2866,317 @@ escrito pero sin enganchar al pipeline de producción.
     licencia CC0 quede anotada en algún README si se añaden más texturas al mismo directorio.
 79. Afinar el rango de `weathering` y la probabilidad de moho (hoy 40% fijo) con más ejemplos
     variados de mallas/especies antes de dar por bueno el balance de variedad.
+
+---
+
+## 2026-10-23 — Material para la charla: capas 6 (specular/IOR + clearcoat) y fix de bump de la textura real, más banco de material de apoyo para la presentación (EN CURSO, cortado a mitad para retomar mañana)
+
+**Contexto**: sesión de preparación de diapositivas para una charla post-ResNet18 (guion con 3 ejes:
+segmentación, sim2real, higiene de datos). Se generó `base_datos_osea/charla_material/` con 3
+subcarpetas (`01_segmentacion/`, `02_sim2real/`, `03_higiene_datos/`), cada una con un `texto.md` y
+ejemplos reales (no inventados) sacados de HISTORIAL.md, de `data/real_photos_accepted/`, y de
+renders ya en disco (`renders/`, `renders_noisy_bproc/`, `renders_lab/`). Esta carpeta **no está en
+git todavía** (aparece como `??` en `git status`).
+
+### Segmentación: comparación en vivo de los 3 backends contra el modelo de producción
+- `training/evaluate_cnn_real_photos.py --model-type hybrid --run-name hybrid_lab --source accepted
+  --split test`, un backend distinto cada vez (classic/fastsam/grounded_sam), sobre las 83 fotos del
+  split `test` de `real_photos_accepted` (nunca vistas en entrenamiento).
+- Resultado: classic 0.4699 accuracy, fastsam 0.5904, grounded_sam **0.8675** (+40 puntos sobre
+  classic). `hueso_plano` sigue mal en los 3 backends (0.00→0.25→0.25) -- confirma que ahí el techo
+  es nº de especímenes físicos, no el pipeline de visión. Logs completos en
+  `charla_material/01_segmentacion/comparacion_modelo_real/eval_*.txt`.
+- Generados también paneles visuales de los 4 métodos (classic/fastsam/DINO/grounded_sam) sobre
+  imágenes reales, incluida `vertebra_05.jpg` -- la foto exacta citada más arriba en este documento
+  como el caso que motivó adoptar Grounding DINO (FastSAM segmenta el foramen, no el hueso).
+  Carpetas: `charla_material/01_segmentacion/comparacion_backends/<ejemplo>/`, 6 imágenes sueltas por
+  ejemplo (no un collage), franja de texto negra separada arriba, verde fosforito translúcido para
+  las máscaras.
+
+### Sim2real: progresión de 5-6 fases + 2 mejoras reales nuevas en `bone_material.py`
+- `charla_material/02_sim2real/progresion_profesional/`: mismo fémur de gorila
+  (`gorilla_gorilla/femur/sketchfab_3fbe6a09153b4a0cb38d15005726d8ff`, malla SÍ sigue en disco en
+  `data/meshes/`) a través de un pipeline tipo VFX -- clay sin luz -> clay+HDRI -> +material ->
+  +suciedad por curvatura/pose física -> +specular/clearcoat -> +fix de bump de textura real (ver
+  abajo). Renderizado en vivo con `blenderproc run blender/test_bone_material.py`, no reciclado.
+- **Capa 6 añadida a `bone_material.py`**: Specular IOR por zona (reutiliza `cavity_ramp`: hueco =
+  specular bajo/mate, compacto = specular algo más alto) + barniz/pulido opcional (`Coat
+  Weight`/`Coat Roughness`, sorteado en 30% de las piezas). **Importante: esta capa solo llega a
+  producción vía `render_bone_bproc.py`** -- `render_bone_lab.py` (la escena de mesa) tiene su
+  propio material separado (`apply_two_layer_material`), no usa `bone_material.py`, así que NO
+  hereda specular/clearcoat todavía.
+- **Bug encontrado y arreglado, capa 1b**: el usuario notó "la textura de hueso no va bien".
+  Diagnóstico confirmado con un render de prueba (textura real conectada SOLA a Base Color, sin
+  mezclar con nada): salía casi plana/uniforme, sin apenas poro visible, probado a 3 escalas
+  distintas (×1/×5/×15 sobre `texture_scale`) sin cambio perceptible -- descartada la escala como
+  causa. Causa real: la textura solo alimentaba *color*, nunca relieve -- el bump de la capa 3 venía
+  de un Voronoi procedural sin relación con los poros reales de la foto, y una foto diffuse de
+  superficie porosa tiene poco contraste de color por sí sola (se lee como "porosa" por la sombra
+  que proyecta cada poro, no por su tinte). Fix: se deriva un `ShaderNodeBump` propio del canal de
+  color de la textura (como mapa de altura), encadenado (`Normal -> Normal`) con el bump procedural
+  ya existente de la capa 3, más un boost de contraste local (`ColorRamp` MULTIPLY) antes de teñir
+  con la paleta. Confirmado visualmente: la diáfisis pasa de verse lisa con un solo brillo
+  especular a tener grano/poro real visible de cerca.
+- **Sin medir todavía contra el banco real** -- igual que el resto del material de octubre (ver
+  entrada del 2026-10-22 más abajo en este documento), este es trabajo visual para la charla, no
+  validado con `evaluate_cnn_real_photos.py`.
+
+### Pendiente para retomar mañana
+80. **No se ha hecho commit de nada de esto** (`bone_material.py` modificado sin comitear,
+    `charla_material/` sin trackear). Decidir si se commitea tal cual o se revisa antes.
+81. Portar specular/clearcoat (capa 6) y el fix de bump de textura real (capa 1b) a
+    `render_bone_lab.py::apply_two_layer_material` -- hoy divergen, la escena de mesa (la que mejor
+    quedó visualmente, feedback directo del usuario) no tiene ninguna de las dos mejoras.
+82. Falta el eje "higiene de datos" sin iterar tanto como segmentación/sim2real -- revisar si
+    `charla_material/03_higiene_datos/texto.md` necesita el mismo nivel de detalle/imágenes que los
+    otros dos antes de dar la carpeta por cerrada.
+83. Decidir si el fix de bump/contraste de la capa 1b necesita su propio `rng.uniform(...)` de
+    strength/distance en vez de los valores fijos usados hoy (`0.15-0.3`, `0.4-0.8`, boost 0.6) --
+    se probó un solo seed/mesh (gorila), falta validar que no se pase de rosca en huesos pequeños
+    (`hueso_pequeno`, `vertebra`) donde la densidad de poro podría leerse como ruido en vez de
+    textura.
+
+**NOTA (2026-10-26)**: la capa de textura real de superficie (1b) mencionada arriba se descartó
+después (ver docstring de `bone_material.py`, fechado 2026-10-24) -- se veía más plana/artificial
+que el ruido procedural incluso con el fix de bump. El pendiente 81 de abajo solo aplicaba, al
+final, a la capa 6 (specular/clearcoat).
+
+## 2026-10-26 -- Calidad de render de producción: specular/clearcoat portado a render_bone_lab.py, resolución/samples subidos
+
+Usuario reportó sintéticas de producción (`renders_lab`, generación 4) borrosas y sin las mejoras
+de sim2real que se habían hecho en `bone_material.py`. Diagnóstico: `render_bone_lab.py` (la escena
+de mesa, la que entrena el modelo hoy) usa su propio material `apply_two_layer_material`, que
+diverge de `bone_material.py` desde la sesión del 2026-10-23 (ver pendiente 81) -- nunca heredó la
+capa 6 (specular por zona + barniz/pulido opcional). La capa de textura real (1b) no aplica, se
+descartó (ver nota arriba).
+
+- **Specular/clearcoat portado**: capa 6 de `bone_material.py` añadida a
+  `apply_two_layer_material` en `render_bone_lab.py`. Reutiliza `mask_ramp` (señal de
+  curvatura+ruido que ya dirige la suciedad en esta escena) como proxy de cavidad -- mismo papel
+  que `cavity_ramp` en `bone_material.py`: hueco/sucio = specular bajo (mate), superficie
+  expuesta/compacta = specular algo más alto. Barniz/pulido (`Coat Weight`/`Coat Roughness`)
+  sorteado en 30% de las piezas, igual que el original. Sin medir todavía contra el banco real de
+  fotos -- pendiente de un `evaluate_cnn_real_photos.py` tras relanzar el dataset.
+- **Resolución y samples subidos** en `render_bone_lab.py`: `--resolution` 512→768,
+  `--samples` 64→128 (eran los valores que daban la sensación de "borroso" reportada, con
+  denoising activado sobre pocos samples). No se tocó `render_bone_bproc.py` (generación 3, no es
+  la que entrena hoy) para no mezclar cambios fuera de alcance.
+
+### Pendiente
+84. Relanzar `renders_lab` con el material actualizado y los nuevos defaults de resolución/samples,
+    y comparar contra el banco real (`evaluate_cnn_real_photos.py`) para confirmar que la mejora de
+    specular/clearcoat + resolución se traduce en mejor accuracy, no solo en mejor aspecto visual.
+85. Medir tiempo de render con samples=128/resolución=768 (sube coste por vista) antes de relanzar
+    el dataset completo -- si el presupuesto de tiempo no lo permite, bajar a un punto intermedio
+    (ej. 96 samples / 640 resolución) en vez de los defaults nuevos a ciegas.
+
+## 2026-10-26 (continuación) -- Stage2 especie fina en cráneo (cánido/suido/équido/humano), dedupe de fotos reales, fuga train/test corregida
+
+Usuario pidió ir más allá del taxón amplio (humano/carnivoro/ungulado/roedor/otro_primate, commit
+92396bd) a especie/familia fina en cráneo: cánido/suido/équido/humano, con cascada de 3 etapas
+(bone_group -> taxon amplio ya existente -> top-3 candidatos de familia, modelo aparte, mismo patrón
+`STAGE2_TAXON_MODELS` de `predict_two_stage.py`).
+
+- **Inventario de partida**: mallas por familia en `data/meshes/` -- cánido (canis_familiaris) 10,
+  suido (sus_domesticus) 4, humano 3, **équido 0** (ni malla ni foto real, solo un dibujo
+  descartado, `Fotos entrenamiento/craneo/horse-skull-drawing-cmv.webp`). Fotos reales de cráneo:
+  solo 1 confirmada por familia salvo cánido (revisión visual de las 19 fotos reales ya aceptadas
+  bajo taxón amplio carnivoro/ungulado encontró que NINGUNA tenía especie anotada, solo el taxón
+  amplio -- `cranio_104`/`108` resultaron ser felino no cánido, `cranio_105` resultó ser un cráneo
+  de **caballo** (dibujo) agazapado sin que nadie lo supiera dentro de "ungulado").
+- **Mínimos acordados con el usuario** antes de entrenar nada: 2 mallas + 8-10 fotos reales
+  (especímenes distintos, no fotos repetidas del mismo) por familia como mínimo absoluto; 3-4
+  mallas + 25-30 fotos reales como objetivo bueno. Basado en evidencia propia del proyecto: roedor
+  (24 fotos reales) funcionó, ungulado (9 fotos reales) se quedó en 0.6 recall -- por debajo de
+  ~15-20 fotos reales por clase el recall se resiente.
+- **Sourcing con `search_openverse.py`** (ya existente, sin API key): ~60 candidatos nuevos para
+  cánido (lobo/coyote/zorro/Canis dirus), suido (jabalí/warthog ×8), équido (cebra ×8, Equus
+  asinus/mula), humano (Homo sapiens skull Holocene ×3) descargados a
+  `data/real_photos_review/cranio/`, pendientes de revisión visual manual (Tinder-style,
+  `review_app.py`).
+- **`review_app.py` ampliado**: nuevo filtro rápido "Familia stage2 cráneo" en sidebar (regex sobre
+  filename+notes, mismo criterio que el `--query` de cada búsqueda) y selector de familia
+  (cánido/suido/équido/humano/otro) obligatorio antes de aceptar, preseleccionado por el mismo
+  regex pero SIEMPRE editable -- nueva columna `familia` en
+  `data/real_photos_accepted/manifest.csv`.
+- **Visores locales levantados** (petición del usuario, "quiero verlo en el visor online... en
+  local"): `streamlit run scripts/review_app.py --server.port 8502` (fotos candidatas) +
+  `python scripts/explorador_datos.py --port 8510` (mallas 3D + renders, ya existente, solo
+  lectura) corriendo en background para que el usuario decida a ojo qué aceptar/descartar.
+- **Dedupe con perceptual hash** (petición del usuario, "evitar repetir fotos entre sets"): nuevo
+  `scripts/photo_dedupe.py` (usa `imagehash.phash`, ya instalado pero sin usar en el repo --
+  añadido a `requirements.txt`). Dos usos:
+  1. Prevención: `search_openverse.py` ahora chequea el phash de cada descarga nueva contra TODO lo
+     ya aceptado + lo pendiente de revisar (umbral hamming ≤8, el recomendado por la librería para
+     recompresión/resize) antes de guardarla -- evita bajar el mismo stock photo dos veces con
+     distinto id de Openverse.
+  2. Auditoría (`python scripts/photo_dedupe.py`, modo standalone): sobre las 432 fotos YA
+     aceptadas de todo el proyecto (no solo cráneo) encontró **8 clusters de fuga train/test real**
+     (la misma foto, con nombre distinto, repartida entre train y test) en pelvis, sacro (×2),
+     vertebra (×2), hueso_largo y costilla (×2) -- invalidaba cualquier accuracy de test medida en
+     esos grupos hasta ahora, no es un riesgo teórico. Corregido con
+     `scripts/fix_cranio_duplicate_leakage.py` (script de un solo uso, no recurrente): cada cluster
+     se queda con UNA copia en train, el resto se mueve a
+     `data/real_photos_accepted/_duplicados_removidos/<grupo>/` (no se borra nada). 9 archivos
+     movidos. Verificado: `photo_dedupe.py` ya no reporta ninguna fuga.
+
+### Pendiente
+86. Revisar visualmente los ~60 candidatos de cánido/suido/équido/humano en `review_app.py` y
+    aceptar los que correspondan -- bloqueado a mitad de sesión por un fallo transitorio de lectura
+    de imágenes del lado de Claude, retomar cuando se pueda.
+87. Mallas de équido: sourcing de Sketchfab pendiente, no hay ninguna todavía (a diferencia de las
+    fotos reales, donde sí hay candidatas de cebra/caballo/mula ya descargadas).
+88. Re-evaluar con `evaluate_cnn_real_photos.py` los grupos afectados por la fuga train/test
+    (pelvis/sacro/vertebra/hueso_largo/costilla) una vez corregida -- la accuracy de test medida
+    hasta ahora en esos grupos puede haber estado inflada por la fuga, no se ha vuelto a medir tras
+    el fix.
+89. `photo_dedupe.py` también encontró varios duplicados DENTRO del mismo split (no fuga, pero
+    redundancia) en hueso_largo y costilla -- no se tocaron (el usuario solo pidió arreglar la fuga
+    train/test), decidir si también se limpian.
+
+## 2026-10-26 (continuación 2) -- Primer entrenamiento de `stage2_familia_cranio` (cánido/suido/équido/humano)
+
+Dos lotes de fotos reales nuevas pegadas por el usuario (`data/a huesos craneo/` con mallas +
+fotos, y `data/test/` con fotos adicionales ya repartidas en carpetas por familia) + 11 mallas
+.glb nuevas integradas en `base_datos_osea/data/meshes/<especie>/cranium/stock_sinfuente_*`
+(prefijo que marca a propósito que la licencia/URL de origen NO está confirmada -- Sketchfab no
+embebe el ID del modelo en el export .glb, búsqueda por nombre de archivo no dio nada fiable).
+`equus_caballus` es especie nueva en el repo, tapa el hueco de équido que antes estaba en cero.
+
+- **Revisión visual foto a foto** (dos lotes, ~70 fotos): descartadas por ser réplica/plástico
+  (`dog_skull_test.glb`, `human_skull_free (1).glb` idéntica byte a byte, varias "réplica"/Etsy
+  explícitas) o **render 3D de stock pasando por foto real** (detectado por iluminación de
+  estudio perfecta, en un caso con el logo de Cinema4D visible en la esquina -- varias humanas y
+  una équida eran renders, no fotos). Criterio: mejor descartar que colar sintético disfrazado de
+  real en el banco de validación, que es justo lo que ese banco existe para detectar.
+- **Bug real encontrado en el propio flujo**: la carpeta `data/test/suido/` que mandó el usuario
+  contenía 7 fotos de **cráneo de caballo**, no de cerdo (hocico largo, sin colmillos, una foto
+  con un caballo vivo detrás) -- mismatch de carpeta, no de Claude. Confirmado con el usuario y
+  movidas a équido.
+- **Dedupe con `photo_dedupe.py` aplicado a los dos lotes nuevos** antes de aceptar nada: 1 foto
+  del primer lote ya era duplicado perceptual de algo conocido (saltada automáticamente por
+  `search_openverse.py`); del segundo lote, 1 foto (`...cancer-and-dentures...webp`) resultó ser
+  la MISMA que ya se había aceptado en train en el primer lote -- Confirmado con el usuario: se
+  queda solo en train, no se duplica en test.
+- **Bug de mi parte, corregido en caliente**: al escribir el primer lote de aceptadas en
+  `real_photos_accepted/manifest.csv` usé 7 columnas en vez de las 8 reales del header
+  (`bone_group,filename,source_url,license,notes,split,bone_fine,taxon`) -- la columna `familia`
+  cayó físicamente en la posición de `bone_fine` y `taxon` quedó vacío en 30 filas. Detectado
+  al hacer el conteo final (`Counter()` vacío pese a haber aceptado 30 filas), re-alineado con un
+  script de un solo uso, `familia` añadida como 9ª columna real del header.
+- **Formato**: varias fotos aceptadas eran `.webp`/`.avif` -- `extract_features` (usa
+  `cv2.imdecode`) no los decodifica, revienta con `ValueError: No se pudo decodificar la imagen`.
+  Convertidas a `.jpg` las 16 afectadas (manifest actualizado a la vez).
+- **`cnn_dataset.py` NON_FEATURE_COLS** le faltaba `familia` -- sin eso, `StandardScaler.fit`
+  revienta porque intenta tratar la columna de texto como feature numérica.
+- **Dataset construido** (`scripts/build_stage2_familia_cranio_dataset.py`, nuevo): sintético
+  (`bone_geometric_features_lab.csv`, filtrado a bone_group=cranio + las 4 especies) + real
+  train/test del manifest, nunca mezclados. Train final: 193 filas (174 sintéticas + 19 reales).
+  Test real reservado: 42 filas (8 cánido, 11 humano, 3 suido, 20 équido).
+- **Entrenamiento** (`train_cnn.py --model-type hybrid --target familia`, requirió
+  `MLFLOW_ALLOW_FILE_STORE=true` -- el filestore de `mlruns/` está en modo mantenimiento en esta
+  versión de mlflow): val_acc sintético 0.85, **accuracy en las 42 fotos reales: 0.57** (hueco
+  sim2real grande, esperado con tan poco dato real). Por clase: humano recall 1.00/precision 0.85
+  (bien), équido recall 0.40/precision 0.80 (confunde con otras), cánido recall 0.38/precision
+  0.38 (flojo), suido recall 0.67/precision 0.18 (casi todo lo que predice "suido" es en realidad
+  équido -- clase más débil, solo 7 vistas sintéticas + 5 reales train + 3 test).
+- Modelo guardado en `models/cnn_model_stage2_familia_cranio_familia.pt` (+ encoder/scaler/
+  feature_columns/meta), **todavía no integrado en `predict_two_stage.py`** (STAGE2_MODELS/
+  STAGE2_TAXON_MODELS no lo referencian aún).
+
+### Pendiente
+90. Integrar `stage2_familia_cranio` en `predict_two_stage.py` si el usuario decide que el recall
+    actual (0.57 global, suido muy flojo) ya vale para producción, o esperar a más datos primero.
+91. Suido sigue sin ninguna foto real de TEST válida (las 7 que llegaron eran de caballo) -- pedir
+    fotos de cerdo reales explícitamente, no genéricas de "data/test/suido".
+92. Cánido y suido por debajo del objetivo bueno de la tabla acordada (train 8-10, test 8-10) --
+    cánido train=5/test=8, suido train=5/test=3. Reforzar antes de confiar en el modelo.
+93. Confusión équido/suido en el resultado (precision suido 0.18) sugiere revisar si las 7 fotos
+    movidas de "suido" a équido (antes mal etiquetadas) tienen alguna característica visual
+    (pose, fondo) que el modelo está usando como atajo en vez de morfología real -- mirar con más
+    calma si el patrón se mantiene al sumar más datos.
+94. Documentar en algún README la convención `stock_sinfuente_*` (mallas sin procedencia
+    confirmada) para que no se use por error en material que sí necesite atribución (charla,
+    publicación).
+
+## 2026-10-26 (continuación 3) -- Verificación punto por punto del pipeline sim2real + falsa alarma de material "plasticoso"
+
+Usuario vio una malla de cráneo con aspecto plasticoso en el visor web (`explorador_datos.py`,
+visor 3D del `.glb`) y preguntó si de verdad se está aplicando todo el flujo sim2real diseñado.
+
+- **Checklist verificado** (no de memoria, comprobado en código/logs de esta sesión): material
+  procedural multicapa, HDRI+física+luces, resolución/samples subidos, Grounded-SAM en fotos
+  reales + máscara exacta en sintético, augmentación sim2real en entrenamiento, WeightedRandomSampler
+  (boost real x4), modelo híbrido, split por espécimen -- todos presentes salvo uno.
+- **Hallazgo real**: `has_real_texture()` en `render_bone_lab.py` detecta que 10 de las 11 mallas
+  `stock_sinfuente_*` traen textura de imagen propia (export de Sketchfab) y por diseño SALTA
+  `apply_two_layer_material` para conservarla -- criterio pensado para fotogrametría real
+  (sesión 2026-07-26), nunca auditado contra texturas de modelo 3D de stock genérico.
+- **Comparativa real** (nuevo flag `--force-procedural-material` en `render_bone_lab.py`, para
+  comparaciones puntuales, no se usa por defecto): mismo seed, con y sin material procedural
+  forzado, en 4 especímenes (dog_skull, pig, human_skull_free, horse_skull). Resultado consistente
+  en las 4: la textura ORIGINAL se ve mejor -- más detalle, tono correcto; el material procedural
+  forzado sale más oscuro, pierde detalle y mete brillo especular mal puesto. Decisión del usuario:
+  dejar como está, `has_real_texture()` ya acertaba.
+- **Conclusión sobre el "aspecto plasticoso"**: era el visor 3D del navegador mostrando el `.glb`
+  con su iluminación ambiente plana por defecto (sin HDRI, sin Cycles) -- no el render de
+  entrenamiento real, que sí se ve correcto (verificado leyendo los PNG de `renders_lab/`
+  directamente). Diferencia de herramienta de preview, no un bug de pipeline.
+- **Visor nuevo para auditar datasets de un experto concreto**: `scripts/build_stage2_familia_cranio_viewer.py`
+  materializa en `data/stage2_familia_cranio_viewer/<train|test>/<familia>/` el original Y el
+  recorte segmentado (lo que de verdad ve la CNN) de cada fila del CSV de entrenamiento, con
+  **hardlinks** (no symlinks: `explorador_datos.py` resuelve symlinks a su ruta real para el
+  chequeo de seguridad "no te salgas de la raíz", y esa ruta real cae fuera del visor -> 403
+  silencioso -> miniatura en negro, bug encontrado y corregido en caliente). Nueva raíz
+  "Expertos stage2" en `explorador_datos.py`, pensada para reutilizar con cualquier otro
+  `stage2_*` futuro, no solo familia cráneo.
+
+### Pendiente
+95. Si se añaden más mallas de stock en el futuro, repetir esta comparativa antes de asumir que
+    `has_real_texture()` acierta siempre -- en este caso ganó la textura original, pero no hay
+    garantía de que todo modelo de Sketchfab tenga buena textura.
+96. Generalizar `build_stage2_familia_cranio_viewer.py` a un script parametrizable por CSV
+    train/test en vez de uno hardcodeado por experto, si se repite el patrón para otro `stage2_*`.
+
+## 2026-10-26 (continuación 4) -- Pendiente #81 resuelto del todo: render_bone_lab.py unificado con bone_material.py, tono sin negro
+
+Usuario vio la diapositiva SIM2REAL de la charla (`03_render_escena_laboratorio.png`) y el acabado
+no se parecía al logrado en `bone_material.py` -- confirmó que `render_bone_lab.py` seguía con su
+propio `apply_two_layer_material` (material más simple: sin paleta real extraída de fotos, sin
+coordenadas World compartidas entre sub-mallas, sin capa de weathering/mineralización/moho) en vez
+de usar `bone_material.py`. El pendiente 81 (sesión 2026-10-23) solo había portado la capa 6
+(specular/clearcoat) a mano; seguían siendo dos implementaciones separadas.
+
+- **Fix**: `apply_two_layer_material` eliminado de `render_bone_lab.py`; ahora importa y llama
+  `apply_layered_bone_material` de `bone_material.py` directamente (mismo patrón de import que ya
+  usa `render_bone_bproc.py`, `sys.path.insert` + import). `bone_size` pasado como `TARGET_RADIUS`
+  (10.0, constante -- `normalize_scale()` ya fuerza ese radio a toda malla antes de aplicar
+  material, así que no hace falta recalcularlo). Las dos escenas (mesa y órbita) comparten ahora
+  exactamente el mismo material.
+- **Tono sin negro** (pedido explícito del usuario): tres puntos de `bone_material.py` tiraban a
+  casi negro en vez de marrón oscuro -- `stain_ramp` (veta de capa 2, `(0.04,0.03,0.025)`),
+  `mold_ramp` (moho, `(0.04,0.06,0.03)`, verde-negruzco) y `contact_ramp` (mancha de contacto,
+  `(0.08,0.06,0.05)`). Subidos a tonos marrón oscuro explícito (`~0.15-0.18` en R). Además,
+  `_weighted_pick()` (color macro/capa 1) ahora descarta clusters de la paleta real con suma de
+  canales < 0.3 antes de repartir en franjas de luminosidad -- la paleta extraída de fotos trae un
+  cluster casi negro (`0.052/0.039/0.032`, peso 6%, pinta de contaminación de sombra/fondo) que
+  podía colar negro puro como TONO BASE del hueso si caía en la franja oscura del sorteo.
+- **Validado con render de prueba** (Cow_Skull.obj, `--force-procedural-material`, fuera de repo):
+  tono hueso claro/amarillento consistente, manchas de weathering en marrón, nada de negro. Prueba
+  corrida con `scene.cycles.use_denoising = False` sobre una copia del script (no tocó el original)
+  porque el Blender 4.0.2 de este entorno no trae ningún denoiser compilado
+  (`scene.cycles.bl_rna.properties['denoiser'].enum_items` vacío, ni OIDN ni OptiX) -- la salida
+  quedó oscura/ruidosa por eso, no por el material; no representativo de la calidad de producción.
+
+### Pendiente
+97. **Relanzar el dataset `renders_lab` completo** con el material unificado -- sigue sin hacerse
+    (pendiente 84, seguía abierto). Bloqueado en ESTE entorno: sin denoiser compilado en Blender, no
+    se puede generar un dataset de calidad de producción aquí: hace falta correrlo en la máquina/
+    entorno que normalmente renderiza (con OIDN/OptiX disponible).
+98. Tras relanzar el dataset: reentrenar la CNN/híbrido y correr `evaluate_cnn_real_photos.py`
+    contra el banco real para confirmar que el fix no empeora accuracy (cambio de tono quita el
+    negro, que en teoría ayudaba a diferenciar weathering fuerte -- falta medirlo, no asumirlo).
+99. Regenerar las imágenes de `charla_material/02_sim2real/` y `serving/backend/static/img/pycon/`
+    que muestran el render de la escena de mesa (p.ej. `03_render_escena_laboratorio.png`,
+    `femur-lab.jpg`) con el material unificado -- mismo bloqueo que el 97, necesita el entorno con
+    denoiser.

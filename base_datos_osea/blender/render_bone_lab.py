@@ -1,5 +1,6 @@
 """Escena de laboratorio: mesa + caída física + cámara de persona de pie + luces
-de laboratorio + material del hueso en 2 capas (base + suciedad por curvatura).
+de laboratorio + material multicapa de hueso (bone_material.py, mismo que
+render_bone_bproc.py).
 
 Sustituye la órbita completa alrededor del hueso (`render_bone.py`,
 `render_bone_bproc.py`) por una escena que imita cómo se fotografiaría de
@@ -19,13 +20,11 @@ verdad un hueso en una mesa de laboratorio:
      ángulo oblicuo sobre la mesa (para que las imperfecciones de la
      superficie generen sombra propia, no se aplanen) MÁS un foco grande y
      suave de relleno (para que no haya sombras completamente negras).
-  4. Material del hueso en 2 capas si no trae textura real
-     (`has_real_texture`, mismo criterio que la rama bproc): capa base con
-     imperfecciones (ruido modulando color/roughness) + capa de suciedad
-     dirigida por CURVATURA real de la malla (nodo Geometry → Pointiness,
-     análogo al mapa de curvatura de Substance Painter) — la suciedad se
-     concentra en zonas cóncavas/huecos, con sentido físico, no repartida
-     al azar.
+  4. Material del hueso (`bone_material.py`, multicapa) si no trae textura
+     real (`has_real_texture`, mismo criterio que la rama bproc) — paleta
+     real extraída de fotos, manchas/suciedad dirigidas por AO, weathering
+     (mineralización/moho/mancha de contacto), porosidad y specular por
+     zona. Idéntico al material de `render_bone_bproc.py`.
   5. Tras cada caída se verifica que el hueso sigue sobre la mesa y que cada
      disparo de cámara lo deja encuadrado por completo (proyección de las
      esquinas del bbox al espacio de cámara) — reintenta si no.
@@ -56,13 +55,10 @@ import numpy as np
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Matrix, Vector
 
-HDRI_DIR = Path(__file__).resolve().parents[1] / "hdris"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from bone_material import apply_layered_bone_material  # noqa: E402
 
-BONE_COLOR_PALETTE = [
-    (0.85, 0.82, 0.75), (0.62, 0.54, 0.42), (0.70, 0.60, 0.45),
-    (0.45, 0.38, 0.30), (0.55, 0.52, 0.48), (0.75, 0.65, 0.50),
-    (0.35, 0.28, 0.22), (0.80, 0.75, 0.68),
-]
+HDRI_DIR = Path(__file__).resolve().parents[1] / "hdris"
 
 
 def parse_args():
@@ -73,8 +69,8 @@ def parse_args():
     p.add_argument("--prefix", required=True)
     p.add_argument("--n-drops", type=int, default=3)
     p.add_argument("--views-per-drop", type=int, default=4)
-    p.add_argument("--resolution", type=int, default=512)
-    p.add_argument("--samples", type=int, default=64)
+    p.add_argument("--resolution", type=int, default=768)
+    p.add_argument("--samples", type=int, default=128)
     p.add_argument("--fill", type=float, default=0.97)  # gente hace la foto muy cerca -- 0.88 seguía dejando aire de sobra
     p.add_argument("--elevation-min-deg", type=float, default=55.0)
     p.add_argument("--elevation-max-deg", type=float, default=85.0)
@@ -82,6 +78,11 @@ def parse_args():
     p.add_argument("--max-drop-retries", type=int, default=4)
     p.add_argument("--max-frame-retries", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--force-procedural-material", action="store_true",
+                    help="ignora has_real_texture() y aplica apply_layered_bone_material igual -- "
+                         "para comparar contra la textura original de un .glb de stock "
+                         "(ver HISTORIAL.md 2026-10-26: has_real_texture pensado para "
+                         "fotogrametría real, no para texturas de producto 3D genéricas)")
     p.add_argument("--light-preset", choices=list(LIGHT_PRESETS.keys()), default="neutro")
     return p.parse_args(argv)
 
@@ -204,189 +205,14 @@ def normalize_scale(obj):
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
 
 
-# ------------------------------------------------------- material 2 capas --
-
-def apply_two_layer_material(obj, rng):
-    """Capa base (imperfecciones, igual que render_bone_bproc.py) + capa de
-    suciedad dirigida por curvatura real de la malla (Pointiness invertido:
-    baja curvatura/zonas cóncavas = más suciedad, con sentido físico) mezclada
-    con ruido para que no sea un realce uniforme sino manchas orgánicas."""
-    mesh = obj.data
-    mesh.materials.clear()
-    mat = bpy.data.materials.new("bone_lab")
-    mat.use_nodes = True
-    nodes = mat.node_tree.nodes
-    links = mat.node_tree.links
-    bsdf = nodes["Principled BSDF"]
-
-    base_color = rng.choice(BONE_COLOR_PALETTE)
-    jitter = lambda c: max(0.0, min(1.0, c + rng.uniform(-0.04, 0.04)))
-    base_rgba = (*[jitter(c) for c in base_color], 1.0)
-
-    # --- capa base: imperfecciones (idéntico a apply_procedural_dirt) ---
-    noise_base = nodes.new("ShaderNodeTexNoise")
-    noise_base.inputs["Scale"].default_value = rng.uniform(8.0, 25.0)
-    noise_base.inputs["Detail"].default_value = rng.uniform(2.0, 6.0)
-    noise_base.inputs["Roughness"].default_value = rng.uniform(0.4, 0.8)
-
-    ramp_base = nodes.new("ShaderNodeValToRGB")
-    ramp_base.color_ramp.elements[0].position = rng.uniform(0.35, 0.55)
-    ramp_base.color_ramp.elements[0].color = (0.05, 0.04, 0.03, 1.0)
-    ramp_base.color_ramp.elements[1].position = 1.0
-    ramp_base.color_ramp.elements[1].color = base_rgba
-    links.new(noise_base.outputs["Fac"], ramp_base.inputs["Fac"])
-
-    mix_base = nodes.new("ShaderNodeMixRGB")
-    mix_base.blend_type = "MIX"
-    mix_base.inputs["Fac"].default_value = rng.uniform(0.15, 0.45)
-    mix_base.inputs["Color1"].default_value = base_rgba
-    links.new(ramp_base.outputs["Color"], mix_base.inputs["Color2"])
-
-    rough_ramp = nodes.new("ShaderNodeValToRGB")
-    rough_ramp.color_ramp.elements[0].position = 0.4
-    rough_ramp.color_ramp.elements[0].color = (0.55, 0.55, 0.55, 1.0)  # 0.35 salía con brillo de plástico -- hueso es mate
-    rough_ramp.color_ramp.elements[1].position = 1.0
-    rough_ramp.color_ramp.elements[1].color = (0.9, 0.9, 0.9, 1.0)
-    links.new(noise_base.outputs["Fac"], rough_ramp.inputs["Fac"])
-
-    # --- capa de suciedad: curvatura (Pointiness) + ruido, en huecos ---
-    geometry = nodes.new("ShaderNodeNewGeometry")
-    invert_point = nodes.new("ShaderNodeMath")
-    invert_point.operation = "SUBTRACT"
-    invert_point.inputs[0].default_value = 1.0
-    links.new(geometry.outputs["Pointiness"], invert_point.inputs[1])
-
-    noise_dirt = nodes.new("ShaderNodeTexNoise")
-    noise_dirt.inputs["Scale"].default_value = rng.uniform(15.0, 40.0)
-    noise_dirt.inputs["Detail"].default_value = rng.uniform(3.0, 8.0)
-
-    combine_mask = nodes.new("ShaderNodeMath")
-    combine_mask.operation = "MULTIPLY"
-    links.new(invert_point.outputs["Value"], combine_mask.inputs[0])
-    links.new(noise_dirt.outputs["Fac"], combine_mask.inputs[1])
-
-    # Multiplicar dos señales 0-1 (curvatura×ruido) apaga demasiado el
-    # resultado (0.5*0.5=0.25) -- POWER<1 aclara los tonos medios antes del
-    # degradado, si no casi ninguna zona llegaba a cruzar el umbral y la
-    # suciedad salía casi invisible.
-    boost_mask = nodes.new("ShaderNodeMath")
-    boost_mask.operation = "POWER"
-    boost_mask.inputs[1].default_value = 0.32  # más agresivo que antes (0.45) -> más superficie "sucia"
-    links.new(combine_mask.outputs["Value"], boost_mask.inputs[0])
-
-    mask_ramp = nodes.new("ShaderNodeValToRGB")
-    mask_ramp.color_ramp.elements[0].position = rng.uniform(0.08, 0.15)
-    mask_ramp.color_ramp.elements[1].position = rng.uniform(0.4, 0.55)
-    links.new(boost_mask.outputs["Value"], mask_ramp.inputs["Fac"])
-
-    stain_color = (0.11, 0.08, 0.055, 1.0)  # tierra/marrón oscuro -- el verde-oliva anterior daba un tinte poco natural a la pieza entera
-    mix_dirt = nodes.new("ShaderNodeMixRGB")
-    mix_dirt.blend_type = "MIX"
-    mix_dirt.inputs["Color2"].default_value = stain_color
-    links.new(mix_base.outputs["Color"], mix_dirt.inputs["Color1"])
-    links.new(mask_ramp.outputs["Color"], mix_dirt.inputs["Fac"])
-
-    rough_dirt = nodes.new("ShaderNodeMixRGB")
-    rough_dirt.blend_type = "MIX"
-    rough_dirt.inputs["Color2"].default_value = (0.95, 0.95, 0.95, 1.0)
-    links.new(rough_ramp.outputs["Color"], rough_dirt.inputs["Color1"])
-    links.new(mask_ramp.outputs["Color"], rough_dirt.inputs["Fac"])
-    links.new(rough_dirt.outputs["Color"], bsdf.inputs["Roughness"])
-
-    # --- microfracturas: líneas finas en los bordes de celda de un Voronoi
-    # ("Distance to Edge" da ~0 justo en el borde, alto lejos de él -- son
-    # las grietas) oscurecidas sobre el color ya con suciedad, no sobre la
-    # base limpia.
-    crack_voronoi = nodes.new("ShaderNodeTexVoronoi")
-    crack_voronoi.voronoi_dimensions = "3D"
-    crack_voronoi.feature = "DISTANCE_TO_EDGE"
-    crack_voronoi.inputs["Scale"].default_value = rng.uniform(45.0, 80.0)  # células más pequeñas -> grietas más finas y numerosas, no parches bastos
-
-    crack_ramp = nodes.new("ShaderNodeValToRGB")
-    crack_ramp.color_ramp.interpolation = "EASE"
-    crack_ramp.color_ramp.elements[0].position = 0.0
-    crack_ramp.color_ramp.elements[0].color = (0.45, 0.45, 0.45, 1.0)  # línea de grieta sutil, no negra
-    crack_ramp.color_ramp.elements[1].position = rng.uniform(0.012, 0.025)  # muy fina
-    crack_ramp.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 1.0)
-    links.new(crack_voronoi.outputs["Distance"], crack_ramp.inputs["Fac"])
-
-    crack_mix = nodes.new("ShaderNodeMixRGB")
-    crack_mix.blend_type = "MULTIPLY"
-    crack_mix.inputs["Fac"].default_value = 0.4  # sutil, no una capa de craquelado obvia
-    links.new(mix_dirt.outputs["Color"], crack_mix.inputs["Color1"])
-    links.new(crack_ramp.outputs["Color"], crack_mix.inputs["Color2"])
-
-    # --- polvo: se posa por gravedad en caras que miran hacia ARRIBA, al
-    # revés que la suciedad (que se concentra en huecos/grietas) -- normal
-    # de Geometry en espacio de mundo, así que funciona bien aunque el
-    # material se construya antes de que la física decida la orientación
-    # final del hueso al caer.
-    dust_dot = nodes.new("ShaderNodeVectorMath")
-    dust_dot.operation = "DOT_PRODUCT"
-    dust_dot.inputs[1].default_value = (0.0, 0.0, 1.0)
-    links.new(geometry.outputs["Normal"], dust_dot.inputs[0])
-
-    # Superficies muy redondeadas (cráneo) tienen medio casco entero
-    # "mirando hacia arriba" de algún modo -- sin concentrar la señal, el
-    # polvo cubre media pieza como si la hubieran rebozado en harina (visto
-    # al probarlo). POWER alto deja solo las zonas CASI perfectamente
-    # horizontales/hacia arriba.
-    dust_sharpen = nodes.new("ShaderNodeMath")
-    dust_sharpen.operation = "POWER"
-    dust_sharpen.inputs[1].default_value = 18.0  # 6 seguía cubriendo medio cráneo -- solo casi-plano de verdad
-    links.new(dust_dot.outputs["Value"], dust_sharpen.inputs[0])
-
-    dust_noise = nodes.new("ShaderNodeTexNoise")
-    dust_noise.inputs["Scale"].default_value = rng.uniform(25.0, 40.0)  # motas más finas, no manchones grandes
-    dust_noise.inputs["Detail"].default_value = rng.uniform(4.0, 7.0)
-
-    dust_combine = nodes.new("ShaderNodeMath")
-    dust_combine.operation = "MULTIPLY"
-    links.new(dust_sharpen.outputs["Value"], dust_combine.inputs[0])
-    links.new(dust_noise.outputs["Fac"], dust_combine.inputs[1])
-
-    dust_ramp = nodes.new("ShaderNodeValToRGB")
-    dust_ramp.color_ramp.elements[0].position = rng.uniform(0.03, 0.06)
-    dust_ramp.color_ramp.elements[1].position = rng.uniform(0.15, 0.25)
-    links.new(dust_combine.outputs["Value"], dust_ramp.inputs["Fac"])
-
-    # Techo de opacidad bajo aunque la máscara sature a blanco -- una capa
-    # fina de polvo deja transparentar el hueso de debajo, no lo tapa (visto
-    # con un cráneo: 0.45 seguía pareciendo pintado encima, no polvo real).
-    dust_opacity = nodes.new("ShaderNodeMath")
-    dust_opacity.operation = "MULTIPLY"
-    dust_opacity.inputs[1].default_value = 0.22
-    links.new(dust_ramp.outputs["Color"], dust_opacity.inputs[0])
-
-    dust_color = (0.78, 0.75, 0.66, 1.0)  # ceniciento/calizo, mate
-    dust_mix = nodes.new("ShaderNodeMixRGB")
-    dust_mix.blend_type = "MIX"
-    dust_mix.inputs["Color2"].default_value = dust_color
-    links.new(crack_mix.outputs["Color"], dust_mix.inputs["Color1"])
-    links.new(dust_opacity.outputs["Value"], dust_mix.inputs["Fac"])
-    links.new(dust_mix.outputs["Color"], bsdf.inputs["Base Color"])
-
-    dust_rough = nodes.new("ShaderNodeMixRGB")
-    dust_rough.blend_type = "MIX"
-    dust_rough.inputs["Color2"].default_value = (0.98, 0.98, 0.98, 1.0)  # polvo = muy mate
-    links.new(rough_dirt.outputs["Color"], dust_rough.inputs["Color1"])
-    links.new(dust_opacity.outputs["Value"], dust_rough.inputs["Fac"])
-    links.new(dust_rough.outputs["Color"], bsdf.inputs["Roughness"])
-
-    # --- porosidad: bump de alta frecuencia (hueso trabecular/esponjoso
-    # real tiene poros pequeños por toda la superficie, no solo grietas) ---
-    pore_noise = nodes.new("ShaderNodeTexNoise")
-    pore_noise.inputs["Scale"].default_value = rng.uniform(60.0, 110.0)
-    pore_noise.inputs["Detail"].default_value = rng.uniform(6.0, 10.0)
-    pore_noise.inputs["Roughness"].default_value = 0.75
-
-    pore_bump = nodes.new("ShaderNodeBump")
-    pore_bump.inputs["Strength"].default_value = 0.35
-    pore_bump.inputs["Distance"].default_value = 0.4
-    links.new(pore_noise.outputs["Fac"], pore_bump.inputs["Height"])
-    links.new(pore_bump.outputs["Normal"], bsdf.inputs["Normal"])
-
-    mesh.materials.append(mat)
+# ------------------------------------------------------- material hueso ---
+# Material unificado con render_bone_bproc.py (ver HISTORIAL.md 2026-10-26,
+# pendiente #81): este script tenía su propio apply_two_layer_material,
+# divergido de bone_material.py (sin paleta real extraída de fotos, sin
+# coords World compartidas entre sub-mallas, sin capa de weathering/mineral/
+# moho) -- por eso los renders de esta escena se veían peor que los de
+# render_bone_bproc.py pese a tener la misma escena de laboratorio alrededor.
+# Ahora usa exactamente el mismo material multicapa.
 
 
 # --------------------------------------------------------- mesa + física ---
@@ -749,14 +575,14 @@ def main():
     scene.cycles.device = "GPU"
 
     obj = import_mesh(mesh_path)
-    keep_original = has_real_texture(obj)
+    keep_original = has_real_texture(obj) and not args.force_procedural_material
     center_on_bbox(obj)
     normalize_scale(obj)
 
     base_seed = args.seed or abs(hash(args.prefix)) % (2**31)
     rng_material = random.Random(base_seed)
     if not keep_original:
-        apply_two_layer_material(obj, rng_material)
+        apply_layered_bone_material([obj], rng_material, bone_size=TARGET_RADIUS)
     force_bone_reflectivity(obj)
 
     _, radius = local_bbox_radius(obj)
