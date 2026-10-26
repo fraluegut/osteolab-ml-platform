@@ -17,7 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent  # base_datos_osea/, pese al nombre -- este script vive en base_datos_osea/scripts/
 MESHES_DIR = REPO_ROOT / "data" / "meshes"
 BLENDER = Path("/opt/blender/blender")
 RENDER_SCRIPT = REPO_ROOT / "blender" / "render_bone_lab.py"

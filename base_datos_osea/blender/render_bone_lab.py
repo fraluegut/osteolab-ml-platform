@@ -369,11 +369,17 @@ LIGHT_PRESETS = {
     ),
     "calido_suave": dict(
         key_color=(1.0, 0.87, 0.72), fill_color=(1.0, 0.90, 0.78),
-        hdri_strength=0.18, hdri_tint=(1.0, 0.92, 0.82),
+        hdri_strength=0.12, hdri_tint=(1.0, 0.92, 0.82),
         # radiancia de un foco de área cae con el TAMAÑO al cuadrado -- para
         # que 1.8x de tamaño no salga muy oscuro hace falta compensar con
-        # más potencia, no menos (visto: 0.75/2.2 salió casi negro).
-        key_energy_mult=3.0, key_size_mult=1.8,
+        # más potencia, no menos (visto: 0.75/2.2 salió casi negro). PERO
+        # 3.0 se pasaba de rosca -- confirmado 2026-10-26 con denoiser real
+        # (antes de arreglar el denoiser del entorno, el ruido/oscuridad del
+        # bug enmascaraba esta sobreexposición, comparando "neutro" vs
+        # "calido_suave" mismo seed/malla/vista). hdri_strength también
+        # bajado (0.18->0.12, seguía sumando sobreexposición ambiente
+        # encima del key).
+        key_energy_mult=1.8, key_size_mult=1.8,
     ),
     "frio_exterior": dict(
         key_color=(0.82, 0.90, 1.0), fill_color=(0.85, 0.92, 1.0),
