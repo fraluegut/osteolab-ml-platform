@@ -3354,3 +3354,23 @@ estaban versionados en git y ya se habían sobreescrito al reentrenar; solo qued
 de las tres, pese a balanced accuracy ligeramente menor que la base. Los 5 ficheros
 (`cnn_model_/cnn_encoder_/cnn_feature_columns_/cnn_scaler_/cnn_training_meta_hybrid_lab_bone_group.*`)
 sobrescritos con copia de los `..._seed1_...` (mismo patrón de promoción que el 10-ago, pendiente 66).
+
+### 2026-10-27 (continuación 3) -- las fotos reales de cráneo del taxón no llegaban a etapa 1
+
+Observación del usuario: "todas las fotos y mallas de las capas inferiores pueden utilizarse en
+las superiores... todos estos cráneos pueden ayudar a identificar cráneo como grupo osteológico".
+Comprobado: tenía razón, y era un bug de pipeline, no algo pendiente de construir.
+`shared/cv_extractor/build_dataset_real_photos.py` procesa TODO `manifest.csv` filtrado solo por
+`bone_group`+`split=train` (agnóstico a `taxon`/`familia`), así que en teoría ya alimentaba etapa 1
+con cualquier foto de cráneo sin importar su taxón. El problema era que
+`bone_geometric_features_real_photos.csv` estaba desactualizado: 91 filas de cráneo en el CSV
+de entrenamiento de grupo contra 110 en el manifest -- exactamente las 19 fotos cánido/équido/
+suido/humano (las mismas de la sesión de hoy que tenían `familia` pero no `taxon`) nunca se habían
+re-extraído tras añadirse al manifest. No era un problema de diseño, sino de no haber vuelto a
+correr `build_dataset_real_photos.py` tras aceptar esas fotos. Comprobado el resto de grupos
+(costilla/hueso_largo/hueso_pequeño/hueso_plano/mandíbula_maxilar/pelvis/sacro/vértebra): ninguno
+tenía este hueco, solo cráneo.
+
+Regenerado `bone_geometric_features_real_photos.csv` (367 filas, cráneo 91->110) y
+`bone_geometric_features_combined_lab.csv` (2938 filas, cráneo 547 tras el cambio), y reentrenado
+`hybrid_lab_seed1` (el que está en producción) con el dataset corregido.
