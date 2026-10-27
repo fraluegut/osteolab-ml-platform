@@ -39,6 +39,11 @@ ROOTS = [
      "Exactamente lo que entrena/mide este experto -- original + recorte segmentado "
      "(lo que de verdad ve la CNN), separado train/test y por familia. Regenerar con "
      "scripts/build_stage2_familia_cranio_viewer.py tras cambiar el dataset."),
+    ("stage2_taxon_cranio", "Expertos stage2", "Taxón cráneo (humano/carnívoro/ungulado/roedor/otro_primate)", "actual",
+     "data/stage2_taxon_cranio_viewer",
+     "Exactamente lo que entrena/mide este experto -- original + recorte segmentado "
+     "(lo que de verdad ve la CNN), separado train/test y por taxón. Regenerar con "
+     "scripts/build_stage2_taxon_cranio_viewer.py tras cambiar el dataset."),
     ("render_limpio", "Renders sintéticos · 4 generaciones", "1 · Limpio", "",
      "base_datos_osea/renders",
      "Generación 1: silueta sobre fondo blanco, material mate."),
