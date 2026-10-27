@@ -48,11 +48,11 @@ THUMB_SIZE = 320
 # (clave, sección, nombre, etiqueta, ruta relativa al repo, descripción)
 # etiqueta: "actual" = lo que usa el modelo hoy, "descartado", o "".
 ROOTS = [
-    ("stage2_familia_cranio", "Expertos stage2", "Cráneo · familia", "actual",
+    ("stage2_familia_cranio", "Expertos stage2", "Cráneo · familia (versión vieja)", "descartado",
      "data/stage2_familia_cranio_viewer",
-     "Exactamente lo que entrena/mide este experto -- original + recorte segmentado "
-     "(lo que de verdad ve la CNN), separado train/test y por familia. Regenerar con "
-     "scripts/build_stage2_familia_cranio_viewer.py tras cambiar el dataset."),
+     "Iteracion anterior del experto de craneo (cánido/suido/équido/humano) -- NO esta en "
+     "produccion, predict_two_stage.py no lo referencia. Sustituido por 'Cráneo · taxón' "
+     "(stage2_taxon_cranio), el unico experto de etapa 3 para craneo que corre hoy."),
     ("stage2_taxon_cranio", "Expertos stage2", "Cráneo · taxón", "actual",
      "data/stage2_taxon_cranio_viewer",
      "Exactamente lo que entrena/mide este experto -- original + recorte segmentado "
