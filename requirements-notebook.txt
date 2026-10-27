@@ -1,0 +1,6 @@
+# Extras solo para ejecutar notebooks/osteolab_pipeline.ipynb
+# (el resto del proyecto no los necesita):
+#   source .venv/bin/activate && pip install -r requirements-notebook.txt
+jupyterlab
+ipykernel
+matplotlib

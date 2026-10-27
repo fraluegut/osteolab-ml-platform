@@ -121,6 +121,14 @@ a { color: inherit; }
 }
 .nav-cta:hover { background: var(--terracotta-dark); color: #fff !important; }
 
+.nav-pycon {
+  border: 1px solid var(--terracotta);
+  color: var(--terracotta) !important;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+}
+.nav-pycon:hover { background: var(--terracotta); color: #fff !important; }
+
 .nav-toggle {
   display: none;
   flex-direction: column;

@@ -1,0 +1,46 @@
+{
+  "costilla": {
+    "foto": "data/real_photos_accepted/costilla/costilla_102.jpg",
+    "aspect_ratio": 1.9829,
+    "elongation": 0.9291,
+    "solidity": 0.9172,
+    "curvature_mean": 0.006028,
+    "tortuosity": 1.2563,
+    "turning_consistency": 0.4526,
+    "total_turning_angle": 2.9907,
+    "n_holes": 1
+  },
+  "humero": {
+    "foto": "data/real_photos_accepted/hueso_largo/hueso_largo_007.jpg",
+    "aspect_ratio": 4.0352,
+    "elongation": 0.9624,
+    "solidity": 0.5849,
+    "curvature_mean": 0.00777,
+    "tortuosity": 1.0065,
+    "turning_consistency": 0.0142,
+    "total_turning_angle": 1.8092,
+    "n_holes": 0
+  },
+  "femur": {
+    "foto": "data/real_photos_accepted/hueso_largo/hueso_largo_005.jpg",
+    "aspect_ratio": 4.6915,
+    "elongation": 0.9726,
+    "solidity": 0.5176,
+    "curvature_mean": 0.008281,
+    "tortuosity": 1.0069,
+    "turning_consistency": 0.1339,
+    "total_turning_angle": 1.5898,
+    "n_holes": 0
+  },
+  "tibia": {
+    "foto": "data/real_photos_accepted/hueso_largo/hueso_largo_021.jpg",
+    "aspect_ratio": 5.1742,
+    "elongation": 0.9808,
+    "solidity": 0.4983,
+    "curvature_mean": 0.013214,
+    "tortuosity": 1.006,
+    "turning_consistency": 0.0155,
+    "total_turning_angle": 2.3821,
+    "n_holes": 0
+  }
+}

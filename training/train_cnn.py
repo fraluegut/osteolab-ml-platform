@@ -74,7 +74,13 @@ class BoneClassifier(nn.Module):
     def __init__(self, backbone_name: str, num_classes: int, n_geom_features: int, model_type: str):
         super().__init__()
         self.model_type = model_type
-        self.backbone = timm.create_model(backbone_name, pretrained=True, num_classes=0)
+        # Backbones tipo DINOv2 (patch14) traen un img_size por defecto distinto de 224
+        # (518, 336...) y timm rechaza la imagen si no se lo decimos explicitamente aqui --
+        # el resto de backbones (resnet, convnext...) ignoran el kwarg sin problema.
+        try:
+            self.backbone = timm.create_model(backbone_name, pretrained=True, num_classes=0, img_size=224)
+        except TypeError:
+            self.backbone = timm.create_model(backbone_name, pretrained=True, num_classes=0)
         embed_dim = self.backbone.num_features
         if model_type == "gated_hybrid":
             # Cada rama puede resolver la tarea por separado. La puerta aprende,
@@ -137,6 +143,12 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model-type", choices=["cnn_only", "hybrid", "gated_hybrid"], default="cnn_only")
     p.add_argument("--backbone", default="resnet18")
+    p.add_argument("--img-size", type=int, default=224,
+                   help="Resolución de entrada al backbone (lado del cuadrado, px). Por defecto "
+                        "224 (igual que siempre). Subirla (288/320) puede ayudar cuando el detalle "
+                        "que distingue clases es fino -- cuesta más tiempo de entrenamiento, el "
+                        "resto del pipeline no cambia. Se guarda en el checkpoint para que el "
+                        "script de evaluación use la misma resolución con la que se entrenó.")
     p.add_argument("--dataset-path", type=Path, default=DEFAULT_DATASET)
     p.add_argument("--benchmark-path", type=Path, default=DEFAULT_BENCHMARK)
     p.add_argument("--target", default="bone_group",
@@ -405,8 +417,10 @@ def main():
     else:
         print("Sin banco real externo disponible — selección de checkpoint por val_acc sintético.")
 
-    train_dataset = BoneImageDataset(train_df, TARGET, label_encoder, feature_cols, scaler, train=True)
-    val_dataset = BoneImageDataset(val_df, TARGET, label_encoder, feature_cols, scaler, train=False)
+    train_dataset = BoneImageDataset(train_df, TARGET, label_encoder, feature_cols, scaler, train=True,
+                                      img_size=args.img_size)
+    val_dataset = BoneImageDataset(val_df, TARGET, label_encoder, feature_cols, scaler, train=False,
+                                    img_size=args.img_size)
 
     # 2026-08-03: `class_weight="balanced"` en la pérdida (más abajo) ya compensa el
     # desequilibrio ENTRE grupos (hueso_largo con 952 filas vs pelvis con 132) — eso
@@ -617,6 +631,7 @@ def main():
             "model_type": args.model_type,
             "num_classes": num_classes,
             "n_geom_features": n_geom_features,
+            "img_size": args.img_size,
         }, model_path)
         joblib.dump(label_encoder, encoder_path)
         mlflow.log_artifact(str(model_path), artifact_path="artifacts")
@@ -634,6 +649,7 @@ def main():
             "target": TARGET,
             "model_type": args.model_type,
             "backbone": args.backbone,
+            "img_size": args.img_size,
             "dataset_path": dataset_path_display,
             "n_train_rows": len(train_df),
             "n_train_specimens": len(train_subjects),

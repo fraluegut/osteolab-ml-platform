@@ -1,0 +1,5 @@
+outs:
+- md5: 41e8af00693998dbf4ff4f2b595c2401
+  size: 805
+  hash: md5
+  path: cnn_training_meta_real_only_convnext_seed1_bone_group.json

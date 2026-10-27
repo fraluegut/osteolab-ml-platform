@@ -3180,3 +3180,89 @@ de usar `bone_material.py`. El pendiente 81 (sesión 2026-10-23) solo había por
     que muestran el render de la escena de mesa (p.ej. `03_render_escena_laboratorio.png`,
     `femur-lab.jpg`) con el material unificado -- mismo bloqueo que el 97, necesita el entorno con
     denoiser.
+
+## 2026-10-27 -- Pendiente #97 resuelto: `renders_lab` relanzado con material unificado, hybrid_lab reentrenado (3 semillas), stage2_taxon_cranio reentrenado
+
+Renders nuevos de `render_bone_lab.py` (material unificado + tono sin negro, pendiente 97-98 de la
+sesión anterior) ya estaban en `base_datos_osea/renders_lab/` al empezar esta sesión (generados en
+otro entorno con denoiser). Pipeline completo relanzado desde ahí.
+
+- **Bug encontrado**: `bone_geometric_features_lab.csv` (extraído de los renders nuevos) salió sin
+  columna `segmented_path` -- paso `build_segmented_crops.py` (que la añade, correr DESPUÉS de la
+  extracción) no se había ejecutado todavía sobre el lote nuevo. Causaba `TypeError: ... not 'float'`
+  en el DataLoader (NaN donde se esperaba una ruta) al entrenar. Corregido corriendo
+  `python -m shared.cv_extractor.build_segmented_crops` (0 fallos, 1080 filas de `_lab.csv` con
+  recorte). `bone_geometric_features_combined_lab.csv` reconstruido después (`build_combined_lab_variant.py`).
+- **MLflow server no corría** en este entorno (`localhost:5000` conexión rechazada) -- entrenar sin
+  él no es opcional (el script revienta si no puede loguear). Levantado con
+  `mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri ./mlruns`; el backend de fichero
+  está en "modo mantenimiento" en esta versión de MLflow y exige `MLFLOW_ALLOW_FILE_STORE=true` para
+  arrancar sin migrar a SQLite -- no se migró (fuera de alcance de esta sesión), solo se puso el
+  flag.
+- **`hybrid_lab` reentrenado con las 3 semillas** (mismo criterio que la promoción a default del
+  10-ago): base, seed1, seed7. Mejora clara sobre el modelo anterior (entrenado con los renders
+  viejos, planos):
+  | run | val_acc sintético | accuracy banco fijo |
+  |---|---|---|
+  | anterior (renders viejos) | 0.598 | 0.625 |
+  | hybrid_lab (base) | 0.716 | 0.833 |
+  | hybrid_lab_seed1 | 0.733 | 0.889 |
+  | hybrid_lab_seed7 | 0.730 | 0.870 |
+
+  No se decidió todavía cuál promover a default (ni si hace falta tocar el criterio de selección de
+  3 semillas) -- las tres mejoran sobre el modelo anterior, pendiente elegir.
+- **`stage2_taxon_cranio` (humano/carnívoro/ungulado/roedor/otro_primate) reentrenado** con el mismo
+  lote nuevo. No existía script commiteado para construir su CSV de entrenamiento (el commit 92396bd
+  lo añadió ya construido) -- creado `scripts/build_stage2_taxon_cranio_dataset.py`, mismo patrón que
+  `build_stage2_familia_cranio_dataset.py`: sintético filtrado a `bone_group=cranio` + mapeo
+  especie->taxón (verificado contra el CSV viejo), real desde `manifest.csv` columna `taxon` ya
+  anotada. `equus_caballus` faltaba en el primer mapeo (se vio en el aviso de especies sin mapear al
+  correr el script) -- añadido como ungulado antes de la versión final.
+  - Dataset resultante: 351 filas train (67 especímenes) / 10 filas test real reservado.
+  - Entrenamiento con `--benchmark-path` por defecto (`bone_geometric_benchmark.csv`, sin columna
+    `taxon`) revienta al evaluar banco fijo al final -- mismo patrón de bug que el de
+    `segmented_path`, columna que no existe para ese target. Reentrenado pasando una ruta de
+    benchmark inexistente para saltarse ese paso (igual que el run original de agosto, que tampoco
+    tiene `accuracy_clean_benchmark` en sus metadatos).
+  - **Resultado peor que el modelo de agosto**: val_acc sintético 0.456 (antes 0.717) -- pero el
+    split de validación cambia de una corrida a otra (holdout por espécimen, no fijo), así que no es
+    comparable directo. **Examen honesto contra el test real reservado (10 fotos, nunca visto)**:
+    accuracy 0.50, recall por clase carnívoro 0/3, humano 1/2, roedor 4/4, ungulado 0/1 (ad-hoc,
+    `scripts/eval_taxon_cranio_held_out.py`, nuevo). n=10 es muy poco para concluir nada con
+    confianza, pero el 0/3 en carnívoro (antes 4/4 con n=6 distinto) no se puede ignorar sin mirarlo
+    -- candidato más probable: el dataset sintético de carnívoro (canis/felis, 126 filas) puede estar
+    sobre-representado frente a las vistas reales de carnívoro del test, o el mapeo rápido
+    especie->taxón hecho en esta sesión no captura alguna sutileza que el CSV original de agosto sí
+    tenía (no se puede comparar fila a fila, el CSV viejo no quedó versionado en ningún commit previo
+    al 92396bd salvo ya construido).
+
+### Pendiente
+100. ~~Decidir qué semilla de `hybrid_lab` promover a default~~ RESUELTO, ver abajo.
+101. Investigar la caída de recall en carnívoro de `stage2_taxon_cranio` (0/3 en el examen de 10
+     fotos) antes de promover este reentreno a producción -- puede ser ruido de n tan bajo, pero
+     merece mirarse con calma (más fotos reales de carnívoro en el banco de examen sería lo más
+     barato). NO promovido a producción todavía -- decisión explícita del usuario, dejarlo en pausa.
+102. `scripts/eval_taxon_cranio_held_out.py` es ad-hoc para esta sesión -- si el patrón de "examen
+     honesto contra CSV de test reservado para un experto stage2 concreto" se repite, generalizarlo
+     (mismo motivo que el pendiente 96 ya abierto para el visor).
+
+### Examen real honesto de las 3 semillas de `hybrid_lab` (72 fotos de test, `real_photos_accepted`)
+
+Las métricas de arriba (val_acc sintético, banco fijo sintético) son optimistas por construcción.
+Examen de verdad con `training/evaluate_cnn_real_photos.py --source accepted --split test` (72 fotos
+reales nunca vistas en entrenamiento):
+
+| run | accuracy real | balanced acc | top-3 |
+|---|---|---|---|
+| hybrid_lab (base) | 0.778 | 0.789 | 0.932 |
+| hybrid_lab_seed1 | **0.812** | 0.770 | 0.983 |
+| hybrid_lab_seed7 | 0.786 | 0.753 | 0.966 |
+
+No se pudo comparar contra el modelo anterior (renders viejos) en este mismo examen -- sus pesos no
+estaban versionados en git y ya se habían sobreescrito al reentrenar; solo queda su cifra de
+`accuracy_clean_benchmark` (0.625, banco sintético, no real).
+
+**Decisión del usuario**: promover `hybrid_lab_seed1` a default -- mejor accuracy real y mejor top-3
+de las tres, pese a balanced accuracy ligeramente menor que la base. Los 5 ficheros
+(`cnn_model_/cnn_encoder_/cnn_feature_columns_/cnn_scaler_/cnn_training_meta_hybrid_lab_bone_group.*`)
+sobrescritos con copia de los `..._seed1_...` (mismo patrón de promoción que el 10-ago, pendiente 66).

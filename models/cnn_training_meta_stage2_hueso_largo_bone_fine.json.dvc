@@ -1,0 +1,5 @@
+outs:
+- md5: 0de6d5ce3c2638bd4ab8fbe6aeef5a85
+  size: 751
+  hash: md5
+  path: cnn_training_meta_stage2_hueso_largo_bone_fine.json

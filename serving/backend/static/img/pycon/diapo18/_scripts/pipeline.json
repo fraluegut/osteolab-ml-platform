@@ -1,0 +1,134 @@
+{
+  "clip": {
+    "is_bone": true,
+    "confidence": 0.988645,
+    "probabilities": {
+      "bone": 0.988645,
+      "not_bone": 0.011355
+    },
+    "suggestion": {
+      "type": "mandibula_maxilar",
+      "confidence": 0.312598,
+      "certain": false,
+      "probabilities": {
+        "cranio": 0.000529,
+        "mandibula_maxilar": 0.312598,
+        "hueso_largo": 0.156366,
+        "hueso_plano": 0.036479,
+        "pelvis": 0.002438,
+        "sacro": 0.1612,
+        "vertebra": 0.053882,
+        "costilla": 0.233964,
+        "hueso_pequeno": 0.042543
+      }
+    }
+  },
+  "dino_box": [
+    218.0,
+    174.4,
+    969.5,
+    330.2
+  ],
+  "dino_score": 0.7056,
+  "features": {
+    "found": true,
+    "image_size": {
+      "width": 512,
+      "height": 242
+    },
+    "bounding_box_px": {
+      "x": 94,
+      "y": 75,
+      "width": 319,
+      "height": 64
+    },
+    "rotated_box_px": {
+      "width": 318.06,
+      "height": 62.92,
+      "angle_deg": -0.2
+    },
+    "area_px": 9029.0,
+    "area_ratio": 0.072871,
+    "aspect_ratio": 5.0546,
+    "extent": 0.4423,
+    "solidity": 0.5818,
+    "elongation": 0.9737,
+    "ellipse_ratio": 4.0252,
+    "circularity": 0.199,
+    "convexity": 0.9288,
+    "hu_moments": {
+      "hu1": -0.0434,
+      "hu2": -0.0663,
+      "hu3": 1.3643,
+      "hu4": 1.5552,
+      "hu5": 3.017,
+      "hu6": 1.5466,
+      "hu7": -4.0293
+    },
+    "width_profile": [
+      34.99,
+      36.03,
+      32.99,
+      32.06,
+      28.99,
+      3.04,
+      25.03,
+      23.0,
+      23.03,
+      23.04,
+      1.0,
+      23.05,
+      23.04,
+      22.04,
+      34.01,
+      41.05,
+      48.06,
+      61.94,
+      58.98,
+      33.0
+    ],
+    "mean_width": 30.42,
+    "std_width": 14.67,
+    "max_width": 61.94,
+    "min_width": 1.0,
+    "curvature_mean": 0.020602,
+    "curvature_max": 0.055364,
+    "tortuosity": 1.0177,
+    "total_turning_angle": 2.5707,
+    "turning_consistency": 0.196,
+    "circle_fit_residual": 0.0087,
+    "line_fit_residual": 4.4224,
+    "n_holes": 0,
+    "holes_area_ratio": 0.0,
+    "largest_hole_area_ratio": 0.0,
+    "n_deep_grooves": 3,
+    "max_groove_depth": 0.0779,
+    "mean_groove_depth": 0.0468
+  },
+  "two_stage": {
+    "found": true,
+    "prediction": "hueso_largo",
+    "probabilities": {
+      "costilla": 0.024546,
+      "cranio": 0.001007,
+      "hueso_largo": 0.928799,
+      "hueso_pequeno": 0.016437,
+      "hueso_plano": 0.019166,
+      "mandibula_maxilar": 0.004303,
+      "pelvis": 0.000564,
+      "sacro": 0.000494,
+      "vertebra": 0.004685
+    },
+    "modality_weights": null,
+    "fine_bone": {
+      "prediction": "femur",
+      "probabilities": {
+        "femur": 0.615463,
+        "hueso_largo_otro": 0.179661,
+        "humero": 0.204876
+      }
+    },
+    "taxon": null,
+    "stage2_pending": false
+  }
+}

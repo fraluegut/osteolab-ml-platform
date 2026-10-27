@@ -1,0 +1,5 @@
+outs:
+- md5: 1b480a8c12521e3a2da5cee672a8a3d0
+  size: 593
+  hash: md5
+  path: cnn_feature_columns_reconstruido_sampler_bone_group.joblib

@@ -1,0 +1,6 @@
+outs:
+- md5: a3459cec219f0d6e6b169e392d85b41c.dir
+  size: 309130029
+  nfiles: 2124
+  hash: md5
+  path: renders_lab_old_512_64

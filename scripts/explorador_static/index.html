@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OsteoLab · Explorador de datos</title>
+<style>
+:root{
+  --bg:#f1eee8; --panel:#fbfaf7; --ink:#2b241d; --muted:#6f6458; --line:#ddd5c9;
+  --accent:#8c5a22; --accent-soft:#efe3d2; --stage:#1b1714; --stage-ink:#eee6da;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#1a1714; --panel:#231f1a; --ink:#ece4d8; --muted:#a89a8a; --line:#3a322a;
+  --accent:#d9a462; --accent-soft:#3a2d1f; --stage:#0f0d0b; --stage-ink:#eee6da; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans);display:grid;grid-template-columns:270px minmax(0,1fr);height:100%}
+aside{border-right:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:14px}
+aside h1{font-size:16px;margin:0 4px}
+aside h1 small{display:block;font:11px var(--mono);color:var(--muted);font-weight:400;margin-top:2px}
+.phase{display:flex;flex-direction:column;gap:2px}
+.phase h2{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 4px 4px}
+.root-btn{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:4px}
+.root-btn:hover{background:var(--accent-soft)}
+.root-btn.active{background:var(--accent);color:var(--panel)}
+.root-btn .n{font:11px var(--mono);opacity:.75;font-variant-numeric:tabular-nums}
+.root-btn.missing{opacity:.4;cursor:default}
+.tag{font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.04em;padding:1px 5px;border-radius:3px;vertical-align:1px}
+.tag.actual{background:var(--accent-soft);color:var(--accent)}
+.tag.descartado{border:1px solid var(--line);color:var(--muted)}
+.root-btn.active .tag{background:transparent;color:inherit;border:1px solid currentColor}
+.aux{border-top:1px solid var(--line);padding-top:10px;color:var(--muted)}
+.aux summary{cursor:pointer;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;margin:0 4px 4px}
+.aux .root-btn{font-size:13px}
+.root-btn:focus-visible,.card:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+.top{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;flex-direction:column;gap:8px}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:15px}
+.crumbs a{color:var(--accent);text-decoration:none;cursor:pointer}
+.crumbs a:hover{text-decoration:underline}
+.crumbs .sep{color:var(--muted)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bar input{flex:1;min-width:180px;max-width:360px;padding:6px 10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;font:inherit}
+.bar .info{color:var(--muted);font-size:12px}
+.desc{color:var(--muted);font-size:13px}
+.content{padding:16px 20px 40px;display:flex;flex-direction:column;gap:20px}
+.section-title{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+.dirs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.dir{all:unset;cursor:pointer;border:1px solid var(--line);background:var(--panel);padding:10px 12px;border-radius:4px;display:flex;justify-content:space-between;gap:8px;min-width:0}
+.dir:hover{border-color:var(--accent)}
+.dir span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir .n{font:11px var(--mono);color:var(--muted);flex-shrink:0}
+.files{--cell:150px;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cell),1fr));gap:10px}
+.files.s{--cell:100px}.files.l{--cell:260px}
+.segbtn{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.segbtn button{all:unset;cursor:pointer;padding:5px 10px;font-size:13px;background:var(--panel)}
+.segbtn button+button{border-left:1px solid var(--line)}
+.segbtn button.on{background:var(--accent);color:var(--panel)}
+.ctl{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.ctl select{padding:4px 6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;font:inherit}
+.layer{position:relative;width:100%;height:100%}
+.layer img{position:absolute;inset:0}
+/* la máscara (blanco = hueso) recorta una capa de color: solo se tiñe el hueso */
+.tint{position:absolute;inset:0;background:#e8892c;opacity:.5;mask:var(--m) center / contain no-repeat luminance;pointer-events:none}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:100%;height:100%}
+.pair img{min-width:0}
+.list{border-collapse:collapse;width:100%;font-size:13px}
+.list th{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.list td{padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.list tr.row{cursor:pointer}
+.list tr.row:hover td{background:var(--accent-soft)}
+.list .mini{width:44px;height:44px;object-fit:contain;background:var(--stage);display:block}
+.list .pair-mini{display:flex;gap:2px}
+.list td.mono{font-family:var(--mono);font-size:12px}
+.list td.num{font-family:var(--mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+.card{all:unset;cursor:pointer;display:flex;flex-direction:column;border:1px solid var(--line);background:var(--panel);border-radius:4px;overflow:hidden;min-width:0}
+.card:hover{border-color:var(--accent)}
+.card .thumb{aspect-ratio:1;background:var(--stage);display:flex;align-items:center;justify-content:center;color:var(--stage-ink);font:600 13px var(--mono)}
+.card img{width:100%;height:100%;object-fit:contain;display:block}
+.card .name{font-size:11px;padding:5px 7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono)}
+.badge{font:600 11px var(--mono);padding:3px 8px;border:1px solid currentColor;border-radius:3px}
+.more{align-self:center;padding:8px 16px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;cursor:pointer;font:inherit}
+.empty{color:var(--muted)}
+/* visores */
+.overlay{position:fixed;inset:0;background:rgba(10,8,6,.92);z-index:10;display:grid;grid-template-rows:auto minmax(0,1fr) auto;color:#eee6da}
+.overlay[hidden]{display:none}
+.ov-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;font:12px var(--mono)}
+.ov-top .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-top .actions{display:flex;gap:8px;flex-shrink:0}
+.ov-btn{all:unset;cursor:pointer;padding:5px 10px;border:1px solid #6b5f52;border-radius:4px;font:12px var(--mono);color:#eee6da}
+.ov-btn:hover,.ov-btn.on{border-color:#d9a462;color:#d9a462}
+.ov-btn[hidden]{display:none}
+.stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+.stage > img{max-width:100%;max-height:100%;object-fit:contain}
+.frame{position:relative;display:inline-block;line-height:0}
+.frame img{max-width:calc(100vw - 40px);max-height:calc(100vh - 110px);object-fit:contain}
+.frame .tint{mask-size:100% 100%}
+.stage canvas{width:100%!important;height:100%!important;display:block}
+.stage pre{margin:0;width:min(1000px,100%);height:100%;overflow:auto;background:#1b1714;padding:16px;font:12px/1.5 var(--mono);white-space:pre}
+.nav{position:absolute;top:50%;transform:translateY(-50%);all:unset;cursor:pointer;font-size:34px;padding:16px;color:#eee6da;opacity:.6}
+.nav:hover{opacity:1}
+.nav.prev{left:4px}.nav.next{right:4px}
+.ov-foot{padding:8px 16px;font:12px var(--mono);color:#a89a8a;text-align:center}
+.msg{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;padding:20px}
+@media (max-width:760px){
+  body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  aside{max-height:40vh;border-right:0;border-bottom:1px solid var(--line)}
+}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<aside>
+  <h1>Explorador de datos<small>OsteoLab · solo lectura</small></h1>
+  <nav id="roots" aria-label="Fases y carpetas"></nav>
+</aside>
+<main id="main">
+  <div class="top">
+    <div class="crumbs" id="crumbs"></div>
+    <div class="desc" id="desc"></div>
+    <div class="bar">
+      <input id="filter" type="search" placeholder="Filtrar por nombre (p. ej. femur, cranio_03)" aria-label="Filtrar">
+      <div class="segbtn" role="group" aria-label="Vista">
+        <button data-view="grid">Cuadrícula</button><button data-view="list">Lista</button>
+      </div>
+      <label class="ctl">Tamaño
+        <select id="size"><option value="s">Pequeño</option><option value="m">Mediano</option><option value="l">Grande</option></select></label>
+      <label class="ctl">Máscaras
+        <select id="masks">
+          <option value="hidden">Ocultas</option>
+          <option value="overlay">Superpuestas</option>
+          <option value="side">Al lado</option>
+          <option value="loose">Como ficheros sueltos</option>
+        </select></label>
+      <span class="info" id="info"></span>
+    </div>
+  </div>
+  <div class="content" id="content"><p class="empty">Elige una carpeta a la izquierda.</p></div>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="ov-top">
+    <span class="title" id="ov-title"></span>
+    <span class="actions">
+      <button class="ov-btn" id="ov-mask" hidden>Máscara (M)</button>
+      <a class="ov-btn" id="ov-open" target="_blank" rel="noopener">Abrir original</a>
+      <button class="ov-btn" id="ov-close">Cerrar (Esc)</button>
+    </span>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div class="ov-foot" id="ov-foot"></div>
+</div>
+
+<script type="module">
+const PAGE = 240;               // miniaturas por tanda
+const BIG_MODEL = 60 * 2 ** 20; // a partir de aquí, pedir confirmación antes de cargar la malla
+
+const $ = (id) => document.getElementById(id);
+let roots = [];
+let state = { root: null, path: "", listing: null, shown: 0 };
+let viewer = { items: [], index: -1, three: null, maskShown: false };
+
+/* ---------- preferencias de vista (solo en este navegador) ---------- */
+const DEFAULT_PREFS = { view: "grid", size: "m", masks: "hidden" };
+const prefs = (() => {
+  try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem("explorador-prefs") || "{}") }; }
+  catch { return { ...DEFAULT_PREFS }; }
+})();
+function savePrefs() { try { localStorage.setItem("explorador-prefs", JSON.stringify(prefs)); } catch {} }
+function syncControls() {
+  document.querySelectorAll(".segbtn button").forEach((b) => b.classList.toggle("on", b.dataset.view === prefs.view));
+  $("size").value = prefs.size;
+  $("masks").value = prefs.masks;
+  $("size").disabled = prefs.view === "list";
+}
+document.querySelectorAll(".segbtn button").forEach((b) => b.addEventListener("click", () => {
+  prefs.view = b.dataset.view; savePrefs(); syncControls(); state.listing && renderListing();
+}));
+["size", "masks"].forEach((id) => $(id).addEventListener("change", () => {
+  prefs[id] = $(id).value; savePrefs(); state.listing && renderListing();
+}));
+syncControls();
+
+/* Cada render trae `<nombre>_mask.png` al lado. La máscara se asocia a su
+   imagen; salvo en el modo "sueltas", no aparece como fichero propio. */
+const MASK_RE = /_mask(\.[a-z0-9]+)$/i;
+function pairMasks(files) {
+  const names = new Set(files.map((f) => f.name));
+  const out = [];
+  for (const f of files) {
+    const isMask = MASK_RE.test(f.name);
+    if (isMask && prefs.masks !== "loose" && names.has(f.name.replace(MASK_RE, "$1"))) continue;
+    const maskName = f.name.replace(/(\.[a-z0-9]+)$/i, "_mask$1");
+    out.push(!isMask && names.has(maskName) ? { ...f, mask: maskName } : f);
+  }
+  return out;
+}
+
+const fmtSize = (b) => b < 1024 ? `${b} B` : b < 2 ** 20 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 2 ** 20).toFixed(1)} MB`;
+const q = (root, path) => `root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`;
+const join = (a, b) => a ? `${a}/${b}` : b;
+
+async function api(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+/* ---------- barra lateral ---------- */
+async function loadRoots() {
+  roots = await api("/api/roots");
+  const bySection = {};
+  roots.forEach((r) => (bySection[r.section] ??= []).push(r));
+  const buttons = (list) => list.map((r) => `<button class="root-btn${r.exists ? "" : " missing"}" data-root="${r.key}" ${r.exists ? "" : "disabled"} title="${r.path}">
+      <span>${r.name}${r.tag ? ` <span class="tag ${r.tag}">${r.tag}</span>` : ""}</span>
+      <span class="n">${r.exists ? r.files.toLocaleString("es") : "no está"}</span></button>`).join("");
+  $("roots").innerHTML = Object.entries(bySection).map(([section, list]) => list[0].auxiliary
+    ? `<details class="phase aux"${list.some((r) => location.hash.startsWith("#" + r.key)) ? " open" : ""}><summary>${section}</summary>${buttons(list)}</details>`
+    : `<div class="phase"><h2>${section}</h2>${buttons(list)}</div>`).join("");
+  $("roots").querySelectorAll(".root-btn:not(.missing)").forEach((b) =>
+    b.addEventListener("click", () => go(b.dataset.root, "")));
+}
+
+/* ---------- navegación (hash = #raíz/ruta) ---------- */
+function go(root, path) { location.hash = "#" + [root, ...path.split("/").filter(Boolean)].map(encodeURIComponent).join("/"); }
+
+async function route() {
+  const parts = location.hash.slice(1).split("/").filter(Boolean).map(decodeURIComponent);
+  if (!parts.length) return;
+  const [root, ...rest] = parts;
+  state = { root, path: rest.join("/"), listing: null, shown: 0 };
+  document.querySelectorAll(".root-btn").forEach((b) => b.classList.toggle("active", b.dataset.root === root));
+  renderCrumbs();
+  $("content").innerHTML = `<p class="empty">Cargando…</p>`;
+  try {
+    state.listing = await api(`/api/ls?${q(root, state.path)}`);
+  } catch (e) {
+    $("content").innerHTML = `<p class="empty">No se pudo abrir: ${e.message}</p>`;
+    return;
+  }
+  $("main").scrollTop = 0;
+  renderListing();
+}
+
+function renderCrumbs() {
+  const r = roots.find((x) => x.key === state.root);
+  const segs = state.path.split("/").filter(Boolean);
+  const links = [`<a data-p="">${r ? r.name : state.root}</a>`];
+  segs.forEach((s, i) => links.push(`<span class="sep">/</span><a data-p="${segs.slice(0, i + 1).join("/")}">${s}</a>`));
+  $("crumbs").innerHTML = links.join("");
+  $("crumbs").querySelectorAll("a").forEach((a) => a.addEventListener("click", () => go(state.root, a.dataset.p)));
+  $("desc").textContent = r ? `${r.description}  ·  ${r.path}${state.path ? "/" + state.path : ""}` : "";
+}
+
+function filtered() {
+  const f = $("filter").value.trim().toLowerCase();
+  const { dirs, files } = state.listing;
+  return f ? { dirs: dirs.filter((d) => d.name.toLowerCase().includes(f)), files: files.filter((x) => x.name.toLowerCase().includes(f)) }
+           : { dirs, files };
+}
+
+function renderListing() {
+  const { dirs, files: raw } = filtered();
+  const files = pairMasks(raw);
+  state.shown = 0;
+  state.files = files;
+  viewer.items = files.filter((f) => f.kind !== "other");
+  const nMasks = files.filter((f) => f.mask).length;
+  // El selector de máscaras solo tiene efecto donde hay pares imagen + _mask
+  $("masks").disabled = !nMasks && !raw.some((f) => MASK_RE.test(f.name));
+  $("masks").title = $("masks").disabled ? "Esta carpeta no tiene máscaras" : "";
+  $("info").textContent = `${dirs.length} carpetas · ${files.length} ficheros` + (nMasks && prefs.masks !== "loose" ? ` (+${nMasks} máscaras)` : "");
+  const parts = [];
+  if (dirs.length) parts.push(`<p class="section-title">Carpetas</p><div class="dirs">${dirs.map((d) =>
+    `<button class="dir" data-name="${d.name}"><span>📁 ${d.name}</span><span class="n">${d.files.toLocaleString("es")}</span></button>`).join("")}</div>`);
+  if (files.length) parts.push(prefs.view === "list"
+    ? `<p class="section-title">Ficheros</p><div class="tablewrap"><table class="list"><thead><tr><th></th><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Máscara</th></tr></thead><tbody id="files"></tbody></table></div>`
+    : `<p class="section-title">Ficheros</p><div class="files ${prefs.size}" id="files"></div>`);
+  if (!dirs.length && !files.length) parts.push(`<p class="empty">Carpeta vacía${$("filter").value ? " con este filtro" : ""}.</p>`);
+  $("content").innerHTML = parts.join("");
+  $("content").querySelectorAll(".dir").forEach((b) => b.addEventListener("click", () => go(state.root, join(state.path, b.dataset.name))));
+  if (files.length) appendFiles(files);
+}
+
+const KIND_LABEL = { image: "imagen", hdr: "HDRI", model: "malla 3D", text: "texto", other: "otro" };
+
+function thumbHTML(f, p, { mini = false } = {}) {
+  const cls = mini ? ' class="mini"' : "";
+  if (f.kind !== "image" && f.kind !== "hdr") {
+    return mini ? "" : `<span class="badge">${f.kind === "model" ? "3D · " : ""}${f.name.split(".").pop().toUpperCase()}</span>`;
+  }
+  const img = `<img${cls} loading="lazy" src="/thumb?${q(state.root, p)}" alt="">`;
+  if (!f.mask || prefs.masks === "hidden" || prefs.masks === "loose") return img;
+  const maskUrl = `/thumb?${q(state.root, join(state.path, f.mask))}`;
+  if (prefs.masks === "side") {
+    const maskImg = `<img${cls} loading="lazy" src="${maskUrl}" alt="máscara">`;
+    return mini ? `<div class="pair-mini">${img}${maskImg}</div>` : `<div class="pair">${img}${maskImg}</div>`;
+  }
+  return mini ? `<div class="layer mini">${img}<span class="tint" style="--m:url('${maskUrl}')"></span></div>`
+              : `<div class="layer">${img}<span class="tint" style="--m:url('${maskUrl}')"></span></div>`;
+}
+
+function appendFiles(files) {
+  const grid = $("files");
+  const list = prefs.view === "list";
+  const slice = files.slice(state.shown, state.shown + PAGE);
+  grid.insertAdjacentHTML("beforeend", slice.map((f) => {
+    const p = join(state.path, f.name);
+    if (list) {
+      return `<tr class="row" data-name="${f.name}"><td>${thumbHTML(f, p, { mini: true })}</td><td class="mono">${f.name}</td>
+        <td>${KIND_LABEL[f.kind]}</td><td class="num">${fmtSize(f.size)}</td><td>${f.mask ? "sí" : ""}</td></tr>`;
+    }
+    return `<button class="card" data-name="${f.name}" title="${f.name} · ${fmtSize(f.size)}"><div class="thumb">${thumbHTML(f, p)}</div><div class="name">${f.name}</div></button>`;
+  }).join(""));
+  state.shown += slice.length;
+  grid.querySelectorAll("[data-name]:not([data-bound])").forEach((c) => {
+    c.dataset.bound = "1";
+    c.addEventListener("click", () => openFile(c.dataset.name));
+  });
+  document.querySelector(".more")?.remove();
+  if (state.shown < files.length) {
+    (list ? grid.closest(".tablewrap") : grid).insertAdjacentHTML("afterend", `<button class="more">Mostrar más (${files.length - state.shown} restantes)</button>`);
+    const btn = document.querySelector(".more");
+    btn.addEventListener("click", () => appendFiles(files));
+    new IntersectionObserver((es, obs) => { if (es[0].isIntersecting) { obs.disconnect(); appendFiles(files); } }, { root: $("main"), rootMargin: "600px" }).observe(btn);
+  }
+}
+
+$("filter").addEventListener("input", () => state.listing && renderListing());
+window.addEventListener("hashchange", route);
+
+/* ---------- visores ---------- */
+function openFile(name) {
+  const file = state.files.find((f) => f.name === name);
+  if (file.kind === "other") { window.open(`/raw?${q(state.root, join(state.path, name))}`, "_blank"); return; }
+  viewer.index = viewer.items.findIndex((f) => f.name === name);
+  $("overlay").hidden = false;
+  show();
+}
+
+function closeViewer() {
+  disposeThree();
+  $("overlay").hidden = true;
+  $("stage").innerHTML = "";
+}
+
+function step(d) {
+  if (viewer.index < 0) return;
+  viewer.index = (viewer.index + d + viewer.items.length) % viewer.items.length;
+  show();
+}
+
+async function show() {
+  disposeThree();
+  const f = viewer.items[viewer.index];
+  const p = join(state.path, f.name);
+  $("ov-title").textContent = `${state.path ? state.path + "/" : ""}${f.name}`;
+  $("ov-open").href = `/raw?${q(state.root, p)}`;
+  $("ov-foot").textContent = `${viewer.index + 1} / ${viewer.items.length} · ${fmtSize(f.size)} · ← → para moverte` + (f.mask ? " · M muestra la máscara" : "");
+  $("ov-mask").hidden = !f.mask;
+  $("ov-mask").classList.toggle("on", viewer.maskShown);
+  const stage = $("stage");
+  const nav = viewer.items.length > 1 ? `<button class="nav prev" aria-label="Anterior">‹</button><button class="nav next" aria-label="Siguiente">›</button>` : "";
+  if (f.kind === "image") {
+    const tint = f.mask ? `<span class="tint" id="ov-tint"${viewer.maskShown ? "" : " hidden"} style="--m:url('/raw?${q(state.root, join(state.path, f.mask))}')"></span>` : "";
+    stage.innerHTML = `<div class="frame"><img src="/raw?${q(state.root, p)}" alt="${f.name}">${tint}</div>${nav}`;
+  }
+  else if (f.kind === "hdr") stage.innerHTML = `<img src="/thumb?${q(state.root, p)}&size=1600" alt="${f.name}">${nav}`;
+  else if (f.kind === "text") {
+    stage.innerHTML = `<pre>Cargando…</pre>${nav}`;
+    const txt = await (await fetch(`/raw?${q(state.root, p)}`)).text();
+    const lines = txt.split("\n");
+    stage.querySelector("pre").textContent = lines.slice(0, 500).join("\n") + (lines.length > 500 ? `\n\n… (${lines.length - 500} líneas más; ábrelo en original)` : "");
+  } else if (f.kind === "model") {
+    if (f.size > BIG_MODEL) {
+      stage.innerHTML = `<div class="msg"><p>Malla de ${fmtSize(f.size)}. Puede tardar y gastar bastante memoria.</p><button class="ov-btn" id="load3d">Cargar igualmente</button></div>${nav}`;
+      $("load3d").addEventListener("click", () => loadModel(f, p));
+    } else loadModel(f, p);
+  }
+  stage.querySelector(".prev")?.addEventListener("click", () => step(-1));
+  stage.querySelector(".next")?.addEventListener("click", () => step(1));
+}
+
+async function loadModel(f, p) {
+  const stage = $("stage");
+  stage.querySelectorAll(".msg").forEach((m) => m.remove());
+  stage.insertAdjacentHTML("afterbegin", `<div class="msg" id="loading3d"><p>Cargando malla…</p></div>`);
+  const THREE = await import("three");
+  const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+  const url = `/raw?${q(state.root, p)}`;
+  let object;
+  let ownMaterials = false; // GLB trae los suyos; OBJ solo si tiene .mtl al lado
+  try {
+    if (f.name.toLowerCase().endsWith(".obj")) {
+      const { OBJLoader } = await import("three/addons/loaders/OBJLoader.js");
+      const loader = new OBJLoader();
+      const mtlName = f.name.replace(/\.obj$/i, ".mtl");
+      if (state.listing.files.some((x) => x.name === mtlName)) {
+        const { MTLLoader } = await import("three/addons/loaders/MTLLoader.js");
+        const mtl = new MTLLoader();
+        mtl.setResourcePath(`/raw?root=${encodeURIComponent(state.root)}&path=${encodeURIComponent(state.path ? state.path + "/" : "")}`);
+        const materials = await mtl.loadAsync(`/raw?${q(state.root, join(state.path, mtlName))}`).catch(() => null);
+        if (materials) { materials.preload(); loader.setMaterials(materials); ownMaterials = true; }
+      }
+      object = await loader.loadAsync(url);
+    } else if (/\.(ply|stl)$/i.test(f.name)) {
+      const ply = /\.ply$/i.test(f.name);
+      const { [ply ? "PLYLoader" : "STLLoader"]: Loader } = await import(`three/addons/loaders/${ply ? "PLYLoader" : "STLLoader"}.js`);
+      const geometry = await new Loader().loadAsync(url);
+      geometry.computeVertexNormals();
+      const colored = ply && geometry.hasAttribute("color");
+      object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial(
+        colored ? { vertexColors: true, roughness: 0.8 } : { color: 0xe3d6bf, roughness: 0.8 }));
+      ownMaterials = true;
+    } else {
+      const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+      object = (await new GLTFLoader().loadAsync(url)).scene;
+      ownMaterials = true;
+    }
+  } catch (e) {
+    $("loading3d").innerHTML = `<p>No se pudo cargar la malla: ${e.message || e}</p>`;
+    return;
+  }
+  $("loading3d")?.remove();
+  // Sin material propio (OBJ sin MTL): tono hueso mate para que se lea el volumen
+  if (!ownMaterials) {
+    const bone = new THREE.MeshStandardMaterial({ color: 0xe3d6bf, roughness: 0.8 });
+    object.traverse((o) => { if (o.isMesh) o.material = bone; });
+  }
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  stage.prepend(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1b1714);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3029, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(2, 3, 2); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffe8cc, 0.8); fill.position.set(-3, -1, -2); scene.add(fill);
+
+  // Centrar y escalar: las mallas no comparten escala (costilla ≈2, escápula ≈106)
+  const box = new THREE.Box3().setFromObject(object);
+  const size = box.getSize(new THREE.Vector3()).length() || 1;
+  object.position.sub(box.getCenter(new THREE.Vector3()));
+  object.scale.setScalar(2 / size);
+  scene.add(object);
+
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
+  camera.position.set(0, 0.4, 2.6);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.autoRotate = true; controls.autoRotateSpeed = 1.2;
+  renderer.domElement.addEventListener("pointerdown", () => (controls.autoRotate = false), { once: true });
+
+  const resize = () => {
+    const { clientWidth: w, clientHeight: h } = stage;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  };
+  const ro = new ResizeObserver(resize); ro.observe(stage); resize();
+  let raf;
+  const loop = () => { controls.update(); renderer.render(scene, camera); raf = requestAnimationFrame(loop); };
+  loop();
+  let tris = 0;
+  object.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+  $("ov-foot").textContent += ` · ${Math.round(tris).toLocaleString("es")} triángulos · arrastra para girar, rueda para zoom`;
+  viewer.three = () => {
+    cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
+    scene.traverse((o) => { o.geometry?.dispose(); [].concat(o.material || []).forEach((m) => { m.map?.dispose(); m.dispose(); }); });
+    renderer.dispose(); renderer.domElement.remove();
+  };
+}
+
+function disposeThree() { if (viewer.three) { viewer.three(); viewer.three = null; } }
+
+function toggleMask() {
+  if ($("ov-mask").hidden) return;
+  viewer.maskShown = !viewer.maskShown;
+  $("ov-mask").classList.toggle("on", viewer.maskShown);
+  if ($("ov-tint")) $("ov-tint").hidden = !viewer.maskShown;
+}
+
+$("ov-close").addEventListener("click", closeViewer);
+$("ov-mask").addEventListener("click", toggleMask);
+document.addEventListener("keydown", (e) => {
+  if ($("overlay").hidden) return;
+  if (e.key === "Escape") closeViewer();
+  if (e.key === "m" || e.key === "M") toggleMask();
+  if (e.key === "ArrowRight") step(1);
+  if (e.key === "ArrowLeft") step(-1);
+});
+
+await loadRoots();
+if (!location.hash) go(roots.find((r) => r.exists)?.key, "");
+else route();
+</script>
+</body>
+</html>

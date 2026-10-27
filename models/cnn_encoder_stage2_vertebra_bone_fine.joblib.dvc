@@ -1,0 +1,5 @@
+outs:
+- md5: f0c69951e4c32e745208f2cef9c4feb0
+  size: 520
+  hash: md5
+  path: cnn_encoder_stage2_vertebra_bone_fine.joblib

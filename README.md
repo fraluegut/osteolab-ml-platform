@@ -313,6 +313,26 @@ una sola respuesta trae todo lo necesario para pintar los pasos 2 y 3.
   estrella para el punto de la imagen subida (`fig.add_scatter(...)`).
 - Botón "Analizar otra imagen" → `_reset_state()` + `st.rerun()`, vuelta al paso 0.
 
+## Notebook: el flujo de ML condensado
+
+`notebooks/osteolab_pipeline.ipynb` recorre el flujo completo del modelo en un solo sitio —
+datos y variantes de render, features geométricas de OpenCV sobre una imagen, construcción de
+las tablas, exploración del dataset, filtros (CLIP, ResNet18, segmentadores), entrenamiento
+geométrico y CNN/híbrido, evaluación honesta, cascada de 2 etapas e inferencia end-to-end.
+
+No reimplementa nada: importa y ejecuta los mismos módulos de `shared/` y `training/` que usan la
+API y los scripts. Las celdas caras (regenerar datasets, entrenar, evaluar) están desactivadas con
+interruptores `RUN_*` al principio del cuaderno.
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-notebook.txt
+python -m ipykernel install --user --name osteolab --display-name "OsteoLab (.venv)"
+jupyter lab notebooks/osteolab_pipeline.ipynb
+```
+
+En VS Code basta con abrir el `.ipynb` y elegir el kernel **OsteoLab (.venv)**.
+
 ## Entrenar el modelo
 
 Con el stack levantado:

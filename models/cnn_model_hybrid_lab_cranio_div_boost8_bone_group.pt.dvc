@@ -1,0 +1,5 @@
+outs:
+- md5: 721f51085effb6f3d422f34dd6166022
+  size: 45092763
+  hash: md5
+  path: cnn_model_hybrid_lab_cranio_div_boost8_bone_group.pt

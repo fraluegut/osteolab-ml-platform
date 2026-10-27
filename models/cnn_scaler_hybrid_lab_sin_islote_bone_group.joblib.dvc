@@ -1,0 +1,5 @@
+outs:
+- md5: 36be8a37927297e45d1ca8f5430d0c5e
+  size: 2023
+  hash: md5
+  path: cnn_scaler_hybrid_lab_sin_islote_bone_group.joblib

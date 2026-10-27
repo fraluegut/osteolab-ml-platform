@@ -1,0 +1,5 @@
+outs:
+- md5: 3591fb5305a83e7556c6758db450517e
+  size: 764
+  hash: md5
+  path: cnn_training_meta_hybrid_lab_cranio_div_bone_group.json

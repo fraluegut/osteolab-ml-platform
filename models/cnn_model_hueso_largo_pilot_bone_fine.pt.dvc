@@ -1,0 +1,5 @@
+outs:
+- md5: 2b2e63c011ae52bbe870af664374c09e
+  size: 45092227
+  hash: md5
+  path: cnn_model_hueso_largo_pilot_bone_fine.pt

@@ -1,0 +1,5 @@
+outs:
+- md5: 0f59be357dbb7545304e61f3c48b5c1f
+  size: 2023
+  hash: md5
+  path: cnn_scaler_hueso_largo_pilot_bone_fine.joblib

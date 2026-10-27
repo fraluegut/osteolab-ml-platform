@@ -1,0 +1,5 @@
+outs:
+- md5: 96910c8748b55d4551affa186c5f7d79
+  size: 689
+  hash: md5
+  path: cnn_training_meta_hybrid_blackbg_bone_group.json

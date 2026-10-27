@@ -1,0 +1,5 @@
+outs:
+- md5: 905b1ffa58df15a5d91b9302b799a1fb
+  size: 529
+  hash: md5
+  path: cnn_encoder_stage2_taxon_cranio_taxon.joblib

@@ -48,7 +48,11 @@ class BoneClassifier(nn.Module):
     def __init__(self, backbone_name: str, num_classes: int, n_geom_features: int, model_type: str):
         super().__init__()
         self.model_type = model_type
-        self.backbone = timm.create_model(backbone_name, pretrained=False, num_classes=0)
+        # ver train_cnn.py: backbones tipo DINOv2 (patch14) exigen img_size=224 explicito.
+        try:
+            self.backbone = timm.create_model(backbone_name, pretrained=False, num_classes=0, img_size=224)
+        except TypeError:
+            self.backbone = timm.create_model(backbone_name, pretrained=False, num_classes=0)
         embed_dim = self.backbone.num_features
         if model_type == "gated_hybrid":
             self.cnn_head = nn.Sequential(

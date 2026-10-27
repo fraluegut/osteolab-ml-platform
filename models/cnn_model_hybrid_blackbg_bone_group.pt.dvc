@@ -1,0 +1,5 @@
+outs:
+- md5: 7b937f8124522f1b27b08d589ee33549
+  size: 45090943
+  hash: md5
+  path: cnn_model_hybrid_blackbg_bone_group.pt

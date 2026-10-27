@@ -1,0 +1,6 @@
+outs:
+- md5: 62e625045cb895829b5ae8a23466bf1e.dir
+  size: 206078529
+  nfiles: 4636
+  hash: md5
+  path: segmented_crops_blackbg

@@ -1,0 +1,5 @@
+outs:
+- md5: f577786607134a6e1f271acc659a5577
+  size: 86825051
+  hash: md5
+  path: cnn_model_hybrid_lab_dinov2s_bone_group.pt

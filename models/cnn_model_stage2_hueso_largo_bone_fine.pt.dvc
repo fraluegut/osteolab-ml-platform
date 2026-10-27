@@ -1,0 +1,5 @@
+outs:
+- md5: 07349c1d6e314f3f32e76b7a274fb8cb
+  size: 45088197
+  hash: md5
+  path: cnn_model_stage2_hueso_largo_bone_fine.pt

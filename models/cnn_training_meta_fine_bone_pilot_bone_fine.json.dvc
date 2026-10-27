@@ -1,0 +1,5 @@
+outs:
+- md5: ba56ca2b7f49c2d3cf3b853a66fee8c6
+  size: 771
+  hash: md5
+  path: cnn_training_meta_fine_bone_pilot_bone_fine.json

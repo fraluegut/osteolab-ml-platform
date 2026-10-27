@@ -1,0 +1,5 @@
+outs:
+- md5: 69ab29dab38521f670c36ea783ac65da
+  size: 768
+  hash: md5
+  path: cnn_training_meta_stage2_familia_cranio_familia.json

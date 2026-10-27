@@ -1,0 +1,5 @@
+outs:
+- md5: 26992f28fe31ea09fb3ee0c1bd6310d5
+  size: 845
+  hash: md5
+  path: cnn_training_meta_reconstruido_sampler_bone_group.json

@@ -25,7 +25,18 @@ REVIEW_DIR = BASE_DIR / "data/real_photos_review"
 REVIEW_MANIFEST = REVIEW_DIR / "manifest.csv"
 ACCEPTED_DIR = BASE_DIR / "data/real_photos_accepted"
 ACCEPTED_MANIFEST = ACCEPTED_DIR / "manifest.csv"
-ACCEPTED_COLUMNS = ["bone_group", "filename", "source_url", "license", "notes", "split"]
+ACCEPTED_COLUMNS = ["bone_group", "filename", "source_url", "license", "notes", "split", "familia"]
+
+# Filtros rápidos para la revisión de especie fina en stage2 cráneo (sesión
+# 2026-10-26, sourcing cánido/suido/équido/humano) -- regex sobre
+# filename+notes, mismo criterio que el --query usado en search_openverse.py
+# para traer cada candidata.
+FAMILIA_KEYWORDS = {
+    "cánido": r"canis|wolf|coyote|fox|vulpes|dog",
+    "suido": r"warthog|boar|sus scrofa|pig|phacochoerus",
+    "équido": r"equus|zebra|horse|mule|donkey|equine",
+    "humano": r"homo sapiens|human skull",
+}
 
 st.set_page_config(page_title="Revisión de fotos candidatas", page_icon="🦴", layout="wide")
 
@@ -90,6 +101,17 @@ groups = ["Todos"] + sorted(queue_all["bone_group"].unique().tolist())
 group_choice = st.sidebar.selectbox("Grupo", groups)
 queue = queue_all if group_choice == "Todos" else queue_all[queue_all["bone_group"] == group_choice]
 
+familia_choice = st.sidebar.selectbox(
+    "Familia stage2 cráneo (filtro rápido)", ["Todas"] + list(FAMILIA_KEYWORDS.keys()),
+    help="Preseleccionado a partir del --query usado en search_openverse.py para cada familia -- "
+         "no es una etiqueta confirmada, solo acerca el filtro para revisar más rápido.",
+)
+if familia_choice != "Todas":
+    pattern = FAMILIA_KEYWORDS[familia_choice]
+    mask = (queue["filename"].str.lower().str.contains(pattern, regex=True)
+            | queue["notes"].str.lower().str.contains(pattern, regex=True))
+    queue = queue[mask]
+
 search_text = st.sidebar.text_input(
     "Buscar (nombre o nota)",
     help="Filtra por texto en el nombre de archivo o la nota — ej. 'wolf', 'Canis', 'cow' para "
@@ -151,6 +173,19 @@ with col_meta:
         key=f"split_{current['filename']}",
     )
 
+    # Familia fina (stage2 cráneo) -- preseleccionada por el mismo regex del
+    # filtro rápido, pero SIEMPRE editable: el filtro acerca por texto de
+    # búsqueda, no confirma la especie real de la foto.
+    haystack = f"{current['filename']} {current['notes']}".lower()
+    familia_options = ["cánido", "suido", "équido", "humano", "otro"]
+    guess = next((f for f, pat in FAMILIA_KEYWORDS.items() if pd.Series([haystack]).str.contains(pat, regex=True).iloc[0]), "otro")
+    familia_pick = st.selectbox(
+        "Familia (stage2 cráneo) — confirma antes de aceptar",
+        familia_options,
+        index=familia_options.index(guess),
+        key=f"familia_{current['filename']}",
+    )
+
     col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -167,6 +202,7 @@ with col1:
             "license": merged_license(current),
             "notes": note,
             "split": split_choice,
+            "familia": familia_pick,
         }
         acc_df = pd.concat([load_accepted(), pd.DataFrame([new_row])], ignore_index=True)
         acc_df.to_csv(ACCEPTED_MANIFEST, index=False)

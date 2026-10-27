@@ -1,0 +1,5 @@
+outs:
+- md5: 964cc112fc51e1d40614945a7f983153
+  size: 793
+  hash: md5
+  path: cnn_training_meta_hybrid_lab_resnet50_bone_group.json

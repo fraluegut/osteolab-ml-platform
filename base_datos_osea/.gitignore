@@ -15,3 +15,6 @@ hdris/
 .env
 
 .claude/
+/renders_lab
+/charla_material
+/renders_lab_old_512_64

@@ -1,0 +1,5 @@
+outs:
+- md5: 6282e4e2880631239f67fa9dabc32f52
+  size: 506
+  hash: md5
+  path: cnn_encoder_stage2_hueso_pequeno_bone_fine.joblib

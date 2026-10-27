@@ -1,0 +1,5 @@
+outs:
+- md5: 31758e56830645ae6466eb6c8f45a3f4
+  size: 23851578
+  hash: md5
+  path: FastSAM-s.pt

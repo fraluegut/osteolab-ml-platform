@@ -1,0 +1,5 @@
+outs:
+- md5: 9dcbef10d0d90a7d74442582be3ac404
+  size: 45374651
+  hash: md5
+  path: cnn_model_gated_hybrid_bone_group.pt

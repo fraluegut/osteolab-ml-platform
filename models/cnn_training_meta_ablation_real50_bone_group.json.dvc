@@ -1,0 +1,5 @@
+outs:
+- md5: e0b6099757a172db5d215a4a04cdcc77
+  size: 861
+  hash: md5
+  path: cnn_training_meta_ablation_real50_bone_group.json

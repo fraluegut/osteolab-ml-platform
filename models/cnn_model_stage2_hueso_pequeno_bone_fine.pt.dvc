@@ -1,0 +1,5 @@
+outs:
+- md5: 8985317c67c54e2ef987142f6ae2d912
+  size: 45087945
+  hash: md5
+  path: cnn_model_stage2_hueso_pequeno_bone_fine.pt

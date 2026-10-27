@@ -1,0 +1,5 @@
+outs:
+- md5: 6c7fa534724ec99da5512e41c03b5e00
+  size: 852
+  hash: md5
+  path: cnn_training_meta_hybrid_lab_sin_islote_bone_group.json

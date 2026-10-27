@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>¿De quién es este hueso? · PyConES 26</title>
+  <meta name="description" content="Charla PyConES 2026: clasificación zooarqueológica con Python, machine learning y datos sintéticos (OsteoLab)." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/pycon.css" />
+</head>
+<body>
+
+  <!--
+    Deck de la charla de PyConES 2026 (35 min + 5 de preguntas).
+    Cada <section class="slide"> es una diapositiva:
+      data-at    minuto (mm:ss) en el que debería empezar esa slide — lo usa el
+                 cronómetro para decir si vas adelantado o retrasado.
+      .frag      elementos que aparecen uno a uno al avanzar.
+      .notes     notas de ponente (tecla N, o vista de ponente con P).
+    Teclas: ← → espacio · N notas · P vista ponente · O índice · F pantalla
+    completa · T arrancar/pausar cronómetro · R reiniciar cronómetro · D tema.
+  -->
+
+  <div class="deck-toolbar" id="toolbar">
+    <a class="deck-back" href="/#inicio">← Volver a OsteoLab</a>
+    <span class="deck-help">← → avanzar · <kbd>N</kbd> notas · <kbd>P</kbd> ponente · <kbd>O</kbd> índice · <kbd>F</kbd> pantalla completa · <kbd>T</kbd> cronómetro</span>
+  </div>
+
+  <main class="deck" id="deck">
+    <div class="stage" id="stage">
+
+      <!-- ================= 1. PORTADA ================= -->
+      <section class="slide slide-title" data-at="0:00" data-title="Portada">
+        <p class="eyebrow">PyConES 2026 · Barcelona</p>
+        <h1>¿De quién es este hueso?</h1>
+        <p class="subtitle">Clasificación zooarqueológica con Python, Machine Learning y datos sintéticos</p>
+        <div class="speaker">
+          <span class="speaker-name">Francisco Javier Luengo Gutiérrez</span>
+          <span class="speaker-role">Arqueólogo y Machine Learning Engineer</span>
+        </div>
+        <div class="title-bones" aria-hidden="true">🦴</div>
+        <aside class="notes">
+          Saludo. Presentarme en una frase: arqueólogo que acabó escribiendo Python.
+          Adelantar que va a haber código de verdad del repo, no pseudocódigo, y una demo al final.
+        </aside>
+      </section>
+
+      <!-- ================= 2. QUÉ TE LLEVAS ================= -->
+      <section class="slide" data-at="0:30" data-title="Qué te llevas">
+        <p class="eyebrow">Antes de empezar</p>
+        <h2>Qué te llevas de esta charla</h2>
+        <div class="grid-2">
+          <div class="card frag">
+            <span class="card-icon">🎨</span>
+            <h3>Datos sintéticos con Python</h3>
+            <p>Blender es un intérprete de Python. Mallas 3D → miles de imágenes etiquetadas gratis.</p>
+          </div>
+          <div class="card frag">
+            <span class="card-icon">📐</span>
+            <h3>Forma + textura</h3>
+            <p>Medidas clásicas con OpenCV/NumPy concatenadas a un embedding de PyTorch.</p>
+          </div>
+          <div class="card frag">
+            <span class="card-icon">⚖️</span>
+            <h3>Evaluar sin engañarte</h3>
+            <p>Fuga por sujeto, balanced accuracy, semillas y tests pareados con n pequeño.</p>
+          </div>
+          <div class="card frag">
+            <span class="card-icon">🚀</span>
+            <h3>De notebook a servicio</h3>
+            <p>FastAPI, MLflow, DVC y Docker Compose en un proyecto de una persona.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          Esto no es una charla de arqueología: el dominio es la excusa. Las 4 ideas sirven para
+          cualquier problema de visión con pocos datos reales (industria, medicina, biología).
+          Si solo te quedas con una: la de evaluar sin engañarte.
+        </aside>
+      </section>
+
+      <!-- ================= 3. EL PROBLEMA ================= -->
+      <section class="slide" data-at="1:30" data-title="El problema">
+        <p class="eyebrow">El problema</p>
+        <h2>Miles de huesos, muy pocos especialistas</h2>
+        <div class="grid-2 align-center">
+          <ul class="big-list">
+            <li class="frag">En una excavación salen <strong>bolsas y bolsas</strong> de restos óseos.</li>
+            <li class="frag">Identificarlos exige un zooarqueólogo <strong>y</strong> una colección de referencia.</li>
+            <li class="frag">Ese especialista es el cuello de botella: el material espera meses en el almacén.</li>
+            <li class="frag">Pregunta: ¿puede una foto dar una <strong>primera identificación</strong> en segundos?</li>
+          </ul>
+          <div class="callout frag">
+            <p class="callout-kicker">Objetivo del proyecto</p>
+            <p class="callout-text">Una herramienta de <strong>apoyo</strong> al criterio experto,<br />no un sustituto.</p>
+            <p class="callout-sub">Tria rápido, prioriza, y deja las decisiones finas a la persona.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          Contar la anécdota de la bolsa de fauna sin identificar. Recalcar lo de "apoyo":
+          condiciona todo el diseño (top-3, probabilidades visibles, "pendiente" explícito).
+        </aside>
+      </section>
+
+      <!-- ================= 4. ¿QUÉ ES ESTO? ================= -->
+      <section class="slide" data-at="3:00" data-title="¿Qué es esto?">
+        <p class="eyebrow">Juego rápido</p>
+        <h2>¿Qué hueso es este?</h2>
+        <figure class="photo-hero">
+          <img src="/img/pycon/femur-real.jpg" alt="Fémur humano expuesto en una vitrina de museo, con reflejos en el cristal y otros objetos alrededor" />
+          <figcaption>Foto real, CC0 — colecciones antropológicas, Charles University (Wikimedia Commons)</figcaption>
+        </figure>
+        <div class="reveal frag">
+          <strong>Fémur humano.</strong> Y fíjate en todo lo demás: cristal, reflejos, soporte, otros
+          objetos, desenfoque. <em>Así son las fotos reales.</em>
+        </div>
+        <aside class="notes">
+          Preguntar al público, que levanten la mano quien diga fémur / húmero / tibia.
+          Luego revelar. El mensaje: el hueso es fácil para un humano; lo difícil para un modelo es
+          todo lo que NO es hueso. Esta foto está en nuestro examen de fotos reales.
+        </aside>
+      </section>
+
+      <!-- ================= 5. POR QUÉ ES DIFÍCIL ================= -->
+      <section class="slide" data-at="4:30" data-title="Por qué es difícil">
+        <p class="eyebrow">Por qué es difícil</p>
+        <h2>Pocos datos, muchas clases</h2>
+        <div class="stats">
+          <div class="stat"><span class="stat-value">122</span><span class="stat-label">mallas 3D de huesos reales</span></div>
+          <div class="stat"><span class="stat-value">1–2</span><span class="stat-label">especímenes por hueso concreto</span></div>
+          <div class="stat"><span class="stat-value">21</span><span class="stat-label">huesos objetivo × varias especies</span></div>
+          <div class="stat"><span class="stat-value">8.5×</span><span class="stat-label">desbalance entre clases</span></div>
+        </div>
+        <div class="decision frag">
+          <p class="decision-kicker">Primera decisión de ML — antes de escribir un modelo</p>
+          <p>No predecir hueso exacto ni especie. Predecir <strong>grupo morfológico</strong>:</p>
+          <div class="chips">
+            <span>cráneo</span><span>mandíbula/maxilar</span><span>hueso largo</span><span>hueso plano</span>
+            <span>pelvis</span><span>sacro</span><span>vértebra</span><span>costilla</span><span>hueso pequeño</span>
+          </div>
+        </div>
+        <aside class="notes">
+          Con 1-2 especímenes por hueso no hay nada que aprender a nivel de especie: el modelo
+          memorizaría el espécimen. Reformular a 9 grupos por forma fue la decisión con más impacto
+          de todo el proyecto. Más adelante bajamos de nivel, pero con otra arquitectura (cascada).
+        </aside>
+      </section>
+
+      <!-- ================= 6. MAPA DE LA SOLUCIÓN ================= -->
+      <section class="slide" data-at="6:30" data-title="Mapa de la solución">
+        <p class="eyebrow">La solución en una slide</p>
+        <h2>De la foto al hueso</h2>
+        <div class="flow">
+          <div class="flow-node">📷<span>Foto</span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node">🔍<span>CLIP<br /><small>¿es un hueso?</small></span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node">✂️<span>Grounded-SAM<br /><small>segmenta</small></span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-split">
+            <div class="flow-node flow-node-sm">📐<span>OpenCV<br /><small>medidas de forma</small></span></div>
+            <div class="flow-node flow-node-sm">🧠<span>ResNet18<br /><small>embedding</small></span></div>
+          </div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node flow-node-accent">🧬<span>Híbrido<br /><small>9 grupos</small></span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node">🎯<span>Etapa 2<br /><small>hueso / taxón</small></span></div>
+        </div>
+        <div class="flow flow-data frag">
+          <div class="flow-node flow-node-data">🦴<span>Malla 3D<br /><small>Sketchfab, MorphoSource, Smithsonian</small></span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node flow-node-data">🎨<span>Blender + bpy<br /><small>render de laboratorio</small></span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node flow-node-data">🖼️<span>+ fotos reales<br /><small>curadas a mano</small></span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node flow-node-data">📊<span>CSV de features<br /><small>+ recortes</small></span></div>
+        </div>
+        <p class="footnote">Todo Python: <code>bpy</code> · <code>opencv</code> · <code>transformers</code> · <code>timm</code> · <code>torch</code> · <code>scikit-learn</code> · <code>fastapi</code> · <code>mlflow</code> · <code>dvc</code></p>
+        <aside class="notes">
+          Arriba, inferencia. Abajo (aparece al avanzar), cómo se fabrican los datos.
+          No explicar cada caja aquí: cada una tiene su slide. Solo orientar al público.
+        </aside>
+      </section>
+
+      <!-- ================= 7. DE MALLA A IMAGEN ================= -->
+      <section class="slide" data-at="8:00" data-title="De malla a imagen">
+        <p class="eyebrow">Datos sintéticos</p>
+        <h2>El mismo fémur, cuatro generaciones de render</h2>
+        <div class="gallery">
+          <figure class="frag"><img src="/img/dataset/femur-clean.png" alt="Render limpio del fémur sobre blanco" /><figcaption><strong>1. Limpio</strong><br />silueta sobre blanco</figcaption></figure>
+          <figure class="frag"><img src="/img/dataset/femur-bg.jpg" alt="Render del fémur compuesto sobre una foto de tierra" /><figcaption><strong>2. + fondo real</strong><br />composición RGBA</figcaption></figure>
+          <figure class="frag"><img src="/img/dataset/femur-bproc.png" alt="Render del fémur con BlenderProc" /><figcaption><strong>3. BlenderProc</strong><br />HDRI, suciedad, máscara exacta</figcaption></figure>
+          <figure class="frag"><img src="/img/pycon/femur-lab.jpg" alt="Render de laboratorio del fémur apoyado en una mesa con sombra" /><figcaption><strong>4. Laboratorio</strong><br />física, mesa, luz de estudio</figcaption></figure>
+        </div>
+        <p class="footnote">Malla: <em>Human Femur</em>, Eric Bauer · Elon University (Sketchfab, CC BY). Cada render trae su máscara ground-truth: etiqueta y segmentación gratis.</p>
+        <aside class="notes">
+          Cada generación respondió a un fallo de la anterior. El 63% del sintético antiguo era
+          silueta plana sin sombreado. La escena de laboratorio imita una foto de verdad: mesa,
+          hueso que cae con física, cámara de persona de pie. Ventaja brutal del sintético: la máscara es exacta.
+        </aside>
+      </section>
+
+      <!-- ================= 8. BLENDER ES PYTHON ================= -->
+      <section class="slide" data-at="10:00" data-title="Blender es Python">
+        <p class="eyebrow">Datos sintéticos</p>
+        <h2>Blender es un intérprete de Python</h2>
+        <div class="grid-code">
+          <div>
+            <pre class="code"><code class="lang-bash">blender --background --python render_bone_lab.py -- \
+    --mesh femur.glb --n-drops 2 --views-per-drop 3 \
+    --light-preset calido_suave</code></pre>
+            <pre class="code frag"><code class="lang-py">import bpy
+
+def add_bone_rigid_body(obj):
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.rigidbody.object_add(type="ACTIVE")
+    # MESH exacto: una costilla rueda como una mecedora
+    obj.rigid_body.collision_shape = "CONVEX_HULL"
+    obj.rigid_body.friction = 0.6
+    obj.rigid_body.angular_damping = 0.45</code></pre>
+          </div>
+          <ul class="side-list">
+            <li class="frag"><strong>Sin UI:</strong> <code>--background</code>, un proceso por espécimen lanzado con <code>subprocess.run</code>.</li>
+            <li class="frag"><strong>Física real:</strong> el hueso se <em>suelta</em> sobre la mesa; su postura es la que tendría en la vida real.</li>
+            <li class="frag"><strong>121/121</strong> especímenes sin fallos → 726 imágenes con máscara.</li>
+          </ul>
+        </div>
+        <aside class="notes">
+          Todo <code>bpy</code> desde un script normal. Un proceso de Blender por espécimen para aislar
+          fallos (si uno crashea no tumba el lote) y comprobar "RENDER_DONE" en stdout.
+          Enlazar con la siguiente: lo difícil no fue el código, fueron los bugs silenciosos.
+        </aside>
+      </section>
+
+      <!-- ================= 8.5. CENTRAR + CÁMARAS ================= -->
+      <section class="slide" data-at="11:00" data-title="Centrar y mover la cámara">
+        <p class="eyebrow">Datos sintéticos</p>
+        <h2>Centrar el objeto, repartir cámaras, mirar al centro</h2>
+        <div class="grid-code">
+          <pre class="code"><code class="lang-py">def fibonacci_sphere(n, radius):
+    """Direcciones bien repartidas en la esfera -- no
+    vistas al azar, que se amontonan en los polos."""
+    points = []
+    phi = math.pi * (3.0 - math.sqrt(5.0))
+    for i in range(n):
+        y = 1 - (i / max(n - 1, 1)) * 2
+        r = math.sqrt(max(0.0, 1 - y * y))
+        theta = phi * i
+        points.append(Vector((math.cos(theta)*r, y,
+                               math.sin(theta)*r)) * radius)
+    return points
+
+def look_at_matrix(cam_location, target):
+    direction = target - cam_location
+    rot = direction.to_track_quat("-Z", "Y")
+    mat = rot.to_matrix().to_4x4()
+    mat.translation = cam_location
+    return mat
+
+# centro en espacio de MUNDO: no se mueve el objeto
+# (evita mover padre+hijos del glTF dos veces)
+center = Vector(all_verts_world.mean(axis=0))
+
+for i, direction in enumerate(fibonacci_sphere(n_views, 1.0)):
+    cam_location = center + direction * distance
+    cam.matrix_world = look_at_matrix(cam_location, center)</code></pre>
+          <ul class="side-list">
+            <li class="frag"><strong>Centro en mundo, no en el objeto:</strong> la jerarquía del glTF tiene padres e hijos; mover el objeto los desplaza dos veces.</li>
+            <li class="frag"><strong>Fibonacci sphere:</strong> vistas repartidas uniformemente, no un muestreo al azar que amontona cámaras en los polos.</li>
+            <li class="frag"><strong>Distancia por focal:</strong> 24-70mm variable → cada vista recalcula la distancia para que el hueso llene el <code>fill</code> objetivo del encuadre.</li>
+            <li class="frag">Entre vista y vista también cambia el HDRI y se reaplica la suciedad procedural: "dar vueltas" es también <em>cambiar la escena</em>, no solo la cámara.</li>
+          </ul>
+        </div>
+        <aside class="notes">
+          Esto es render_bone_bproc.py, la versión en producción (sustituye a render_bone_lab.py de
+          la slide anterior). look_at_matrix usa to_track_quat de mathutils: la cámara mira siempre
+          al centro aunque la posición cambie. jitter pequeño en el target para que no todas las
+          vistas sean perfectamente especulares entre sí.
+        </aside>
+      </section>
+
+      <!-- ================= 9. BUGS SILENCIOSOS ================= -->
+      <section class="slide" data-at="12:00" data-title="La física falla en silencio">
+        <p class="eyebrow">Datos sintéticos</p>
+        <h2>La física falla en silencio</h2>
+        <div class="grid-2">
+          <pre class="code"><code class="lang-py">def normalize_scale(obj):
+    """Las mallas NO comparten escala (costilla r≈2,
+    fémur≈12, escápula≈106). A escala grande el solver
+    falla EN SILENCIO: el hueso se queda flotando."""
+    _, radius = local_bbox_radius(obj)
+    factor = TARGET_RADIUS / radius
+    obj.scale = (factor, factor, factor)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.transform_apply(
+        location=False, rotation=False, scale=True)</code></pre>
+          <table class="bug-table">
+            <thead><tr><th>Síntoma</th><th>Causa</th></tr></thead>
+            <tbody>
+              <tr class="frag"><td>Hueso flotando a media caída</td><td>escala 2 – 106 unidades</td></tr>
+              <tr class="frag"><td>Costilla rodando sin parar</td><td>colisión <code>MESH</code> inestable</td></tr>
+              <tr class="frag"><td>Sin sombra de contacto</td><td>margen de colisión del solver</td></tr>
+              <tr class="frag"><td>Imagen plana, sin volumen</td><td>luces iguales se cancelan</td></tr>
+              <tr class="frag"><td>Hueso "de plástico"</td><td>rugosidad baja en el PBR</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="lesson frag">Ningún test lo detectaba. Lo detectó <strong>mirar las imágenes</strong>: un visor en Streamlit y un <em>contact sheet</em> por lote.</p>
+        <aside class="notes">
+          Moraleja para cualquier generador de datos: un pipeline que no da error no es un pipeline
+          que funciona. Construir visores baratos (Streamlit, 50 líneas) para mirar muestras.
+        </aside>
+      </section>
+
+      <!-- ================= 10. SIM2REAL ================= -->
+      <section class="slide" data-at="13:30" data-title="El hueco sim2real">
+        <p class="eyebrow">El hueco sintético → real</p>
+        <h2>El modelo aprendió a reconocer renders</h2>
+        <div class="versus">
+          <div class="versus-side">
+            <img src="/img/dataset/femur-clean.png" alt="Render limpio" />
+            <span class="versus-value good">77%</span>
+            <span class="versus-label">accuracy en renders</span>
+          </div>
+          <div class="versus-vs">vs</div>
+          <div class="versus-side">
+            <img src="/img/pycon/femur-real.jpg" alt="Foto real en vitrina" />
+            <span class="versus-value bad">27%</span>
+            <span class="versus-label">accuracy en fotos reales</span>
+          </div>
+        </div>
+        <p class="lesson frag">Si tu test comparte distribución con el entrenamiento, tu test es <strong>optimista por construcción</strong>. Necesitas un examen con datos del mundo real, apartado desde el día 1.</p>
+        <aside class="notes">
+          Números del primer modelo, solo geométrico. Desde aquí, la única métrica que miramos para
+          decidir es el examen de fotos reales que el modelo nunca ve. El banco sintético sirve
+          para depurar, no para decidir.
+        </aside>
+      </section>
+
+      <!-- ================= 11. FOTOS REALES ================= -->
+      <section class="slide" data-at="15:00" data-title="Unas pocas fotos reales">
+        <p class="eyebrow">El mayor salto</p>
+        <h2>12 fotos reales pesaron más que toda la síntesis</h2>
+        <div class="grid-code grid-code-rev">
+          <div>
+            <p class="big-number">0.3%<span>del dataset eran fotos reales… y movieron más la aguja que cualquier mejora de render.</span></p>
+            <p class="frag">Problema: dentro de cada grupo, lo real es minoría (costilla: 5% de sus filas). Solución con PyTorch:</p>
+          </div>
+          <pre class="code frag"><code class="lang-py">from torch.utils.data import WeightedRandomSampler
+
+is_real = (train_df["source_path"]
+           .str.startswith("data/real_photos_accepted/")
+           .to_numpy())
+weights = np.where(is_real, args.real_photo_boost, 1.0)
+
+sampler = WeightedRandomSampler(
+    weights=torch.as_tensor(weights, dtype=torch.double),
+    num_samples=len(train_dataset),
+    replacement=True,
+)
+# el balance ENTRE grupos sigue en la pérdida:
+# class_weight="balanced"</code></pre>
+        </div>
+        <p class="lesson frag">Sintético para arrancar, real para llegar. Hoy: <strong>357+ fotos reales</strong> curadas, con un examen fijo aparte que nunca entrena.</p>
+        <aside class="notes">
+          Dos desbalances distintos, dos herramientas distintas: entre grupos → peso en la pérdida;
+          real vs sintético dentro del grupo → sampler (x4 por defecto). No mezclarlos.
+        </aside>
+      </section>
+
+      <!-- ================= 12. MEDIR FORMA ================= -->
+      <section class="slide" data-at="17:00" data-title="Medir la forma">
+        <p class="eyebrow">Features clásicas</p>
+        <h2>Medir la forma con NumPy</h2>
+        <div class="grid-code">
+          <pre class="code"><code class="lang-py">def _axis_shape_features(centerline):
+    pts = np.asarray(centerline, dtype=np.float64)
+    chord = np.linalg.norm(pts[-1] - pts[0])
+    arc = np.sum(np.linalg.norm(np.diff(pts, axis=0), axis=1))
+    tortuosity = arc / chord          # 1.0 = recto
+
+    angles = [_signed_turning_angle(*pts[i - 1:i + 2])
+              for i in range(1, len(pts) - 1)]
+    total = sum(abs(a) for a in angles)
+    # 1.0 = gira siempre al mismo lado (arco, costilla)
+    # 0.0 = se cancela (recta con ruido)
+    consistency = abs(sum(angles)) / total
+    return tortuosity, total, consistency</code></pre>
+          <div>
+            <p>Del contorno (OpenCV) salen medidas <strong>invariantes a escala</strong>:</p>
+            <div class="chips chips-left">
+              <span>elongación</span><span>circularidad</span><span>solidez</span><span>momentos de Hu</span>
+              <span>perfil de anchura</span><span>agujeros</span><span>tortuosidad</span><span>ajuste a arco</span>
+            </div>
+            <p class="frag">→ <code>RandomForestClassifier</code>: rápido, explicable, y la base del híbrido.</p>
+            <p class="frag muted">Costilla vs hueso largo: los dos son "alargados". La diferencia es que una se curva siempre hacia el mismo lado.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          Un arqueólogo describe un hueso con palabras como "alargado", "curvo", "con agujero".
+          Estas features son esas palabras convertidas en números. Son interpretables y funcionan con
+          muy pocos datos, que es justo lo que le falta a la CNN.
+        </aside>
+      </section>
+
+      <!-- ================= 13. SEGMENTACIÓN ================= -->
+      <section class="slide" data-at="19:00" data-title="Segmentar importaba más">
+        <p class="eyebrow">Segmentación</p>
+        <h2>El problema no era medir: era encontrar el hueso</h2>
+        <div class="steps">
+          <div class="step">
+            <span class="step-tag">antes</span>
+            <h3>Umbral tipo Otsu</h3>
+            <p>Funciona en fondo blanco. En una vitrina con reflejos, segmenta el cristal.</p>
+          </div>
+          <div class="step step-accent frag">
+            <span class="step-tag">después</span>
+            <h3>Grounded-SAM</h3>
+            <p>Texto <code>"bone"</code> → caja con Grounding DINO → máscara con SAM. Mejora notable en geométrico <em>e</em> híbrido.</p>
+          </div>
+          <div class="step frag">
+            <span class="step-tag">multi-instancia</span>
+            <h3>Una foto, 24 costillas</h3>
+            <p>Todas las cajas → una máscara por hueso → resto en gris. 42 recortes, <strong>28 limpios</strong>.</p>
+          </div>
+        </div>
+        <div class="metric-jump frag">
+          <span>recall de costilla</span>
+          <span class="from">0.25</span><span class="arrow">→</span><span class="to">0.89</span>
+        </div>
+        <aside class="notes">
+          Las fotos de costillas suelen ser de muchas a la vez. En vez de tirarlas, multiplicaron
+          el dato: 18 → 46 fotos reales de costilla. Revisadas una a una con contact sheet (14 recortes
+          fusionaban dos costillas y se descartaron).
+        </aside>
+      </section>
+
+      <!-- ================= 13.35. PRIMERA CNN: LA PIZARRA ================= -->
+      <section class="slide" data-at="19:05" data-title="Primera CNN (mapa)">
+        <p class="eyebrow">Deep learning</p>
+        <h2 style="font-size:34px;">Primera CNN</h2>
+        <div style="display:grid; grid-template-columns: 0.85fr 1.05fr 1.1fr 1fr; gap:0; border:2px solid var(--terracotta); border-radius:4px; overflow:hidden; margin-top:10px;">
+
+          <!-- col 1: 9 grupos -->
+          <div style="border-right:2px solid var(--terracotta); padding:16px 18px;">
+            <div style="font-family:var(--sans); font-weight:800; font-size:16px; color:var(--terracotta); margin-bottom:12px; text-align:center;">9 grupos</div>
+            <ol style="margin:0; padding-left:1.1em; font-size:14.5px; line-height:1.85; color:var(--ink);">
+              <li>Cráneo</li>
+              <li>Costillas</li>
+              <li>Vértebras</li>
+              <li>Huesos largos</li>
+              <li>Pelvis</li>
+              <li>Sacro</li>
+              <li>Huesos cortos</li>
+              <li>Huesos planos</li>
+              <li>Mandíbula-maxilar</li>
+            </ol>
+          </div>
+
+          <!-- col 2: dataset -->
+          <div style="border-right:2px solid var(--terracotta); padding:16px 18px; display:flex; flex-direction:column; align-items:center; text-align:center;">
+            <div style="font-family:var(--sans); font-weight:800; font-size:16px; color:var(--terracotta); margin-bottom:12px;">Dataset</div>
+            <div style="font-family:var(--sans); font-weight:700; font-size:20px;">3D</div>
+            <div style="font-size:22px; color:var(--terracotta); margin:2px 0;">↓</div>
+            <div style="font-size:15px;"><strong>3653</strong> imágenes<br><span class="muted" style="font-size:12.5px;">sintéticas (122 huesos 3D)</span></div>
+            <div style="font-size:20px; margin:4px 0; font-weight:700;">+</div>
+            <div style="font-size:15px;"><strong>75</strong> imágenes<br><span class="muted" style="font-size:12.5px;">reales (examen, 0% en train)</span></div>
+            <div style="font-size:22px; color:var(--terracotta); margin:6px 0 2px;">↓↓</div>
+            <div style="font-family:var(--sans); font-weight:800; font-size:17px; border-top:2px solid var(--line); padding-top:8px; width:100%;">total = 3728 imágenes</div>
+          </div>
+
+          <!-- col 3: red neuronal -->
+          <div style="border-right:2px solid var(--terracotta); padding:16px 18px; display:flex; flex-direction:column; align-items:center;">
+            <div style="font-family:var(--sans); font-weight:800; font-size:16px; color:var(--terracotta); margin-bottom:12px;">Red Neuronal</div>
+            <div style="width:60px; height:60px; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;">224²</div>
+            <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">×3 canales</div>
+            <div style="font-size:20px; color:var(--terracotta); margin:6px 0;">↓</div>
+            <div style="border:2px solid var(--ink); border-radius:6px; padding:12px 16px; text-align:center;">
+              <div style="font-family:var(--sans); font-weight:800; font-size:17px; margin-bottom:8px;">resnet18</div>
+              <div style="font-size:12.5px; line-height:1.6; color:var(--ink);">Lineal 512→128<br>+ ReLU + Dropout<br>Lineal 128→9</div>
+            </div>
+          </div>
+
+          <!-- col 4: resultado -->
+          <div style="padding:16px 18px;">
+            <div style="font-family:var(--sans); font-weight:800; font-size:16px; color:var(--terracotta); margin-bottom:12px; text-align:center;">Resultado</div>
+            <table class="mini-table" style="width:100%; font-size:14px;">
+              <tbody>
+                <tr><td>Acc</td><td style="text-align:right; font-weight:700;">0.671</td></tr>
+                <tr><td>Recall</td><td style="text-align:right; font-weight:700;">0.47</td></tr>
+                <tr><td>F1</td><td style="text-align:right; font-weight:700;">0.46</td></tr>
+                <tr><td>Precision</td><td style="text-align:right; font-weight:700;">0.50</td></tr>
+              </tbody>
+            </table>
+            <div style="text-align:center; font-size:12.5px; color:var(--ink-soft); margin:12px 0 6px;">Matriz de confusión</div>
+            <svg viewBox="0 0 90 90" style="width:100%; border:1.5px solid var(--ink);">
+              <g stroke="var(--line)" stroke-width="1">
+                <line x1="10" y1="0" x2="10" y2="90"/><line x1="20" y1="0" x2="20" y2="90"/><line x1="30" y1="0" x2="30" y2="90"/><line x1="40" y1="0" x2="40" y2="90"/><line x1="50" y1="0" x2="50" y2="90"/><line x1="60" y1="0" x2="60" y2="90"/><line x1="70" y1="0" x2="70" y2="90"/><line x1="80" y1="0" x2="80" y2="90"/>
+                <line x1="0" y1="10" x2="90" y2="10"/><line x1="0" y1="20" x2="90" y2="20"/><line x1="0" y1="30" x2="90" y2="30"/><line x1="0" y1="40" x2="90" y2="40"/><line x1="0" y1="50" x2="90" y2="50"/><line x1="0" y1="60" x2="90" y2="60"/><line x1="0" y1="70" x2="90" y2="70"/><line x1="0" y1="80" x2="90" y2="80"/>
+              </g>
+              <g fill="var(--terracotta)" opacity="0.75">
+                <rect x="0" y="0" width="10" height="10"/><rect x="10" y="10" width="10" height="10"/><rect x="20" y="20" width="10" height="10"/><rect x="30" y="30" width="10" height="10"/><rect x="40" y="40" width="10" height="10"/><rect x="50" y="50" width="10" height="10"/><rect x="60" y="60" width="10" height="10"/><rect x="70" y="70" width="10" height="10"/><rect x="80" y="80" width="10" height="10"/>
+              </g>
+            </svg>
+          </div>
+
+        </div>
+        <aside class="notes">
+          Mapa de una sola mirada: 9 grupos a la izquierda, de dónde sale el dataset (sintético + examen
+          real aparte), qué red lo procesa (resnet18, imagen 224x224), y el resultado agregado con la
+          diagonal de la matriz de confusión. El detalle completo (por clase, curva de entrenamiento,
+          críticas) va en la siguiente slide / en el cartel aparte.
+        </aside>
+      </section>
+
+      <!-- ================= 13.4. EL PRIMER EXPERIMENTO (DENSA) ================= -->
+      <section class="slide" data-at="19:15" data-title="El primer experimento">
+        <p class="eyebrow">Deep learning · reproducido con código y dataset originales (commit <code>53fe6e3</code>)</p>
+        <h2 style="font-size:30px;">El primer experimento, completo</h2>
+        <p class="slide-intro" style="font-size:16px; margin:-2px 0 10px;">Primera vez que se mete una red neuronal: <code>resnet18</code> preentrenada + cabeza propia, entrenada en 2 fases desde el primer commit. A la derecha, el resultado desglosado por clase — no solo el agregado que quedó escrito en su momento.</p>
+        <div class="grid-code" style="grid-template-columns: 0.95fr 1.3fr; gap:18px;">
+          <div style="font-size:13px; display:flex; flex-direction:column; gap:10px;">
+            <p class="muted" style="font-size:12px; margin:0;"><strong>Arquitectura:</strong> backbone congelado primero (no destrozar los pesos de ImageNet con una cabeza sin entrenar), luego descongelado a LR muy bajo.</p>
+            <pre class="code" style="font-size:12px; line-height:1.25; padding:10px;"><code class="lang-py">class BoneClassifier(nn.Module):
+    def __init__(self, backbone="resnet18", n_classes=9):
+        self.backbone = timm.create_model(
+            backbone, pretrained=True, num_classes=0)   # 512-d
+        self.head = nn.Sequential(
+            nn.Linear(512, 128), nn.ReLU(), nn.Dropout(0.3),
+            nn.Linear(128, n_classes))
+
+    def forward(self, image):
+        return self.head(self.backbone(image))  # solo píxeles
+
+# Fase 1 (8 ép.): backbone congelado, AdamW(head, lr=1e-3)
+# Fase 2 (15 ép.): backbone descongelado, lr=1e-5 + head lr=1e-3
+# torch + torchvision + timm · PyTorch · GPU RTX 4080, ~3-4 min</code></pre>
+            <table class="mini-table" style="font-size:12.5px;">
+              <thead><tr><th>Dataset</th><th>Especím. 3D</th><th>Imgs.</th><th>Filas OK</th></tr></thead>
+              <tbody>
+                <tr><td>Renders limpios</td><td>~122</td><td>2760</td><td>2544</td></tr>
+                <tr><td>Renders con ruido</td><td>122</td><td>1220</td><td>1109</td></tr>
+                <tr><td><strong>Train+val total</strong></td><td>110</td><td>—</td><td class="lo"><strong>3653</strong></td></tr>
+                <tr><td>↳ train</td><td>88</td><td>—</td><td>2981</td></tr>
+                <tr><td>↳ val (espéc. fuera)</td><td>22</td><td>—</td><td>672</td></tr>
+                <tr><td>Banco limpio (aparte)</td><td>9</td><td>—</td><td>216</td></tr>
+                <tr><td>Fotos reales (examen)</td><td>75 fotos</td><td>—</td><td class="lo">0% train</td></tr>
+              </tbody>
+            </table>
+            <p class="muted" style="font-size:11.5px; margin:0;"><strong class="lo">100% sintético</strong> en entrenamiento — las fotos reales nunca entran, solo examinan al final. Split por espécimen (<code>GroupShuffleSplit</code>), no por fila: ningún hueso físico repite entre train y val.</p>
+          </div>
+          <div style="font-size:13px;">
+            <p class="muted" style="font-size:12px; margin:0 0 6px;"><strong>Validación (672 filas, especímenes nunca entrenados):</strong> desglose por clase que el log original de 2026-07-25 no guardó, solo el agregado.</p>
+            <table class="mini-table" style="font-size:11px; width:100%;">
+              <thead><tr><th>grupo (val)</th><th>prec.</th><th>rec.</th><th>F1</th><th>n</th></tr></thead>
+              <tbody>
+                <tr><td>costilla</td><td>0.91</td><td class="lo">0.43</td><td>0.59</td><td>136</td></tr>
+                <tr><td>cranio</td><td>0.84</td><td>0.78</td><td>0.81</td><td>78</td></tr>
+                <tr><td>hueso_largo</td><td>0.51</td><td>0.83</td><td>0.63</td><td>54</td></tr>
+                <tr><td>hueso_pequeno</td><td>0.82</td><td>0.88</td><td>0.85</td><td>235</td></tr>
+                <tr><td>hueso_plano</td><td>0.46</td><td>0.53</td><td>0.49</td><td>101</td></tr>
+                <tr><td>mandibula_maxilar</td><td>0.40</td><td class="lo">0.06</td><td class="lo">0.10</td><td>34</td></tr>
+                <tr><td>pelvis</td><td colspan="3" style="text-align:center;">0 filas en este split</td><td>0</td></tr>
+                <tr><td>sacro</td><td colspan="3" style="text-align:center;">0 filas en este split</td><td>0</td></tr>
+                <tr><td>vertebra</td><td>0.60</td><td>0.74</td><td>0.66</td><td>34</td></tr>
+                <tr style="border-top:2px solid var(--line);"><td><strong>accuracy</strong></td><td colspan="2"></td><td class="lo"><strong>0.671</strong></td><td>672</td></tr>
+                <tr><td>macro avg</td><td>0.50</td><td>0.47</td><td>0.46</td><td>672</td></tr>
+                <tr><td>weighted avg</td><td>0.73</td><td>0.67</td><td>0.67</td><td>672</td></tr>
+              </tbody>
+            </table>
+            <table class="mini-table frag" style="font-size:10.5px; width:100%; margin-top:8px;">
+              <thead><tr><th>banco limpio (9 espec. nunca vistos)</th><th>prec.</th><th>rec.</th><th>F1</th></tr></thead>
+              <tbody>
+                <tr><td>accuracy global</td><td colspan="3"><strong class="lo">0.731</strong> (216 filas, 24/grupo)</td></tr>
+                <tr><td>mejor: hueso_pequeno</td><td>0.77</td><td>1.00</td><td>0.87</td></tr>
+                <tr><td>peor: costilla</td><td>0.42</td><td>0.33</td><td>0.37</td></tr>
+              </tbody>
+            </table>
+            <p class="muted frag" style="font-size:11px; margin-top:6px;">Confusión principal: <code class="lo">mandibula_maxilar→sacro</code> 14/34 (41%) — la más rara, sin relación morfológica; <code>hueso_plano↔hueso_pequeno</code> se pisan en ambas direcciones (24 y 12 filas), probable falta de escala de referencia en el recorte.</p>
+          </div>
+        </div>
+        <p class="lesson frag" style="font-size:17px; margin-top:8px;">Reentrenado hoy con el código y los 3653 renders originales (commit <code>53fe6e3</code>, MLflow+DVC) para sacar la matriz de confusión y el F1 que en 2026-07-25 solo quedaron como recall agregado.</p>
+        <aside class="notes">
+          Números reales de una reproducción hecha reentrenando con el dataset y el script exactos
+          de aquel commit (las imágenes seguían en disco). Sin --model-seed en esa versión del
+          script, así que el número exacto varía un poco respecto al documentado entonces
+          (val 0.683, banco limpio 0.755) pero el orden de magnitud y las confusiones por grupo
+          son reales, no estimadas. pelvis/sacro caen a 0 filas en ESTE split por azar del
+          GroupShuffleSplit, no por fallo del modelo -- en el banco limpio sí están representados.
+        </aside>
+      </section>
+
+      <!-- ================= 13.5. PRIMERA CNN ================= -->
+      <section class="slide" data-at="19:30" data-title="Primera CNN">
+        <p class="eyebrow">Deep learning</p>
+        <h2>La primera CNN: ¿ayuda de verdad?</h2>
+        <div class="grid-code">
+          <pre class="code"><code class="lang-py">class BoneClassifier(nn.Module):
+    def __init__(self, backbone_name, num_classes):
+        super().__init__()
+        self.backbone = timm.create_model(
+            backbone_name, pretrained=True, num_classes=0)
+        embed_dim = self.backbone.num_features
+        self.head = nn.Sequential(
+            nn.Linear(embed_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, num_classes),
+        )
+
+    def forward(self, image, geom=None):
+        embedding = self.backbone(image)
+        return self.head(embedding)   # solo píxeles</code></pre>
+          <div>
+            <ul class="side-list">
+              <li><strong>resnet18</strong>, transfer learning en 2 fases: cabeza congelada 8 épocas, fine-tune 15 más a LR bajo.</li>
+              <li class="frag">GPU RTX 4080: 23 épocas en ~3-4 min.</li>
+              <li class="frag">Mismo split espécimen-fuera y mismos 3 bancos que el modelo geométrico, para comparar de verdad.</li>
+            </ul>
+            <table class="results frag">
+              <thead><tr><th></th><th>Interno</th><th>Banco limpio</th><th>Fotos reales</th></tr></thead>
+              <tbody>
+                <tr><td>Geométrico</td><td>0.645</td><td>0.773</td><td>0.267</td></tr>
+                <tr><td><strong>CNN sola</strong></td><td>0.683</td><td>0.755</td><td class="hi">0.493</td></tr>
+                <tr><td>Híbrido (concat)</td><td class="hi">0.701</td><td class="hi">0.810</td><td class="lo">0.133</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p class="lesson frag">El híbrido ingenuo <strong>gana en los dos bancos sintéticos y se desploma en fotos reales</strong> (predice <code>sacro</code> casi siempre): aprendió a fiarse de las features geométricas, limpias en render, distorsionadas en foto real.</p>
+        <aside class="notes">
+          La CNN sola sí ayuda (+85% relativo en fotos reales) y ningún grupo cae a 0% recall — pero
+          pierde terreno justo en "estudio con fondo degradado", el bug original (0.80→0.40).
+          El híbrido de esta slide es la versión ingenua (concatenar y ya); la cascada/producción
+          actual usa una versión corregida que sí generaliza — eso es la siguiente slide.
+        </aside>
+      </section>
+
+      <!-- ================= 14. HÍBRIDO ================= -->
+      <section class="slide" data-at="20:30" data-title="Modelo híbrido">
+        <p class="eyebrow">Deep learning</p>
+        <h2>Forma + textura: el modelo híbrido</h2>
+        <div class="grid-code">
+          <pre class="code"><code class="lang-py">class BoneClassifier(nn.Module):
+    def __init__(self, backbone_name, num_classes, n_geom):
+        super().__init__()
+        self.backbone = timm.create_model(
+            backbone_name, pretrained=True, num_classes=0)
+        embed_dim = self.backbone.num_features   # 512
+        self.head = nn.Sequential(
+            nn.Linear(embed_dim + n_geom, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, num_classes),
+        )
+
+    def forward(self, image, geom):
+        embedding = self.backbone(image)
+        return self.head(torch.cat([embedding, geom], dim=1))</code></pre>
+          <div>
+            <ul class="side-list">
+              <li><strong>ResNet18</strong> preentrenada con <code>timm</code>, sobre el <em>recorte segmentado</em>.</li>
+              <li class="frag"><strong>Fase 1:</strong> backbone congelado, solo la cabeza.</li>
+              <li class="frag"><strong>Fase 2:</strong> fine-tuning completo con learning rate bajo.</li>
+              <li class="frag">Las features geométricas se escalan con <code>StandardScaler</code> antes del <code>cat</code>.</li>
+            </ul>
+            <table class="mini-table frag">
+              <tr><th>recall</th><th>forma</th><th>textura</th></tr>
+              <tr><td>hueso largo</td><td class="hi">0.88</td><td>0.38</td></tr>
+              <tr><td>vértebra</td><td>0.14</td><td class="hi">0.71</td></tr>
+              <tr><td>cráneo</td><td>0.00</td><td class="hi">0.57</td></tr>
+            </table>
+          </div>
+        </div>
+        <aside class="notes">
+          La tabla es la justificación: donde falla la forma acierta la textura y viceversa. Son señales
+          complementarias. El híbrido superó a las dos ramas por separado en todos los bancos.
+          Es la arquitectura más simple posible: concatenar. Ya veremos que la versión "lista" perdió.
+        </aside>
+      </section>
+
+      <!-- ================= 15. CASCADA ================= -->
+      <section class="slide" data-at="22:30" data-title="Cascada de 2 etapas">
+        <p class="eyebrow">Bajar de nivel</p>
+        <h2>¿Fémur o húmero? Cascada, no más clases</h2>
+        <div class="grid-code">
+          <div>
+            <pre class="code"><code class="lang-py"># grupo de etapa 1 → modelo que afina dentro del grupo
+STAGE2_MODELS = {
+    "hueso_largo":   "stage2_hueso_largo",   # fémur/húmero/otro
+    "hueso_pequeno": "stage2_hueso_pequeno", # astrágalo/otro
+    "vertebra":      "stage2_vertebra",      # cervical/torácica/lumbar
+}
+STAGE2_TAXON_MODELS = {
+    "cranio": "stage2_taxon_cranio",  # humano/carnívoro/ungulado/roedor
+    "mandibula_maxilar": "stage2_taxon_mandibula_maxilar",
+}</code></pre>
+          </div>
+          <table class="results frag">
+            <thead><tr><th></th><th>Plano<br /><small>12 clases</small></th><th>Cascada<br /><small>2 etapas</small></th></tr></thead>
+            <tbody>
+              <tr><td>Accuracy</td><td>0.753</td><td class="hi">0.818</td></tr>
+              <tr><td>Balanced acc.</td><td>0.663</td><td class="hi">0.736</td></tr>
+              <tr><td>hueso plano (recall)</td><td class="lo">0.00</td><td>0.25</td></tr>
+              <tr><td>húmero (recall)</td><td>0.43</td><td class="hi">0.86</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="lesson frag">Meter todo en un clasificador plano hizo que clases <strong>no relacionadas</strong> se pisaran: hueso plano colapsó a 0 sin tocar sus datos.</p>
+        <aside class="notes">
+          Cada etapa 2 se entrena solo con las filas de su grupo, con el mismo script y --target bone_fine.
+          Compite entre 2-3 clases en vez de 12. Ojo: en producción la API marca stage2_pending
+          para los grupos que aún no tienen etapa 2, para no confundir "no aplica" con "falta entrenar".
+        </aside>
+      </section>
+
+      <!-- ================= 16. FUGA POR SUJETO ================= -->
+      <section class="slide" data-at="24:00" data-title="Fuga por sujeto">
+        <p class="eyebrow">Evaluar sin engañarte · 1</p>
+        <h2>24 vistas del mismo fémur = examen con chuleta</h2>
+        <div class="grid-code">
+          <pre class="code"><code class="lang-py">from sklearn.model_selection import StratifiedGroupKFold
+
+def subject_ids(df):
+    # "specimen" solo puede colisionar entre colecciones
+    return (df["species"].astype(str).str.strip() + "::"
+            + df["specimen"].astype(str).str.strip()).to_numpy()
+
+def subject_holdout(df, target_col, test_size=0.2, random_state=42):
+    splitter = StratifiedGroupKFold(
+        n_splits=round(1 / test_size), shuffle=True,
+        random_state=random_state)
+    train_idx, val_idx = next(splitter.split(
+        df, y=df[target_col], groups=subject_ids(df)))
+    train_df, val_df = df.iloc[train_idx], df.iloc[val_idx]
+    overlap = set(subject_ids(train_df)) & set(subject_ids(val_df))
+    if overlap:
+        raise RuntimeError(f"Fuga de sujeto: {sorted(overlap)}")
+    return train_df, val_df</code></pre>
+          <ul class="side-list">
+            <li><code>train_test_split</code> por fila reparte vistas del mismo hueso a ambos lados.</li>
+            <li class="frag">Agrupa por <strong>sujeto</strong>, estratifica por clase: <code>StratifiedGroupKFold</code>.</li>
+            <li class="frag"><strong>Falla ruidosamente</strong>: un <code>RuntimeError</code> vale más que un aviso en un log.</li>
+            <li class="frag">Con tests en <code>pytest</code>. 4343 filas, 418 sujetos, 0 compartidos.</li>
+          </ul>
+        </div>
+        <aside class="notes">
+          Aplica a cualquier dataset con varias filas por entidad: pacientes, clientes, máquinas, frames de vídeo.
+          La clave species::specimen salió de un bug real: dos colecciones numeraban igual.
+        </aside>
+      </section>
+
+      <!-- ================= 17. ACCURACY MIENTE ================= -->
+      <section class="slide" data-at="26:00" data-title="Accuracy miente">
+        <p class="eyebrow">Evaluar sin engañarte · 2</p>
+        <h2>Accuracy esconde clases enteras</h2>
+        <div class="grid-2">
+          <div>
+            <table class="results">
+              <thead><tr><th>Geométrico</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>Accuracy</td><td>0.544</td></tr>
+                <tr><td>Macro-F1</td><td class="lo">0.47</td></tr>
+                <tr><td>Recall de costilla</td><td class="lo">0.00</td></tr>
+              </tbody>
+            </table>
+            <p class="muted">Con 8.5× de desbalance, puedes acertar mucho en las clases grandes e ignorar una entera.</p>
+            <pre class="code frag"><code class="lang-py">from sklearn.metrics import balanced_accuracy_score
+# media del recall de cada clase
+balanced_accuracy_score(y_true, y_pred)</code></pre>
+          </div>
+          <div class="frag">
+            <p class="bug-kicker">🐛 Bug de regalo: la clase fantasma</p>
+            <pre class="code"><code class="lang-py"># guardarraíl: ninguna clase con recall 0
+recall_score(y_val, preds, labels=range(n_classes),
+             average=None, zero_division=0)
+# clase sin filas en val → recall 0 SIEMPRE
+# → el guardarraíl saltaba en todas las epochs
+
+recall_score(y_val, preds, labels=np.unique(y_val),
+             average=None, zero_division=0)   # ✅</code></pre>
+            <p class="muted">mandíbula/maxilar: 11 especímenes, ninguno cayó en val con esa semilla.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          El guardarraíl existía porque seleccionar el checkpoint por un proxy de 12 fotos reales
+          regaló la clase mandíbula entera (recall 0). Y el propio guardarraíl tenía un bug:
+          zero_division=0 convierte "no hay datos" en "recall 0". Nunca filtraba nada.
+        </aside>
+      </section>
+
+      <!-- ================= 18. ¿MEJORÓ DE VERDAD? ================= -->
+      <section class="slide" data-at="28:00" data-title="¿Mejoró de verdad?">
+        <p class="eyebrow">Evaluar sin engañarte · 3</p>
+        <h2>0.844 → 0.870. ¿Lo celebramos?</h2>
+        <div class="grid-code">
+          <div>
+            <pre class="code"><code class="lang-py">from scipy.stats import binomtest
+# McNemar exacto: solo cuentan las fotos donde discrepan
+mejora, empeora = 5, 3            # de 77 fotos
+binomtest(empeora, mejora + empeora, 0.5).pvalue
+# 0.727  → no significativo</code></pre>
+            <p class="frag">Bootstrap pareado (10 000 remuestreos): IC 95% de la diferencia <strong>[−3.9%, +9.1%]</strong>. Cruza el cero.</p>
+          </div>
+          <div class="frag">
+            <p>Lo correcto: <strong>3 semillas contra 3 semillas</strong>, balanced accuracy:</p>
+            <table class="results">
+              <thead><tr><th>semilla</th><th>anterior</th><th>render lab</th></tr></thead>
+              <tbody>
+                <tr><td>42</td><td>0.796</td><td class="hi">0.832</td></tr>
+                <tr><td>1</td><td>0.793</td><td class="hi">0.831</td></tr>
+                <tr><td>7</td><td>0.804</td><td class="hi">0.824</td></tr>
+              </tbody>
+            </table>
+            <p class="muted">Accuracy cruda: rangos solapados. Balanced: <strong>sin solape</strong>. Ahí sí hay mejora.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          Con n=77, +2.6 puntos son 2 fotos. La primera comparación era asimétrica: 3 semillas nuevas contra
+          1 vieja. Y además promovimos la semilla 42 (la original), no la mejor: nada de cherry-picking.
+        </aside>
+      </section>
+
+      <!-- ================= 19. NO TODO ES OPTIMIZAR ================= -->
+      <section class="slide slide-decisions" data-at="30:00" data-title="No todo es optimizar">
+        <p class="eyebrow">La pregunta que guía el proyecto</p>
+        <h2>No todo error se arregla optimizando</h2>
+        <p class="slide-intro">Antes de cambiar arquitectura o hiperparámetros, miramos <strong>qué clase de evidencia</strong> nos está dando el experimento.</p>
+        <div class="decision-map">
+          <div class="evidence-card frag">
+            <span class="evidence-icon">🖼️</span>
+            <p><strong>Falla en fotos reales</strong><br /><span>pero aprueba renders</span></p>
+            <span class="decision-arrow">→</span>
+            <p class="decision-action">recoge fotos reales</p>
+          </div>
+          <div class="evidence-card frag">
+            <span class="evidence-icon">✂️</span>
+            <p><strong>Falla al recortar</strong><br /><span>el objeto correcto</span></p>
+            <span class="decision-arrow">→</span>
+            <p class="decision-action">mejora segmentación</p>
+          </div>
+          <div class="evidence-card frag">
+            <span class="evidence-icon">🦴</span>
+            <p><strong>Una clase falla</strong><br /><span>con todos los modelos</span></p>
+            <span class="decision-arrow">→</span>
+            <p class="decision-action">prioriza esa clase al curar</p>
+          </div>
+          <div class="evidence-card frag">
+            <span class="evidence-icon">📏</span>
+            <p><strong>La mejora cabe</strong><br /><span>en el ruido del test</span></p>
+            <span class="decision-arrow">→</span>
+            <p class="decision-action">no promociones el cambio</p>
+          </div>
+        </div>
+        <p class="lesson frag">Optimizar es una opción. <strong>Reformular, medir mejor, revisar imágenes y conseguir el dato que falta</strong> suelen ser decisiones más valiosas.</p>
+        <aside class="notes">
+          Esta es la idea central de la charla. Un experimento no responde solo “¿subió el número?”;
+          también dice dónde está el cuello de botella. Las cuatro flechas son decisiones reales de
+          OsteoLab que ya hemos visto: fotos reales, Grounded-SAM, priorizar hueso plano y no celebrar
+          dos imágenes de diferencia en un test pequeño.
+        </aside>
+      </section>
+
+      <!-- ================= 20. DÓNDE ESTAMOS ================= -->
+      <section class="slide" data-at="31:00" data-title="Dónde estamos">
+        <p class="eyebrow">Resultado actual</p>
+        <h2>Sobre 77 fotos reales que nunca vio</h2>
+        <div class="stats">
+          <div class="stat stat-accent"><span class="stat-value">0.87</span><span class="stat-label">accuracy</span></div>
+          <div class="stat stat-accent"><span class="stat-value">0.83</span><span class="stat-label">balanced accuracy</span></div>
+          <div class="stat"><span class="stat-value">3</span><span class="stat-label">semillas, sin solape con el modelo anterior</span></div>
+        </div>
+        <div class="grid-2">
+          <div class="card"><h3>✅ Muy bien</h3><p>costilla, pelvis y sacro perfectos · hueso largo 0.94 · vértebra 0.89 · cráneo 0.86</p></div>
+          <div class="card card-warn"><h3>⚠️ Todavía flojo</h3><p><strong>hueso plano</strong> (recall 0.25–0.67 según semilla): en 6 corridas, con 3 arquitecturas y 2 datasets. No es el modelo: faltan fotos reales.</p></div>
+        </div>
+        <aside class="notes">
+          Cuando el mismo grupo falla igual con cualquier arquitectura, deja de tocar el modelo y ve a por datos.
+          Hay más de 800 fotos candidatas esperando revisión; hueso plano es la prioridad.
+        </aside>
+      </section>
+
+      <!-- ================= 21. LO QUE NO FUNCIONÓ ================= -->
+      <section class="slide" data-at="32:00" data-title="Lo que no funcionó">
+        <p class="eyebrow">Honestidad</p>
+        <h2>Lo que no funcionó</h2>
+        <ul class="fail-list">
+          <li class="frag"><span class="fail-x">✗</span><div><strong>Mezcla de expertos con puerta aprendida</strong> (<code>gated_hybrid</code>): más parámetros, pérdidas auxiliares… y peor (0.805 vs 0.844).</div></li>
+          <li class="frag"><span class="fail-x">✗</span><div><strong>BlenderProc sustituyendo</strong> al render anterior: mejor en sintético, peor en real. Combinarlos sí ayudó.</div></li>
+          <li class="frag"><span class="fail-x">✗</span><div><strong>Elegir checkpoint con 12 fotos reales</strong>: el proxy subió, el examen bajó, y regaló una clase entera.</div></li>
+          <li class="frag"><span class="fail-x">✗</span><div><strong>Buscar "skull" en Openverse</strong>: diagramas, esculturas y… murciélagos llamados <em>flying fox</em>. Revisa antes de entrenar.</div></li>
+        </ul>
+        <aside class="notes">
+          Todo esto está apuntado en un HISTORIAL.md append-only en el repo: qué se probó, con qué números,
+          y por qué se descartó. Es la herramienta más útil del proyecto y no es código.
+        </aside>
+      </section>
+
+      <!-- ================= 22. PRODUCCIÓN ================= -->
+      <section class="slide" data-at="33:00" data-title="En producción + demo">
+        <p class="eyebrow">De notebook a servicio</p>
+        <h2>Un proyecto de una persona, con MLOps de verdad</h2>
+        <div class="grid-code">
+          <pre class="code"><code class="lang-py">@app.post("/hybrid/classify")
+async def hybrid_classification(file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(400, "El archivo debe ser una imagen")
+    try:
+        return classify_image_two_stage(file.file)
+    except FileNotFoundError as e:   # modelo no entrenado
+        raise HTTPException(503, str(e))
+
+# la web de producto se sirve desde la misma app
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True))</code></pre>
+          <div class="stack">
+            <span><strong>FastAPI</strong> API + web</span>
+            <span><strong>MLflow</strong> + Postgres, cada entrenamiento</span>
+            <span><strong>DVC</strong> datos versionados (6040 ficheros)</span>
+            <span><strong>Docker Compose</strong> <code>./run.sh</code></span>
+            <span><strong>Streamlit</strong> app "Tinder" de revisión de fotos</span>
+            <span><strong>pytest</strong> + GitHub Actions</span>
+          </div>
+        </div>
+        <div class="demo-cta frag">
+          <a class="btn" href="/#probar" target="_blank" rel="noopener">▶ Demo en vivo</a>
+          <span class="muted">Sube una foto → CLIP → geométrico + híbrido + VLM en paralelo</span>
+        </div>
+        <aside class="notes">
+          Demo: abrir /#probar en otra pestaña (ya cargada ANTES de la charla, modelos en caliente).
+          Subir la foto del fémur en vitrina y una de cráneo de roedor para enseñar el taxón.
+          Plan B si falla la red o la GPU: capturas en la pestaña de al lado.
+        </aside>
+      </section>
+
+      <!-- ================= 23. LECCIONES ================= -->
+      <section class="slide" data-at="34:00" data-title="Lecciones">
+        <p class="eyebrow">Para llevarse</p>
+        <h2>Cinco lecciones que no dependen de los huesos</h2>
+        <ol class="lessons">
+          <li class="frag"><strong>Diagnostica el cuello de botella</strong> antes de optimizar el modelo.</li>
+          <li class="frag"><strong>Sintético para arrancar, real para llegar.</strong> Unas pocas fotos reales valen oro.</li>
+          <li class="frag"><strong>Separa por sujeto</strong>, nunca por fila. Y que falle con excepción.</li>
+          <li class="frag"><strong>Balanced accuracy, varias semillas y test pareado</strong> antes de celebrar.</li>
+          <li class="frag"><strong>Mira tus datos.</strong> Visores y apps de revisión baratas encuentran lo que los tests no ven.</li>
+        </ol>
+        <aside class="notes">
+          Cerrar volviendo a la foto del principio: el modelo la clasifica bien, y ahora sabemos
+          cuánto nos podemos fiar de ese "bien".
+        </aside>
+      </section>
+
+      <!-- ================= 24. GRACIAS ================= -->
+      <section class="slide slide-title" data-at="35:00" data-title="Gracias · Preguntas">
+        <p class="eyebrow">Gracias</p>
+        <h1>¿Preguntas?</h1>
+        <p class="subtitle">¿De quién es este hueso? — OsteoLab</p>
+        <div class="speaker">
+          <span class="speaker-name">Francisco Javier Luengo Gutiérrez</span>
+          <span class="speaker-role">Arqueólogo y Machine Learning Engineer</span>
+          <!-- TODO: añadir enlaces reales (repo, LinkedIn, email) antes de la charla -->
+        </div>
+        <p class="footnote">Slides y demo en esta misma web · <strong>2026.es.pycon.org</strong></p>
+        <aside class="notes">
+          5 minutos de preguntas. Preguntas probables: ¿por qué no un VLM directamente? (lo tenemos en la demo
+          como comparación, zero-shot no basta para grupo fino); ¿licencias de mallas y fotos? (todas catalogadas
+          con fuente y licencia, CSV descargable); ¿cuánto cuesta renderizar? (un proceso Blender por espécimen, CPU/GPU local).
+        </aside>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="deck-footer" id="footer">
+    <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="footer-row">
+      <span id="slideCounter">1 / 1</span>
+      <button class="timer" id="timer" type="button" title="T: arrancar/pausar · R: reiniciar">⏱ 00:00</button>
+      <span id="paceInfo" class="pace"></span>
+    </div>
+  </div>
+
+  <div class="notes-panel" id="notesPanel" hidden>
+    <div class="notes-head"><span id="notesTitle"></span><span id="notesNext" class="muted"></span></div>
+    <div id="notesBody" class="notes-body"></div>
+  </div>
+
+  <div class="overview" id="overview" hidden>
+    <div class="overview-grid" id="overviewGrid"></div>
+  </div>
+
+  <script src="/pycon.js"></script>
+</body>
+</html>

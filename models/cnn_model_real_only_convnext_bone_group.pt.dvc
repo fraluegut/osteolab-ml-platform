@@ -1,0 +1,5 @@
+outs:
+- md5: 07a740d8b2866035913e047b7506f2d5
+  size: 111790863
+  hash: md5
+  path: cnn_model_real_only_convnext_bone_group.pt

@@ -1,0 +1,5 @@
+outs:
+- md5: 0fc27fa07fc5ba01c81ad4a2d2d47835
+  size: 111791433
+  hash: md5
+  path: cnn_model_ablation_real50_synth_bone_group.pt

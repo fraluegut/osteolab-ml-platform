@@ -1,0 +1,5 @@
+outs:
+- md5: 4a8b8d359e62baad0430f796ccfb9e71
+  size: 45092479
+  hash: md5
+  path: cnn_model_fine_bone_pilot_bone_fine.pt

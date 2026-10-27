@@ -1,0 +1,5 @@
+outs:
+- md5: 7c9372361189b7e01086e73b51a88d8a
+  size: 45091203
+  hash: md5
+  path: cnn_model_hybrid_old_seed1_bone_group.pt

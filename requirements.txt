@@ -11,6 +11,7 @@ pyyaml
 psycopg2-binary
 streamlit
 requests
+ImageHash
 torch
 torchvision
 transformers

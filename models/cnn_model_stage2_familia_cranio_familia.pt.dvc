@@ -1,0 +1,5 @@
+outs:
+- md5: 9f30bd33f9865d3dc81a176351ac343e
+  size: 45088839
+  hash: md5
+  path: cnn_model_stage2_familia_cranio_familia.pt

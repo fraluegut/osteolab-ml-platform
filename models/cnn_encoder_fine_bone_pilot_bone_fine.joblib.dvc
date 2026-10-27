@@ -1,0 +1,5 @@
+outs:
+- md5: d82823ae8a018fa59334af0f08d518c7
+  size: 624
+  hash: md5
+  path: cnn_encoder_fine_bone_pilot_bone_fine.joblib

@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 
 # Mismo criterio que train_geometric.py: img_width/img_height son constantes (512x512) en
 # entrenamiento y explotan en z-score sobre fotos reales de otra resolución.
-NON_FEATURE_COLS = {"species", "bone", "bone_group", "bone_fine", "taxon", "specimen", "view",
+NON_FEATURE_COLS = {"species", "bone", "bone_group", "bone_fine", "taxon", "familia", "specimen", "view",
                      "source_path", "found", "img_width", "img_height", "segmented_path"}
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -48,7 +48,7 @@ def resolve_source_path(raw_path: str) -> Path:
     return p if p.is_absolute() else (BASE_DIR / p)
 
 
-def build_transform(train: bool) -> v2.Compose:
+def build_transform(train: bool, img_size: int = IMAGE_SIZE) -> v2.Compose:
     """Augmentations reforzadas (2026-07-26, propuesta del usuario): antes
     solo había flip+rotación+color jitter — nada que simule cámara/compresión
     real, así que la CNN nunca veía en entrenamiento el tipo de degradación
@@ -59,7 +59,7 @@ def build_transform(train: bool) -> v2.Compose:
     """
     if train:
         return v2.Compose([
-            v2.RandomResizedCrop(IMAGE_SIZE, scale=(0.85, 1.0), ratio=(0.9, 1.1)),
+            v2.RandomResizedCrop(img_size, scale=(0.85, 1.0), ratio=(0.9, 1.1)),
             v2.RandomHorizontalFlip(),
             v2.RandomRotation(15),
             v2.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.03),
@@ -72,7 +72,7 @@ def build_transform(train: bool) -> v2.Compose:
             v2.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ])
     return v2.Compose([
-        v2.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        v2.Resize((img_size, img_size)),
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
         v2.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
@@ -87,13 +87,13 @@ class BoneImageDataset(Dataset):
     coste de leer/escalar algo que no usa."""
 
     def __init__(self, df: pd.DataFrame, target_col: str, label_encoder,
-                 feature_cols: list[str] | None, scaler, train: bool):
+                 feature_cols: list[str] | None, scaler, train: bool, img_size: int = IMAGE_SIZE):
         self.df = df.reset_index(drop=True)
         self.target_col = target_col
         self.label_encoder = label_encoder
         self.feature_cols = feature_cols
         self.scaler = scaler
-        self.transform = build_transform(train)
+        self.transform = build_transform(train, img_size=img_size)
 
     def __len__(self) -> int:
         return len(self.df)

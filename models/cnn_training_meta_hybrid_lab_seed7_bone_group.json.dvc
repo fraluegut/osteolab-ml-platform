@@ -1,0 +1,5 @@
+outs:
+- md5: 6c2b95287a16a318c1de752943a87a3b
+  size: 783
+  hash: md5
+  path: cnn_training_meta_hybrid_lab_seed7_bone_group.json

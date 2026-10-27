@@ -1,0 +1,5 @@
+outs:
+- md5: c1ce176e5e7106e889c9c5fec250fe72
+  size: 111790989
+  hash: md5
+  path: cnn_model_hybrid_lab_convnext_bone_group.pt

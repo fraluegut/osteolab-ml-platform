@@ -1,0 +1,5 @@
+outs:
+- md5: d38d39303c3c85993ef81916edbe24fd
+  size: 494
+  hash: md5
+  path: cnn_encoder_stage2_taxon_mandibula_maxilar_taxon.joblib

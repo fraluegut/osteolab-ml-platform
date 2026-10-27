@@ -1,0 +1,5 @@
+outs:
+- md5: 0ee8b13107345e87b8c6161da1040991
+  size: 95453827
+  hash: md5
+  path: cnn_model_hybrid_lab_resnet50_bone_group.pt

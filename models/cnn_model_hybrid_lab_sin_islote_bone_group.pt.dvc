@@ -1,0 +1,5 @@
+outs:
+- md5: 968e0cdb50d8306dfb3ee4df7af56dca
+  size: 45091853
+  hash: md5
+  path: cnn_model_hybrid_lab_sin_islote_bone_group.pt

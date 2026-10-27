@@ -1,0 +1,5 @@
+outs:
+- md5: e872e824d54d9c827593d85fb8a19d88
+  size: 607
+  hash: md5
+  path: cnn_encoder_hueso_largo_pilot_bone_fine.joblib

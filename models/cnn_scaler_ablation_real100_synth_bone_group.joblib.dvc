@@ -1,0 +1,5 @@
+outs:
+- md5: f39e6f833606f5f876cc7e2ad164c824
+  size: 2023
+  hash: md5
+  path: cnn_scaler_ablation_real100_synth_bone_group.joblib

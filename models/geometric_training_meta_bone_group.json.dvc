@@ -1,0 +1,5 @@
+outs:
+- md5: 7fd1a4e783d84c10c7141854e880e18d
+  size: 620
+  hash: md5
+  path: geometric_training_meta_bone_group.json

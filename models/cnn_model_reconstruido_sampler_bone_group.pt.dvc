@@ -1,0 +1,5 @@
+outs:
+- md5: 0c2fea252633f63c9a23a91870459674
+  size: 45089163
+  hash: md5
+  path: cnn_model_reconstruido_sampler_bone_group.pt

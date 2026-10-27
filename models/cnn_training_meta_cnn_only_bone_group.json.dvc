@@ -1,0 +1,5 @@
+outs:
+- md5: 79a61593f1b6f042cb19b793c5b32686
+  size: 544
+  hash: md5
+  path: cnn_training_meta_cnn_only_bone_group.json

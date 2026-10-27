@@ -1,0 +1,5 @@
+outs:
+- md5: d89c4be41b987ac02e6312315bc9a786
+  size: 2023
+  hash: md5
+  path: cnn_scaler_real_only_bone_group.joblib

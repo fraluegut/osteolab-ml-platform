@@ -1,0 +1,6 @@
+outs:
+- md5: 815a9cb39dbe9e37655419ea794fc0d4.dir
+  size: 73596605
+  nfiles: 296
+  hash: md5
+  path: stage2_familia_cranio_viewer

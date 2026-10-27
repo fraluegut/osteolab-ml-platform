@@ -5,16 +5,16 @@ stages:
     deps:
     - path: data/processed/bone_geometric_features.csv
       hash: md5
-      md5: 3f62b53a5a1c555e95ca142f20a9edf6
-      size: 1819455
+      md5: 8441c3b4c2dba78e1bfc15c4a2eb7c0f
+      size: 2081586
     - path: shared/cv_extractor/extract.py
       hash: md5
-      md5: b100a32d4a2e9175d7016673f8fe352f
-      size: 33755
+      md5: f20f9d3c8d71c87716b12c460ab25920
+      size: 45017
     - path: training/train_geometric.py
       hash: md5
-      md5: a28d8d498440f27babbbbdbe85c1641a
-      size: 15243
+      md5: 6dfed25587ce506f67817f7bd915e572
+      size: 14213
     params:
       params.yaml:
         geometric_dataset:
@@ -29,21 +29,21 @@ stages:
     outs:
     - path: data/processed/bone_geometric_pca_reference.csv
       hash: md5
-      md5: 7361e6e2e31e840866310b7c65d805c5
-      size: 264526
+      md5: bd202e8ec0eb56de39853089c5c9cde0
+      size: 278566
     - path: models/geometric_encoder_bone_group.joblib
       hash: md5
       md5: 47283e71fe56d7e6d672710f47762737
       size: 585
     - path: models/geometric_feature_columns_bone_group.joblib
       hash: md5
-      md5: 1b480a8c12521e3a2da5cee672a8a3d0
-      size: 593
+      md5: c53073a61e732b71c4590871f9d6d994
+      size: 692
     - path: models/geometric_model_bone_group.joblib
       hash: md5
-      md5: 1a167bb9fe13ebd7d1156b1b536017a0
-      size: 22925937
+      md5: 0ee0951483ec5ca22e570c33d66208b1
+      size: 28137457
     - path: models/geometric_pca_pipeline.joblib
       hash: md5
-      md5: 815dc9741322af7675f78fae72b1d539
-      size: 4049
+      md5: b33a1cb04fb5f8fa1cb5fd6df3ba9cd3
+      size: 4305

@@ -1,0 +1,5 @@
+outs:
+- md5: 036aae96f1d129b9a3618e769e060404
+  size: 45092763
+  hash: md5
+  path: cnn_model_reconstruido_multi_instancia_bone_group.pt

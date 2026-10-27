@@ -1,0 +1,5 @@
+outs:
+- md5: 7d58e880cf87fe606b7620f238cce10d
+  size: 45091853
+  hash: md5
+  path: cnn_model_hybrid_lab_cranio_div_bone_group.pt

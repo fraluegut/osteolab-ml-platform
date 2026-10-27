@@ -1,0 +1,17 @@
+fichero,origen,fuente
+renders/01_femur.png,base_datos_osea/renders/homo_sapiens/femur/sketchfab_0647ff9a00924f40a06e08361cea176c/homo_sapiens_femur_sketchfab_0647ff9a00924f40a06e08361cea176c_view023.png,"render propio (Blender, fase 1 limpia)"
+renders/02_humerus.png,base_datos_osea/renders/homo_sapiens/humerus/sketchfab_548132dc5a0a423581e2cba2014ea521/homo_sapiens_humerus_sketchfab_548132dc5a0a423581e2cba2014ea521_view023.png,"render propio (Blender, fase 1 limpia)"
+renders/03_cranium.png,base_datos_osea/renders/homo_sapiens/cranium/sketchfab_c39855833ff74943a2847972c9ff8700/homo_sapiens_cranium_sketchfab_c39855833ff74943a2847972c9ff8700_view007.png,"render propio (Blender, fase 1 limpia)"
+renders/04_mandible.png,base_datos_osea/renders/homo_sapiens/mandible/sketchfab_cb5f3a27ba924a26b86a073178179fa8/homo_sapiens_mandible_sketchfab_cb5f3a27ba924a26b86a073178179fa8_view008.png,"render propio (Blender, fase 1 limpia)"
+renders/05_rib.png,base_datos_osea/renders/homo_sapiens/rib/sketchfab_cf67ae5ec5df432883667c34f29f7d6e/homo_sapiens_rib_sketchfab_cf67ae5ec5df432883667c34f29f7d6e_view001.png,"render propio (Blender, fase 1 limpia)"
+renders/06_vertebra.png,base_datos_osea/renders/homo_sapiens/vertebra/sketchfab_26187e5e5a05475691e8ebf73e880546/homo_sapiens_vertebra_sketchfab_26187e5e5a05475691e8ebf73e880546_view023.png,"render propio (Blender, fase 1 limpia)"
+renders/07_sacrum.png,base_datos_osea/renders/homo_sapiens/sacrum/sketchfab_eecdb1ffbeca440b87cb3ca9760e7dc8/homo_sapiens_sacrum_sketchfab_eecdb1ffbeca440b87cb3ca9760e7dc8_view019.png,"render propio (Blender, fase 1 limpia)"
+renders/08_pelvis.png,base_datos_osea/renders/homo_sapiens/pelvis/sketchfab_10f950afa4284019a1d744ac14b6cf90/homo_sapiens_pelvis_sketchfab_10f950afa4284019a1d744ac14b6cf90_view006.png,"render propio (Blender, fase 1 limpia)"
+fotos_reales/01_hueso_largo_humero_01.jpg,data/real_world_benchmark/hueso_largo/hueso_largo_humero_01.jpg,https://commons.wikimedia.org/wiki/File:Humerus_-_anterior.jpg
+fotos_reales/02_cranio_07.jpg,data/real_world_benchmark/cranio/cranio_07.jpg,https://commons.wikimedia.org/wiki/File:Dead_human_skull.jpg
+fotos_reales/03_mandibula_06.jpg,data/real_world_benchmark/mandibula_maxilar/mandibula_06.jpg,https://commons.wikimedia.org/wiki/File:Bos_sp._(cow)_mandible_1_(32716582897).jpg
+fotos_reales/04_vertebra_08.jpg,data/real_world_benchmark/vertebra/vertebra_08.jpg,https://commons.wikimedia.org/wiki/File:V%C3%A9rtebra_-_7708162994.jpg
+fotos_reales/05_cranio_02.jpg,data/real_world_benchmark/cranio/cranio_02.jpg,https://commons.wikimedia.org/wiki/File:Anthroplogy_-_human_skull_of_a_boy.JPG
+fotos_reales/06_pelvis_04.jpg,data/real_world_benchmark/pelvis/pelvis_04.jpg,https://commons.wikimedia.org/wiki/File:Coxal_bone.jpg
+fotos_reales/07_vertebra_02.jpg,data/real_world_benchmark/vertebra/vertebra_02.jpg,https://commons.wikimedia.org/wiki/File:Lumbar_vertebrae2.jpg
+fotos_reales/08_costilla_03.jpg,data/real_world_benchmark/costilla/costilla_03.jpg,https://commons.wikimedia.org/wiki/File:Costa_-_articular_facet_(detail).jpg

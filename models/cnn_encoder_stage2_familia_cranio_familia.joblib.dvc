@@ -1,0 +1,5 @@
+outs:
+- md5: 51f8d1c4911eb7ee484479202b215381
+  size: 510
+  hash: md5
+  path: cnn_encoder_stage2_familia_cranio_familia.joblib

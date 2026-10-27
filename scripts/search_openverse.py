@@ -21,9 +21,19 @@ Uso:
 """
 import argparse
 import csv
+import sys
+import tempfile
 from pathlib import Path
 
 import requests
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from photo_dedupe import (  # noqa: E402
+    compute_phash,
+    is_duplicate_of_known,
+    load_accepted_hashes,
+    load_review_pending_hashes,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REVIEW_DIR = BASE_DIR / "data/real_photos_review"
@@ -66,6 +76,14 @@ def main():
     results = search(args.query, args.license_type, args.n)
     print(f"{len(results)} resultados de Openverse para {args.query!r}")
 
+    # phash de todo lo ya aceptado + lo que sigue pendiente de revisar (no de
+    # lo ya rechazado/dudoso -- descartar aposta no debería bloquear volver a
+    # verlo si aparece en otra búsqueda) -- evita bajar dos veces el mismo
+    # stock photo con otro id de Openverse, o repetir una que ya se aceptó.
+    known_hashes = [r["phash"] for r in load_accepted_hashes()]
+    known_hashes += [r["phash"] for r in load_review_pending_hashes()]
+    print(f"{len(known_hashes)} fotos ya conocidas (aceptadas + pendientes) para chequeo anti-duplicado")
+
     new_rows = []
     for r in results:
         img_url = r.get("url")
@@ -83,7 +101,18 @@ def main():
             print(f"  AVISO: fallo descargando {img_url}: {exc}")
             continue
 
+        with tempfile.NamedTemporaryFile(suffix=ext) as tmp:
+            tmp.write(resp.content)
+            tmp.flush()
+            tmp_path = Path(tmp.name)
+            if is_duplicate_of_known(tmp_path, known_hashes):
+                print(f"  SALTADO (duplicado/casi igual a una ya conocida): {filename}  {r.get('title', '')}")
+                continue
+            new_hash = compute_phash(tmp_path)
+
         (out_dir / filename).write_bytes(resp.content)
+        if new_hash is not None:
+            known_hashes.append(new_hash)  # también deduplica DENTRO de esta misma búsqueda
         license_str = f"{r.get('license', '')} {r.get('license_version', '')}".strip()
         new_rows.append({
             "bone_group": args.bone_group,

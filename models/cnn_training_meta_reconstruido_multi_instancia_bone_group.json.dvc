@@ -1,0 +1,5 @@
+outs:
+- md5: 842a2c0f2f4c741ebdcbc597d5b6c8c7
+  size: 841
+  hash: md5
+  path: cnn_training_meta_reconstruido_multi_instancia_bone_group.json

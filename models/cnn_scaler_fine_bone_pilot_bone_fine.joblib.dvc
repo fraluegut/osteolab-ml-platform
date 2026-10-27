@@ -1,0 +1,5 @@
+outs:
+- md5: d8098b33dbd195a900fa4d820934affa
+  size: 2023
+  hash: md5
+  path: cnn_scaler_fine_bone_pilot_bone_fine.joblib

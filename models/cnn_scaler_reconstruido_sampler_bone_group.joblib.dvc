@@ -1,0 +1,5 @@
+outs:
+- md5: 663a5495c4e72b3f20c08c5374c9befd
+  size: 1887
+  hash: md5
+  path: cnn_scaler_reconstruido_sampler_bone_group.joblib

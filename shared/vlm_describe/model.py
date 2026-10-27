@@ -75,6 +75,13 @@ def load_qwen():
             bnb_4bit_quant_type="nf4",
         )
         kwargs["device_map"] = "auto"
+    else:
+        # bitsandbytes 4-bit no funciona en CPU -- sin esto, from_pretrained
+        # carga en fp32 por defecto: ~28GB para un modelo de 7B, más que la
+        # RAM total de una VPS compartida típica. bf16 lo deja en ~14GB,
+        # instalable pero sigue siendo pesado -- se asume que este path solo
+        # se usa en despliegues temporales de un solo servicio por host.
+        kwargs["torch_dtype"] = torch.bfloat16
 
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(QWEN_MODEL_NAME, **kwargs)
     if device.type != "cuda":

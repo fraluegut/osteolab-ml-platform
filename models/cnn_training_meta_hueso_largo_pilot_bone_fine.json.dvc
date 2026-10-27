@@ -1,0 +1,5 @@
+outs:
+- md5: b118b4d69964ef9139719c4d38b50b79
+  size: 771
+  hash: md5
+  path: cnn_training_meta_hueso_largo_pilot_bone_fine.json

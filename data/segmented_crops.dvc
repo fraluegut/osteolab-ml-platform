@@ -1,6 +1,6 @@
 outs:
-- md5: d7e630947cec1e9e3f9156f9d0e487b6.dir
-  size: 215203193
-  nfiles: 4758
+- md5: f072477c5a061d37b6b746562835e868.dir
+  size: 286200660
+  nfiles: 6132
   hash: md5
   path: segmented_crops

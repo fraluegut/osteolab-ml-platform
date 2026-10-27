@@ -1,0 +1,5 @@
+outs:
+- md5: 6ebf4c3a6af778b90dba49e15e11f0b0
+  size: 45059379
+  hash: md5
+  path: cnn_model_cnn_only_bone_group.pt

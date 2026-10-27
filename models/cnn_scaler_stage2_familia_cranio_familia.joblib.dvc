@@ -1,0 +1,5 @@
+outs:
+- md5: 890193b3bc684498d21555ad2d16067f
+  size: 2023
+  hash: md5
+  path: cnn_scaler_stage2_familia_cranio_familia.joblib
