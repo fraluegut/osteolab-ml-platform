@@ -32,6 +32,7 @@ MLFLOW_URL = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 # que entrena ese experto en concreto -- para poder listar sus reentrenamientos
 # en MLflow (nombre, fecha, metricas) desde el propio explorador.
 ROOT_MLFLOW_RUN_NAME = {
+    "stage1_bone_group": "hybrid_lab",
     "stage2_familia_cranio": "stage2_familia_cranio",
     "stage2_taxon_cranio": "stage2_taxon_cranio",
 }
@@ -48,12 +49,18 @@ THUMB_SIZE = 320
 # (clave, sección, nombre, etiqueta, ruta relativa al repo, descripción)
 # etiqueta: "actual" = lo que usa el modelo hoy, "descartado", o "".
 ROOTS = [
-    ("stage2_familia_cranio", "Expertos stage2", "Cráneo · familia (versión vieja)", "descartado",
+    ("stage1_bone_group", "Fase 1 · Grupo osteológico", "Grupo osteológico (hybrid_lab)", "actual",
+     "data/stage1_bone_group_viewer",
+     "Exactamente lo que entrena/mide la etapa 1 (los 9 grupos) -- carpetas train/test, dentro "
+     "por grupo, dentro por origen (sintetico/real): el filtro sintetico/real/mezclado es "
+     "navegar a esa subcarpeta o quedarse en la del grupo para ver ambos juntos. Regenerar con "
+     "scripts/build_stage1_bone_group_viewer.py tras cambiar el dataset."),
+    ("stage2_familia_cranio", "Fase 2 · Afinado dentro del grupo", "Cráneo · familia (versión vieja)", "descartado",
      "data/stage2_familia_cranio_viewer",
      "Iteracion anterior del experto de craneo (cánido/suido/équido/humano) -- NO esta en "
      "produccion, predict_two_stage.py no lo referencia. Sustituido por 'Cráneo · taxón' "
      "(stage2_taxon_cranio), el unico experto de etapa 3 para craneo que corre hoy."),
-    ("stage2_taxon_cranio", "Expertos stage2", "Cráneo · taxón", "actual",
+    ("stage2_taxon_cranio", "Fase 2 · Afinado dentro del grupo", "Cráneo · taxón", "actual",
      "data/stage2_taxon_cranio_viewer",
      "Exactamente lo que entrena/mide este experto -- original + recorte segmentado "
      "(lo que de verdad ve la CNN), separado train/test y por taxón. Regenerar con "

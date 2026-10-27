@@ -1,0 +1,6 @@
+outs:
+- md5: 1bf9b653ed49c260bbbb0424f44b5f09.dir
+  size: 523871570
+  nfiles: 4039
+  hash: md5
+  path: stage1_bone_group_viewer
