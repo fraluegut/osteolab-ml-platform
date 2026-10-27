@@ -1,5 +1,5 @@
 outs:
-- md5: ae68a745d1c51cb26705fa49707458ff
+- md5: e5180c7152686132137a28b6e5b86f58
   size: 762
   hash: md5
   path: cnn_training_meta_stage2_taxon_cranio_taxon.json

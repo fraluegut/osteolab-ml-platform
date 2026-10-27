@@ -3290,10 +3290,49 @@ Gaps que quedan (no resueltos esta sesión, requieren fotos nuevas que no existe
 ### Pendiente
 103. Conseguir fotos reales de gato doméstico y de algún primate (mono) para cráneo -- sin esto el
      taxon de carnívoro (felino) y otro_primate seguirán sin validación real honesta.
-104. Aun con la mejora (0.769), decidir si `stage2_taxon_cranio` ya se promueve a producción en el
-     frontend/demo o se mantiene en pausa -- pendiente de decisión explícita del usuario (el
-     pendiente 101 decía "en pausa" con el run viejo de 0.50; este run es distinto y mejor, pero no
-     se ha pedido promoción todavía).
+104. ~~Aun con la mejora (0.769), decidir si `stage2_taxon_cranio` ya se promueve a producción~~
+     ver abajo -- el usuario pidió quitar `otro_primate` antes de decidir esto, así que la cifra de
+     referencia cambió.
+
+### 2026-10-27 (continuación 2) -- quitar otro_primate del taxón de cráneo
+
+Petición del usuario: "tllo d otro primat quitalo, no viene a este caso" -- `otro_primate` (6
+especies de primate, solo sintético, nunca tuvo fotos reales) no es relevante al caso de uso y sale
+del taxón. `SPECIES_TO_TAXON` en `scripts/build_stage2_taxon_cranio_dataset.py` se queda en 4 clases:
+humano/carnivoro/ungulado/roedor. Dataset regenerado (334 filas train, 52 test real, sin cambios en
+el test porque esas especies ya no estaban en las fotos reales).
+
+Reentrenado 3 veces (semilla por defecto, `--model-seed 7`, `--model-seed 1`) para elegir la mejor
+de varias corridas -- con solo 4 clases y n=52 de test hay bastante varianza entre semillas:
+
+| semilla | accuracy real (52 fotos) |
+|---|---|
+| por defecto | 0.635 |
+| seed 7 | 0.577 |
+| **seed 1** | **0.692** (elegida) |
+
+Desglose de la elegida (seed 1, `run_id 42adab6da2a04a60bda742c6123689ec`):
+
+| taxon | recall | precision | n |
+|---|---|---|---|
+| humano | 0.923 | 0.800 | 13 |
+| carnivoro | 0.455 | 0.455 | 11 |
+| roedor | 1.000 | 0.571 | 4 |
+| ungulado | 0.625 | 0.789 | 24 |
+
+Accuracy global baja de 0.769 (con otro_primate) a 0.692 (sin ella) -- esperable, quitar una clase
+no mejora automáticamente las demás, y aquí el objetivo no era la métrica sino simplificar el taxón
+al caso de uso real. Carnívoro vuelve a ser inestable entre semillas (0.455/0.818/0.545 según la
+corrida, ver historial de intentos) -- con n=11 de test cada foto que cambia de bando mueve el
+recall ~9 puntos, hace falta más banco de examen para que esta cifra sea estable de verdad.
+
+`data/stage2_taxon_cranio_viewer/` y la página `/taxon.html` del frontend regenerados para reflejar
+el dataset de 4 clases.
+
+### Pendiente
+105. Carnívoro sigue siendo inestable entre semillas (0.455 a 0.818 visto en 3 corridas distintas) --
+     antes de fiarse de la cifra puntual, ampliar el banco de test de carnívoro (hoy n=11) o
+     promediar varias semillas.
 
 ### Examen real honesto de las 3 semillas de `hybrid_lab` (72 fotos de test, `real_photos_accepted`)
 

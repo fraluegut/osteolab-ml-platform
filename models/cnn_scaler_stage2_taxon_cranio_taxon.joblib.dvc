@@ -1,5 +1,5 @@
 outs:
-- md5: 61414e16c1906a74340429014ea8f6a2
+- md5: 40d444dcaf4f7726611d3511b0f8006d
   size: 2023
   hash: md5
   path: cnn_scaler_stage2_taxon_cranio_taxon.joblib

@@ -1,5 +1,5 @@
 outs:
-- md5: b61ef692102cc42c67630a7998218490
-  size: 45088831
+- md5: e3a11bd85e9337415664c722256bd0df
+  size: 45088319
   hash: md5
   path: cnn_model_stage2_taxon_cranio_taxon.pt

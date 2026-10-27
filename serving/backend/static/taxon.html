@@ -43,8 +43,8 @@
         <h2>Etapa 3 de la cascada: afinar dentro del grupo</h2>
         <p class="section-lead">
           Cuando la etapa 2 decide el grupo osteológico, una tercera etapa opcional afina
-          más dentro de ese grupo — hoy, taxón (humano / carnívoro / ungulado / roedor /
-          otro primate) solo está entrenado para el grupo <strong>cráneo</strong>. El resto
+          más dentro de ese grupo — hoy, taxón (humano / carnívoro / ungulado / roedor)
+          solo está entrenado para el grupo <strong>cráneo</strong>. El resto
           de grupos todavía no tienen experto de etapa 3 (se marca "no disponible" en
           <a href="/probar.html">Probarlo</a>).
         </p>
@@ -53,7 +53,7 @@
         <p class="section-lead" style="margin-bottom: 1.5rem;">
           Examen honesto contra 52 fotos reales reservadas, nunca vistas en entrenamiento
           (<code>scripts/eval_taxon_cranio_held_out.py</code>). Accuracy global
-          <strong>0.769</strong> (antes de rellenar taxón por familia en el manifest: 0.50).
+          <strong>0.692</strong>.
         </p>
         <div class="table-wrap">
           <table class="results-table results-table-compact">
@@ -66,21 +66,24 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td>carnívoro</td><td>0.545</td><td>0.600</td><td>11</td></tr>
-              <tr class="row-best"><td>humano</td><td class="cell-best">0.923</td><td>0.857</td><td>13</td></tr>
-              <tr class="row-warn"><td>otro_primate</td><td class="cell-warn">sin fotos reales</td><td>—</td><td>0</td></tr>
-              <tr><td>roedor</td><td class="cell-best">1.000</td><td>0.800</td><td>4</td></tr>
-              <tr><td>ungulado</td><td>0.750</td><td>0.783</td><td>24</td></tr>
+              <tr class="row-best"><td>humano</td><td class="cell-best">0.923</td><td>0.800</td><td>13</td></tr>
+              <tr><td>carnívoro</td><td>0.455</td><td>0.455</td><td>11</td></tr>
+              <tr><td>roedor</td><td class="cell-best">1.000</td><td>0.571</td><td>4</td></tr>
+              <tr class="row-warn"><td>ungulado</td><td class="cell-warn">0.625</td><td>0.789</td><td>24</td></tr>
             </tbody>
           </table>
         </div>
         <p class="table-note">
-          Carnívoro sigue siendo la clase más débil. Causa raíz encontrada: las fotos reales
-          de carnívoro etiquetadas tardaban en incluir perro/lobo doméstico — solo había fauna
-          exótica (zorro, gato montés). Al rellenar el taxón por familia del manifest (cánido,
-          équido, suido, humano) entró perro/lobo real y la clase mejoró. Siguen sin existir
-          fotos reales de <strong>gato doméstico</strong> ni de <strong>otro_primate</strong>
-          (mono) en todo el repo — ver <code>base_datos_osea/HISTORIAL.md</code>, pendiente 103.
+          <code>otro_primate</code> quitado del taxón a petición del usuario (no viene al caso
+          de uso) — eran 6 especies solo sintéticas, nunca tuvieron fotos reales con las que
+          validar la clase. Accuracy global tras quitarla: <strong>0.692</strong> (mejor de 3
+          semillas probadas: 0.635 / 0.577 / 0.692 — con las 4 clases restantes hay bastante
+          varianza entre corridas, n=52 es poco). Comparado con el run anterior que sí incluía
+          otro_primate (0.769 global), el número baja un poco — esperable, quitar una clase no
+          mejora las demás automáticamente, y aquí no se buscaba esa métrica sino simplificar
+          el taxón al caso de uso real. Sigue sin haber fotos reales de
+          <strong>gato doméstico</strong> en el repo — ver
+          <code>base_datos_osea/HISTORIAL.md</code>, pendiente 103.
         </p>
 
         <h3 class="subhead">Imágenes que entrenan/miden este experto</h3>

@@ -40,12 +40,8 @@ SPECIES_TO_TAXON = {
     "equus_caballus": "ungulado",
     "odocoileus_sp.": "ungulado",
     "odocoileus_virginianus": "ungulado",
-    "alouatta_palliata": "otro_primate",
-    "gorilla_gorilla_gorilla": "otro_primate",
-    "macaca_sylvanus": "otro_primate",
-    "pan_troglodytes_verus": "otro_primate",
-    "pongo_sp.": "otro_primate",
-    "symphalangus_syndactylus": "otro_primate",
+    # otro_primate quitado a peticion del usuario (2026-10-27): no viene al caso de uso,
+    # y nunca tuvo fotos reales para validarlo (ver HISTORIAL.md, pendiente 103).
 }
 
 
