@@ -1,7 +1,9 @@
 from pathlib import Path
 
 import csv
+import hashlib
 import io
+import json
 
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
@@ -21,6 +23,23 @@ app = FastAPI(title="OsteoLab", version="0.2.0")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 REPO_ROOT = Path(__file__).resolve().parents[2]
+PHOTO_HASH_INDEX_PATH = REPO_ROOT / "data/processed/photo_hash_index.json"
+_photo_hash_index_cache = None
+
+
+def _load_photo_hash_index() -> dict:
+    """Carga data/processed/photo_hash_index.json (sha256 -> dataset/split),
+    construido con scripts/build_photo_hash_index.py. Cacheado en memoria --
+    el índice solo cambia cuando se reconstruye a mano, no en cada request.
+    """
+    global _photo_hash_index_cache
+    if _photo_hash_index_cache is None:
+        if PHOTO_HASH_INDEX_PATH.exists():
+            with open(PHOTO_HASH_INDEX_PATH) as f:
+                _photo_hash_index_cache = json.load(f)
+        else:
+            _photo_hash_index_cache = {}
+    return _photo_hash_index_cache
 
 
 @app.get("/health")
@@ -83,6 +102,26 @@ async def hybrid_classification(file: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/leak-check")
+async def leak_check(file: UploadFile = File(...)):
+    """¿Esta foto ya la usamos en entrenamiento o examen? Hash sha256 del
+    fichero subido contra `data/processed/photo_hash_index.json` (indexa
+    `real_photos_accepted` + `real_world_benchmark`, ver
+    scripts/build_photo_hash_index.py) -- identifica la foto aunque cambie
+    de nombre, a diferencia de comparar por filename.
+
+    Pedido del usuario al desplegar el frontend de demo (2026-10-27): si
+    alguien sube una foto del propio banco de entrenamiento/examen sin darse
+    cuenta, que la UI lo diga en vez de aparentar una prueba "nueva".
+    """
+    raw = await file.read()
+    digest = hashlib.sha256(raw).hexdigest()
+    match = _load_photo_hash_index().get(digest)
+    if match is None:
+        return {"seen_before": False}
+    return {"seen_before": True, **match}
 
 
 @app.post("/explain/gradcam")
@@ -296,6 +335,34 @@ def ingest_flag_review(item_id: str):
     return item
 
 
+@app.get("/catalog/taxon-cranio-images")
+def catalog_taxon_cranio_images():
+    """Imagenes que entrenan/miden stage2_taxon_cranio (ver
+    data/stage2_taxon_cranio_viewer/, scripts/build_stage2_taxon_cranio_viewer.py),
+    agrupadas por split/taxon -- para el apartado "Taxon > Craneo" del frontend."""
+    viewer_dir = REPO_ROOT / "data" / "stage2_taxon_cranio_viewer"
+    groups = {}
+    if viewer_dir.is_dir():
+        for split_dir in sorted(viewer_dir.iterdir()):
+            if not split_dir.is_dir():
+                continue
+            for taxon_dir in sorted(split_dir.iterdir()):
+                if not taxon_dir.is_dir():
+                    continue
+                key = f"{split_dir.name}/{taxon_dir.name}"
+                files = sorted(
+                    f.name for f in taxon_dir.iterdir()
+                    if f.is_file() and "_original" in f.name
+                )
+                groups[key] = {
+                    "split": split_dir.name,
+                    "taxon": taxon_dir.name,
+                    "count": len(files),
+                    "files": files,
+                }
+    return {"groups": groups}
+
+
 @app.get("/catalog/specimens")
 def catalog_list():
     """Los 122 especímenes 3D curados (Sketchfab + MorphoSource + Smithsonian),
@@ -335,6 +402,10 @@ def catalog_csv():
 _renders_dir = REPO_ROOT / "base_datos_osea" / "renders"
 if _renders_dir.is_dir():
     app.mount("/catalog-renders", StaticFiles(directory=_renders_dir), name="catalog_renders")
+
+_taxon_cranio_viewer_dir = REPO_ROOT / "data" / "stage2_taxon_cranio_viewer"
+if _taxon_cranio_viewer_dir.is_dir():
+    app.mount("/taxon-cranio-images", StaticFiles(directory=_taxon_cranio_viewer_dir), name="taxon_cranio_images")
 
 # Montado al final: las rutas de arriba (API) se resuelven primero, esto solo
 # atrapa lo que no matchea ninguna — sirve la web de producto (serving/backend/static/)

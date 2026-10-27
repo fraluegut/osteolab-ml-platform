@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Probarlo · OsteoLab</title>
+  <meta name="description" content="Sube una foto de un hueso y mira la cascada de clasificación de OsteoLab en acción: ¿es hueso? → grupo osteológico → afinado (taxón / hueso concreto)." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta is-current">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Probarlo</p>
+        <h2>Sube una foto de un hueso</h2>
+        <p class="section-lead">
+          La clasificación es una cascada de 3 etapas, no un modelo único: primero el filtro
+          CLIP decide si hay un hueso en la foto; si lo confirma, el grupo osteológico sale de
+          3 modelos en paralelo (geométrico, híbrido CNN y un VLM zero-shot); y si el grupo lo
+          permite, una tercera etapa afina dentro de él (taxón en cráneo, hueso concreto en
+          otros grupos). Ninguna imagen se guarda de forma permanente.
+        </p>
+
+        <div class="demo-panel">
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Subir imagen">
+            <input type="file" id="fileInput" accept="image/png,image/jpeg" hidden />
+            <div id="dropzoneEmpty" class="dropzone-empty">
+              <span class="dropzone-icon">📷</span>
+              <p><strong>Arrastra una imagen</strong> o haz clic para elegirla</p>
+              <p class="dropzone-hint">JPG o PNG</p>
+            </div>
+            <img id="previewImage" class="preview-image" alt="Vista previa" hidden />
+          </div>
+
+          <div class="demo-actions">
+            <button id="analyzeBtn" class="btn btn-primary" disabled>Analizar imagen</button>
+            <button id="resetBtn" class="btn btn-ghost" hidden>Analizar otra</button>
+          </div>
+
+          <div id="demoStatus" class="demo-status" hidden></div>
+
+          <div class="leak-banner" id="leakBanner" hidden></div>
+
+          <!-- Árbol de 3 etapas: cada una es una tarjeta grande que contiene, dentro, las
+               tarjetas de detalle de esa etapa. Pedido explícito del usuario (2026-10-27):
+               nada de resultados planos en una sola rejilla -- que se vea como un árbol. -->
+          <div class="stage-tree" id="stageTree" hidden>
+
+            <div class="stage-card" id="stageBone">
+              <div class="stage-card-header">
+                <span class="stage-num">1</span>
+                <h3>¿Es un hueso?</h3>
+                <span class="stage-badge" id="stageBoneBadge">esperando…</span>
+              </div>
+              <div class="stage-card-body" id="stageBoneBody">
+                <p class="stage-card-note">Filtro CLIP zero-shot — si dice que no, el resto de la cascada ni se llama.</p>
+              </div>
+            </div>
+
+            <div class="stage-card" id="stageGroup" hidden>
+              <div class="stage-card-header">
+                <span class="stage-num">2</span>
+                <h3>Grupo osteológico</h3>
+                <span class="stage-badge" id="stageGroupBadge">esperando…</span>
+              </div>
+              <p class="stage-card-note">3 modelos en paralelo — el híbrido es el que decide a qué grupo pasa la etapa 3.</p>
+              <div class="inner-cards">
+                <div class="inner-card" id="cardGeometric">
+                  <h4>📐 Geométrico</h4>
+                  <div class="result-body"></div>
+                </div>
+                <div class="inner-card is-primary" id="cardHybrid">
+                  <h4>🧬 CNN Híbrido <span class="badge">mejor modelo</span></h4>
+                  <div class="result-body"></div>
+                </div>
+                <div class="inner-card" id="cardQwen">
+                  <h4>💬 Qwen2.5-VL 7B <span class="tag">VLM zero-shot</span></h4>
+                  <div class="result-body"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stage-card" id="stageExpert" hidden>
+              <div class="stage-card-header">
+                <span class="stage-num">3</span>
+                <h3 id="stageExpertTitle">Afinando dentro del grupo</h3>
+                <span class="stage-badge" id="stageExpertBadge">esperando…</span>
+              </div>
+              <div class="stage-card-body" id="stageExpertBody"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+      <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/demo.js"></script>
+</body>
+</html>

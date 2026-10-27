@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Identificación manual · OsteoLab</title>
+  <meta name="description" content="Cola de huesos con nombre ambiguo pendientes de revisión manual." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html" class="is-current">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+<section id="identificacion-manual" class="section section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Identificación manual</p>
+        <h2>¿Qué hueso es este?</h2>
+        <p class="section-lead">
+          Cola de huesos con nombre ambiguo o desconocido — el nombre del autor no
+          mapeó con confianza a ninguno de los 9 grupos. Elegí el grupo correcto o
+          descartalo si no sirve.
+        </p>
+
+        <div id="tinderEmpty" class="tinder-empty">No hay nada pendiente de revisión ahora mismo.</div>
+
+        <div id="tinderStack" class="tinder-stack" hidden>
+          <p class="tinder-progress" id="tinderProgress"></p>
+          <div class="tinder-card">
+            <img id="tinderImg" class="tinder-img" src="" alt="" data-zoomable />
+            <div class="tinder-meta">
+              <span id="tinderName" class="tinder-name"></span>
+              <span id="tinderDims" class="tinder-dims"></span>
+            </div>
+          </div>
+          <div class="tinder-groups" id="tinderGroups"></div>
+          <button id="tinderDiscard" class="btn btn-ghost">Descartar (no sirve)</button>
+        </div>
+      </div>
+    </section>
+    <div class="lightbox" id="lightbox" hidden>
+      <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+      <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/tinder.js"></script>
+</body>
+</html>

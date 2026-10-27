@@ -1,0 +1,6 @@
+outs:
+- md5: 5cd6675125fd38abd480ea50348c0c8a.dir
+  size: 128758167
+  nfiles: 538
+  hash: md5
+  path: stage2_taxon_cranio_viewer

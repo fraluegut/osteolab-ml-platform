@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resultados · OsteoLab</title>
+  <meta name="description" content="Rendimiento de los 4 modelos de grupo morfológico sobre fotos reales." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html" class="is-current">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+<section id="resultados" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Resultados</p>
+        <h2>Rendimiento sobre fotos reales</h2>
+        <p class="section-lead">
+          El examen que de verdad importa no es el banco de renders limpios (optimista,
+          porque comparte distribución con el entrenamiento) sino un banco aparte de
+          fotografías reales de huesos, nunca vistas por ningún modelo. Esta tabla
+          compara los cuatro enfoques probados, antes y después de sumar fotos reales al
+          entrenamiento.
+        </p>
+
+        <div class="table-wrap">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Modelo</th>
+                <th>Descripción</th>
+                <th>Accuracy · solo síntesis <span class="tag">histórico</span></th>
+                <th>Accuracy · + fotos reales <span class="tag">re-verificado hoy</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Geométrico</td>
+                <td>RandomForest sobre medidas OpenCV</td>
+                <td>0.5185</td>
+                <td class="cell-highlight">0.5439</td>
+              </tr>
+              <tr>
+                <td>CNN</td>
+                <td>ResNet18 sobre píxeles del recorte segmentado</td>
+                <td>0.5741</td>
+                <td class="cell-highlight">0.6842</td>
+              </tr>
+              <tr class="row-best">
+                <td>Híbrido<span class="badge">mejor modelo</span></td>
+                <td>CNN + medidas geométricas concatenadas</td>
+                <td>0.6852</td>
+                <td class="cell-highlight cell-best">0.7719</td>
+              </tr>
+              <tr>
+                <td>Cascada</td>
+                <td>Regla de elongación → hueso largo; resto → híbrido</td>
+                <td>0.6296</td>
+                <td class="cell-highlight">0.7719</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          Columna "solo síntesis": accuracy histórica, checkpoint anterior a sumar fotos
+          reales al entrenamiento — no re-verificada (haría falta reentrenar esa variante
+          para tener también su macro-F1/balanced accuracy). Columna "+ fotos reales":
+          re-ejecutada hoy contra los modelos y el banco <strong>actuales</strong>
+          (57 de las 63 fotos del manifest — 6 no están ya en disco, ver nota abajo),
+          por eso difiere un poco del número citado en versiones anteriores de esta página.
+          Cascada sale idéntica al híbrido en este banco: la regla de elongación solo se
+          disparó en 8 fotos, y en las 8 coincidió con lo que la CNN ya predecía sola.
+        </p>
+
+        <h3 class="subhead">Accuracy esconde el desbalance — por eso el titular usa balanced accuracy</h3>
+        <p class="section-lead">
+          Con 8.5× de diferencia entre el grupo más y menos representado, un accuracy alto
+          puede convivir con una clase entera en 0% de recall (pasa exactamente con
+          "costilla" en el modelo geométrico, abajo). <strong>Balanced accuracy</strong> y
+          <strong>macro-F1</strong> promedian por clase antes de promediar entre clases, así
+          que una clase ignorada pesa igual que una que domina el dataset — no se puede
+          compensar acertando mucho en las clases fáciles.
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Modelo</th>
+                <th>n</th>
+                <th>Accuracy</th>
+                <th>Balanced accuracy</th>
+                <th>Macro F1</th>
+                <th>Macro precision</th>
+                <th>Macro recall</th>
+                <th>Top-3 accuracy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Geométrico</td>
+                <td>57</td>
+                <td>0.544</td>
+                <td>0.536</td>
+                <td>0.47</td>
+                <td>0.57</td>
+                <td>0.54</td>
+                <td>0.860</td>
+              </tr>
+              <tr>
+                <td>CNN</td>
+                <td>57</td>
+                <td>0.684</td>
+                <td>0.665</td>
+                <td>0.67</td>
+                <td>0.75</td>
+                <td>0.66</td>
+                <td>0.877</td>
+              </tr>
+              <tr class="row-best">
+                <td>Híbrido<span class="badge">mejor modelo</span></td>
+                <td>57</td>
+                <td class="cell-highlight">0.772</td>
+                <td class="cell-highlight cell-best">0.783</td>
+                <td class="cell-highlight cell-best">0.77</td>
+                <td>0.81</td>
+                <td>0.78</td>
+                <td>0.895</td>
+              </tr>
+              <tr>
+                <td>Cascada</td>
+                <td>57</td>
+                <td>0.772</td>
+                <td>0.783</td>
+                <td>0.77</td>
+                <td>0.81</td>
+                <td>0.78</td>
+                <td>0.895</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          Todas las cifras de esta tabla se generaron en la misma corrida, hoy, contra el
+          mismo banco de 57 fotos reales (<code>training/evaluate_cnn_real_photos.py</code> /
+          <code>evaluate_real_photos.py</code> / <code>evaluate_cascade_real_photos.py</code>,
+          segmentación Grounded-SAM). El híbrido pasa de 0.772 accuracy a 0.783 balanced
+          accuracy — sube, no baja: en este banco concreto no hay ninguna clase con recall
+          en 0 para el híbrido (ver desglose completo abajo), así que balanced accuracy no
+          lo penaliza. El geométrico sí lo sufre: 0.544 accuracy pero 0.47 de macro-F1,
+          arrastrado por "costilla" en 0.00 precisión/recall/F1.
+        </p>
+
+        <h3 class="subhead">Desglose por clase — los 4 modelos, banco completo</h3>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>n</th>
+                <th>Geométrico<br />P / R / F1</th>
+                <th>CNN<br />P / R / F1</th>
+                <th>Híbrido<br />P / R / F1</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-warn">
+                <td>costilla</td><td>3</td>
+                <td class="cell-warn">0.00 / 0.00 / 0.00</td>
+                <td>0.50 / 0.33 / 0.40</td>
+                <td class="cell-best">1.00 / 0.67 / 0.80</td>
+              </tr>
+              <tr>
+                <td>cráneo</td><td>6</td>
+                <td>0.33 / 0.67 / 0.44</td>
+                <td class="cell-best">1.00 / 0.83 / 0.91</td>
+                <td>0.67 / 0.67 / 0.67</td>
+              </tr>
+              <tr>
+                <td>hueso largo</td><td>8</td>
+                <td class="cell-best">0.89 / 1.00 / 0.94</td>
+                <td>1.00 / 0.25 / 0.40</td>
+                <td>0.88 / 0.88 / 0.88</td>
+              </tr>
+              <tr>
+                <td>hueso pequeño</td><td>3</td>
+                <td>0.43 / 1.00 / 0.60</td>
+                <td>0.67 / 0.67 / 0.67</td>
+                <td>0.43 / 1.00 / 0.60</td>
+              </tr>
+              <tr>
+                <td>hueso plano</td><td>8</td>
+                <td>1.00 / 0.38 / 0.55</td>
+                <td>0.38 / 0.62 / 0.48</td>
+                <td class="cell-best">1.00 / 0.62 / 0.77</td>
+              </tr>
+              <tr>
+                <td>mandíbula/maxilar</td><td>8</td>
+                <td>0.50 / 0.75 / 0.60</td>
+                <td class="cell-best">0.89 / 1.00 / 0.94</td>
+                <td>0.60 / 0.75 / 0.67</td>
+              </tr>
+              <tr class="row-warn">
+                <td>pelvis</td><td>8</td>
+                <td class="cell-warn">1.00 / 0.12 / 0.22</td>
+                <td>0.67 / 0.75 / 0.71</td>
+                <td class="cell-best">0.86 / 0.75 / 0.80</td>
+              </tr>
+              <tr>
+                <td>sacro</td><td>6</td>
+                <td>0.50 / 0.33 / 0.40</td>
+                <td>1.00 / 0.67 / 0.80</td>
+                <td class="cell-best">1.00 / 1.00 / 1.00</td>
+              </tr>
+              <tr>
+                <td>vértebra</td><td>7</td>
+                <td>0.44 / 0.57 / 0.50</td>
+                <td>0.60 / 0.86 / 0.71</td>
+                <td class="cell-best">0.83 / 0.71 / 0.77</td>
+              </tr>
+              <tr class="row-best">
+                <td><strong>Macro avg</strong></td><td>57</td>
+                <td>0.57 / 0.54 / 0.47</td>
+                <td>0.75 / 0.66 / 0.67</td>
+                <td class="cell-best">0.81 / 0.78 / 0.77</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          P / R / F1 = precisión / recall / F1-score por clase. Cascada no está en esta
+          tabla porque en el banco actual predice exactamente igual que Híbrido (ver nota
+          arriba). El geométrico falla sobre todo por baja <em>precisión o recall</em> en
+          clases con forma parecida a otra (pelvis→cráneo, costilla→hueso plano en la
+          matriz de confusión) — la CNN compensa esas confusiones con textura donde la
+          forma sola no alcanza; el híbrido combina ambas señales y es el único sin
+          ninguna clase en 0.
+        </p>
+
+        <h3 class="subhead">Por grupo morfológico: forma vs. textura</h3>
+        <p class="section-lead">
+          Una iteración anterior (antes de sumar las fotos reales al entrenamiento) mide
+          por separado el recall de cada rama sobre el mismo banco — ilustra bien por qué
+          combinarlas ayuda: donde falla la forma, suele acertar la textura, y viceversa.
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>n</th>
+                <th>Recall geométrico</th>
+                <th>Recall CNN</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>hueso_largo</td><td>8</td><td class="cell-best">0.88</td><td>0.38</td></tr>
+              <tr><td>hueso_pequeño</td><td>3</td><td>0.67</td><td>0.67</td></tr>
+              <tr><td>hueso_plano</td><td>8</td><td>0.62</td><td>0.62</td></tr>
+              <tr><td>mandíbula/maxilar</td><td>7</td><td>0.43</td><td class="cell-best">0.71</td></tr>
+              <tr><td>vértebra</td><td>7</td><td>0.14</td><td class="cell-best">0.71</td></tr>
+              <tr><td>cráneo</td><td>7</td><td>0.00</td><td class="cell-best">0.57</td></tr>
+              <tr><td>sacro</td><td>6</td><td>0.00</td><td class="cell-best">0.33</td></tr>
+              <tr><td>pelvis</td><td>7</td><td>0.00</td><td class="cell-best">0.29</td></tr>
+              <tr><td>costilla</td><td>2</td><td>0.00</td><td class="cell-best">0.50</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+</body>
+</html>

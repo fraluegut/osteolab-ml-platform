@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infraestructura · OsteoLab</title>
+  <meta name="description" content="De qué partes está hecho OsteoLab: servicios, código y pipeline." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html" class="is-current">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+<section id="infraestructura" class="section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Infraestructura</p>
+        <h2>De qué partes está hecho OsteoLab</h2>
+        <p class="section-lead">
+          El repo separa entrenamiento, servicio al usuario, código compartido y
+          orquestación en carpetas independientes. <code>./run.sh</code> levanta el stack
+          completo con Docker Compose; cada pieza también puede correr suelta.
+        </p>
+
+        <h3 class="subhead">Servicios (con URL de acceso)</h3>
+        <div class="infra-grid">
+          <a class="infra-card" href="http://localhost:8000" target="_blank" rel="noopener">
+            <span class="infra-icon">🚀</span>
+            <span class="infra-name">API backend <span class="tag">FastAPI</span></span>
+            <span class="infra-desc">Inferencia + web de producto (<code>/classify</code>, <code>/hybrid/classify</code>, <code>/pca/reference</code>...).</span>
+            <span class="infra-meta"><code>http://localhost:8000</code></span>
+            <span class="infra-path">serving/backend/</span>
+          </a>
+          <a class="infra-card" href="http://localhost:8501" target="_blank" rel="noopener">
+            <span class="infra-icon">🎛️</span>
+            <span class="infra-name">UI Streamlit <span class="tag">demo</span></span>
+            <span class="infra-desc">Pipeline paso a paso: sube imagen → CLIP → medir + clasificar → PCA.</span>
+            <span class="infra-meta"><code>http://localhost:8501</code></span>
+            <span class="infra-path">serving/frontend/</span>
+          </a>
+          <a class="infra-card" href="http://localhost:5000" target="_blank" rel="noopener">
+            <span class="infra-icon">📊</span>
+            <span class="infra-name">MLflow <span class="tag">tracking</span></span>
+            <span class="infra-desc">Experimentos, métricas y modelos registrados de cada entrenamiento.</span>
+            <span class="infra-meta"><code>http://localhost:5000</code></span>
+            <span class="infra-path">mlops/docker/</span>
+          </a>
+          <div class="infra-card">
+            <span class="infra-icon">🐘</span>
+            <span class="infra-name">PostgreSQL <span class="tag">interno</span></span>
+            <span class="infra-desc">Backend de almacenamiento de MLflow. Sin UI propia.</span>
+            <span class="infra-meta"><code>postgres:5432</code> (solo red interna de Docker)</span>
+            <span class="infra-path">mlops/docker/docker-compose.yml</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">Código y pipeline (sin servicio propio)</h3>
+        <div class="infra-grid">
+          <div class="infra-card">
+            <span class="infra-icon">🧠</span>
+            <span class="infra-name">training/ <span class="tag">CLI</span></span>
+            <span class="infra-desc">Entrena y evalúa los 3 modelos (geométrico, CNN, híbrido).</span>
+            <span class="infra-meta"><code>python -m training.train_geometric</code></span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🧩</span>
+            <span class="infra-name">shared/ <span class="tag">librería</span></span>
+            <span class="infra-desc">Código compartido entre training y serving: filtros CLIP/ResNet18, extracción de features (OpenCV) e inferencia.</span>
+            <span class="infra-meta">importado como <code>shared.*</code>, no se ejecuta solo</span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🐳</span>
+            <span class="infra-name">mlops/docker/ <span class="tag">Docker</span></span>
+            <span class="infra-desc">Dockerfiles + <code>docker-compose.yml</code>: orquesta postgres, mlflow, API y UI.</span>
+            <span class="infra-meta"><code>./run.sh</code></span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🌬️</span>
+            <span class="infra-name">mlops/airflow/ <span class="tag">no desplegado</span></span>
+            <span class="infra-desc">DAG de orquestación del pipeline de entrenamiento. Todavía no forma parte de <code>docker-compose.yml</code>.</span>
+            <span class="infra-meta">mlops/airflow/dags/train_pipeline.py</span>
+          </div>
+          <div class="infra-card">
+            <span class="infra-icon">🗂️</span>
+            <span class="infra-name">DVC <span class="tag">CLI</span></span>
+            <span class="infra-desc">Versiona datos y pipeline reproducible de entrenamiento.</span>
+            <span class="infra-meta"><code>dvc repro</code> · <code>dvc status</code></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+</body>
+</html>

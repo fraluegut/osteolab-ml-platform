@@ -1,0 +1,3230 @@
+{
+  "d328960c0980143d349583bd99461ce62ae8f11a3b2325997fa001f9d90dac8f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_01.jpg",
+    "split": "test"
+  },
+  "f4bf3388a2bfe94270059bf0c4512aeb46774f096993748ff3fd6d95ff7198dc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_02.jpg",
+    "split": "train"
+  },
+  "17797cb63664951e234aeb4cd000dcf0246a6b1f813d3cd398e9c8017082fabd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_03.jpg",
+    "split": "train"
+  },
+  "4aa9f9f75a9ca8c9939b0c968f972091794a902f0e2908293e71c8185ecb4598": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_04.jpg",
+    "split": "train"
+  },
+  "9a63fccc55012810b641005617a120af474c46c6d00df24729cc96da1fc8f454": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_023.jpg",
+    "split": "train"
+  },
+  "776d210469de0384ad5efe8ffee36ffc749ff0a2cf689a23b254e80f69547c98": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_01.jpg",
+    "split": "train"
+  },
+  "59047d94b1c140a1627a02018f4bf1a937df8ed83aae97ce66850403f67a062e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_02.jpg",
+    "split": "test"
+  },
+  "868bd5902262d4a840c78d4420ec718ea130c731fee241016678575022dcb444": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_03.jpg",
+    "split": "train"
+  },
+  "3c7f5aa792934d5b91ff98e4e4d4616d12a50c1ad375053dba253cb64b740680": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_01.jpg",
+    "split": "train"
+  },
+  "25cff80066314ccb0b4139936fe890f85e799771e9197adf846881608d765e6d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_02.jpg",
+    "split": "test"
+  },
+  "6dedd8914195d669803acd9578f9e700bd04e8530522c4a0778274f3ce462970": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_03.jpg",
+    "split": "train"
+  },
+  "b86247ebbccdc600a639b8227d5a9a4fa91fa27621dd0c458b5a19699100f4fd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_04.jpg",
+    "split": "train"
+  },
+  "dd329f674b488fb1a15a8894496e623afed62d640a4d64fb4dc8c4c99143fb2f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_101.jpg",
+    "split": "train"
+  },
+  "a08b3cf42faffcc7084a8bb385c916b6cb215cfe6404d7358816916da860283a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_102.jpg",
+    "split": "train"
+  },
+  "bb2d45d75718084dc96cdb7634dfba55356b1f49a605a5b26177bb3b5af0e4fc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_103.jpg",
+    "split": "train"
+  },
+  "c155110cf7a5ba8ba5218a00b1e15737f9a6265514528c4cb5906be512b48218": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_104.jpg",
+    "split": "train"
+  },
+  "80016bcca521d902b6af2f9a671cf6ae02f6a5f60953b6ecf3810c3505bfd03b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_105.jpg",
+    "split": "test"
+  },
+  "e70a1ca87fd66208dbfa480d725cfd588fd875f359ca7689028023cb4b5709cd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_106.jpg",
+    "split": "train"
+  },
+  "60d0340a4a018ac9a673ce0f440cd7aaea65e59040f724b736cc3be542142e21": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_107.jpg",
+    "split": "train"
+  },
+  "c4f960b4a95ff33ce43f5fbb7f447babc2e9d47f9314aa604cb2e693835e31c4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_108.jpg",
+    "split": "train"
+  },
+  "8f1480011b00855c543a024896c00c74acabe8cfc28944674cc7da6b73136ae4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_101.jpg",
+    "split": "test"
+  },
+  "e5311d4f4ff70f29c44158a922252f41533237d11bbffbc7699cb425563ea149": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_101.jpg",
+    "split": "train"
+  },
+  "db8685c7236cf90395088b8e44a8d7cb9b580c73f1dbcaf7a50d0ac9095ef5f1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_102.jpg",
+    "split": "train"
+  },
+  "ac0d654ed70b13101758252adc75b88da2c7376fc19b09b8a07d97ad9388bd1c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_103.jpg",
+    "split": "train"
+  },
+  "84359d9c2ee565637b4215d82cd1ceb53130674f0988f7a1031497c51198951a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_104.jpg",
+    "split": "test"
+  },
+  "64503e4ea8a4de9270cd171c0127dbf7c10127bea7549ebb85258a8c29a42f01": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_105.jpg",
+    "split": "train"
+  },
+  "a90856d8d301dd8488885875b1591095dfc4c3a008d12ee224e34b9a66c05102": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_106.jpg",
+    "split": "train"
+  },
+  "7a868eca31cf3ed60dee828e4d53bbe07954b58b6c6675a407c757214849933f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_107.jpg",
+    "split": "train"
+  },
+  "2d98d232bd6693094be97c7595bef52e1b54e9913ab3ef4b1868b55b964f66cb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_109.jpg",
+    "split": "train"
+  },
+  "b403d030f2b5443caa8be092ce2d9a944ebf7e5ba1ce20b9c5eec263103c02f6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_110.jpg",
+    "split": "train"
+  },
+  "01eca33e33ad25a77196a3a3d1923c98942d8b4d6c6a9ed145b00d58a19e58f3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_111.jpg",
+    "split": "train"
+  },
+  "a9518ec9f5f58f5dd587d6d51506b672d2291a4e9d209e8e093de903400d6ca7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_101.jpg",
+    "split": "train"
+  },
+  "df20b81a2552a41c94e02a99aeb0d290c8f47d1b6cf26fad3965d69a33539f59": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_102.jpg",
+    "split": "train"
+  },
+  "955f5c0287b9f625a9112a746f613bbaba4509a7bb6af7e2b89bda1f7cce0b10": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_103.jpg",
+    "split": "train"
+  },
+  "1bc201df2fe14cab63af849d993de3a5a3f6c9d8684dac391e68e901ec6a82e7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_104.jpg",
+    "split": "train"
+  },
+  "ba8e2543d60429774757e7687f53a9979e9c02049b9f3d5d7a703770724b8b9e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_105.jpg",
+    "split": "train"
+  },
+  "f94b761be495774185fef2d3a2e91d27cf9fb67930d24ab1df040be1c66cf8ac": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_107.jpg",
+    "split": "train"
+  },
+  "0315fbb59734e3462f719b9b8bbd7abe6e43409aa37c121bf07941fd7b8d751e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_108.jpg",
+    "split": "train"
+  },
+  "bb55554cfc8b71024e017f1dceec6861a62462e7c853c397b11c762550e5997a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_101.jpg",
+    "split": "train"
+  },
+  "89add27bbff33933241017d9ae877ae879416b80b6519397c603c289fb9afb40": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_102.jpg",
+    "split": "train"
+  },
+  "31af520821e35eca7a5d1fce56cf729e90f179a048cb33a66a374ea58b80df57": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_103.jpg",
+    "split": "test"
+  },
+  "72c696b0fd3dbb9a4b4b34a90b4278b23adf98b17128263395e6bb66c326782c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_104.jpg",
+    "split": "train"
+  },
+  "07bbe1fb1845f376a4a1a901384fe11fba828312f37fba847bfad2b8a705d9d5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_105.jpg",
+    "split": "train"
+  },
+  "17f55a82c6a03f5e8eec29924f4e392240787dc4d8b8b553d308e6e82a97cb25": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_106.jpg",
+    "split": "test"
+  },
+  "10d5a8974c47a045006212d0400102e96e6ad8284d61d6708bfa74a02041adc5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_107.jpg",
+    "split": "test"
+  },
+  "4927f759aa8a27aa23ca4e1e2328d4a41ccc16307f98df5d44781075a9be7b13": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_108.jpg",
+    "split": "train"
+  },
+  "2874873384f56f68b12792bb34ac96ce197ffb35ab29b2447254e81961ca6dbf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_109.jpg",
+    "split": "train"
+  },
+  "b2630204d906cc88254b71d9ea40ce99c8ed0211a737b9f5226b6e07319165cc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_01.jpg",
+    "split": "train"
+  },
+  "5d7ef431d3b1422914874141bcaf900379ae2ed81770fb4d53350be0faaf668c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_02.jpg",
+    "split": "train"
+  },
+  "4c77892979901378333aaad6a960ea480e35c66ea06cdee841597229e0536fcd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_03.jpg",
+    "split": "train"
+  },
+  "8384f76824747ab2710bf6e6b74636c73bda175753891c7b7a4aa667eae0b51d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_04.jpg",
+    "split": "train"
+  },
+  "c71d84fd4188bbff23553678952105f2c9d0bf98be895e84b5961de138611e01": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_05.jpg",
+    "split": "test"
+  },
+  "3cdc0015e76fe36a467d7d61124631a72bc6ce97dbd871348ab4b0750b611b87": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_06.jpg",
+    "split": "test"
+  },
+  "bfbeec50b95585de4de64c9c75bbd5bf70624f324187b39bfec3760523e7f2c7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_07.jpg",
+    "split": "train"
+  },
+  "437b181e7c53cb5a5463816e147e244552b92f625c589d21745dd89149e152f1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_08.jpg",
+    "split": "train"
+  },
+  "112e4f1b73609f5f60d72ea39c09aa2a1d6001388f18bb3e68b613ffc2b4d534": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_09.jpg",
+    "split": "train"
+  },
+  "453fc9ca883833df805d8ba1ca66e4f2533e0fd3db5c23e5b73f55837475cb77": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_10.jpg",
+    "split": "train"
+  },
+  "c2f6596cd6ec9d20d2b5f9450de3c4bfcd4d89aad4acc69f48ecfeb592e48683": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_11.jpg",
+    "split": "train"
+  },
+  "efac62075314eb426efcca8451b112fbf3c943f1a870f16d4dec9ec19bd861a4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_12.jpg",
+    "split": "train"
+  },
+  "b39fb41b98101f0ca5a4f8df84e3b6a56baca6a6abe24edf26baa041ae92e6f6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_13.jpg",
+    "split": "test"
+  },
+  "7f79ca9e106f5e50223dcf55fb07e6086906e11997f492e8aa234b9872b4fe91": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_14.jpg",
+    "split": "train"
+  },
+  "bf60f6c6c3978e1a5eea50d9bba6529cfb20a7ff01f932d96520ed36b91679e9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_15.jpg",
+    "split": "train"
+  },
+  "45b3c4cb175d7c9e7a17d04440b808140a9ac4715410189db2da7df7f6d8daab": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_16.jpg",
+    "split": "train"
+  },
+  "3358643d11a297c8193c1cfa02b4f621b5b39584aeb02d6c209d471d939e1ded": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_17.jpg",
+    "split": "test"
+  },
+  "fdb77e9d09fcc19c4810686ec0ee1f1148b6c259395db36ae6451fe5c7a62741": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_18.jpg",
+    "split": "train"
+  },
+  "d69cc9a87b8ec6bfd81ce3ded7b89421e72ab77e78877b7ac481c1dec8e6a2cc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_19.jpg",
+    "split": "test"
+  },
+  "7cd4d531625f7543421675f713f1ae738955a5598998cb5a13dbf6f00ba967f2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_20.jpg",
+    "split": "train"
+  },
+  "7e6367e6c2c22a781773a924e26085bdbbfca802f7d25d170cdef82abd8813da": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_21.jpg",
+    "split": "train"
+  },
+  "5889372c949e6a8eb8855af270e14c7e4456ea4e1311eeb3449f3b8b5425d836": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_22.jpg",
+    "split": "train"
+  },
+  "459a57d5f6cdc8bfb0d1dbe8128b248443c31cc2d2e2541c8279c903fad03744": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_23.jpg",
+    "split": "train"
+  },
+  "dfc23ccdd9b929c097e1b37fa7e37a1df9e3e6903c6d41c5a520e0c7482ee8f7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_109.jpg",
+    "split": "train"
+  },
+  "fd557b32f3c9e1435a52180513f5d5349763bbb278c5d337f4bc9f67d464d7df": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_110.jpg",
+    "split": "test"
+  },
+  "476e2b2a12fff1e7dde44da7e04a83a4f52ba88e50edc8d9b47cf5f05ee9ef59": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_112.jpg",
+    "split": "train"
+  },
+  "eebb88ae6b0fbddcb67a25fa1f535e5fd90059359cb27ca934967227a2d0f624": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_113.jpg",
+    "split": "train"
+  },
+  "9c1f7c6233c2b85c95de867244ad940bf26dbdc83c4d87354fb9dcf9072d1fe5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_114.jpg",
+    "split": "train"
+  },
+  "86710db6bdcf6913441f86abf9ec1bbbf9dce5b54822c5d93dc9d89e45143350": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_115.jpg",
+    "split": "test"
+  },
+  "4ae2c0fc9f318be852c3d495f2e616ceb2c0c1a8a84a19cccab86bbe32673583": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_116.jpg",
+    "split": "train"
+  },
+  "da763704768e3b88c583e78bfa044d7c8a90a94936c1e6c646e07b460634dc0f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_117.jpg",
+    "split": "train"
+  },
+  "38df286bc5fa94dd6e2abc4c822890705a8e702a39635983d14b887696253226": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_118.jpg",
+    "split": "train"
+  },
+  "4577abd45eaf7deeafb39f9b14de75e25f695b1dc9007b41460e98c7c91e56a7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_119.jpg",
+    "split": "test"
+  },
+  "ee4616d643f692318060409081c772a287a1b8e5e7d60eadcec9a34aee01e29d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_120.jpg",
+    "split": "train"
+  },
+  "0443cc3e51fc6aeb85ac3175d8ddab26b45eeb9512ba6216bea60d20051148f0": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_121.jpg",
+    "split": "train"
+  },
+  "78300aadf5f1b1d4edc196d0a8224a48356bb89070402c8830d38dc185b2c7fc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_122.jpg",
+    "split": "train"
+  },
+  "bb16226ac3e3d3be4573cfda1bc788434a0a507f1f1e40c7d41102d447f3e463": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_123.jpg",
+    "split": "train"
+  },
+  "cbf48d111eb5f0aa8a40e52cacb051bd7644e58409617c250c49152371155b1d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_124.jpg",
+    "split": "train"
+  },
+  "be49df503f15ff186286c1314742146cc5fc9d667974894d2429e1c8b0959df6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_125.jpg",
+    "split": "train"
+  },
+  "25340098b77ba57731e83f9fbd98deb6e6e3898d140ec6e842f57fcb5ed7060f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "sacro",
+    "filename": "sacro_126.jpg",
+    "split": "train"
+  },
+  "9094a7827a6e770c3ae09e421e2e3b429fbebf6d232ea45708a43b0f64c3fdf1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_109.jpg",
+    "split": "test"
+  },
+  "78b7b673a83b78fa4995db384a312a2b5509ebe14d8d72451a46d850522a390b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_110.jpg",
+    "split": "train"
+  },
+  "bfc5a7d91bb999ffb242c36bfe255faff7fcfccc815da9b0ecd975d349f58359": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_111.jpg",
+    "split": "train"
+  },
+  "5e60b74b661587ac4b85e2afbb06bf38f1dbae858532a4b52e0b8ac0ee82ffbf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_112.jpg",
+    "split": "train"
+  },
+  "68809a1f91b69d827083adfe9a4efeba3aa72c7aed4f357b3fe6243a459d79ee": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_113.jpg",
+    "split": "test"
+  },
+  "d7d32f8a193d9f2935eed3eed4869bd5c9e33424d535074ac7af1e23de86940b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_114.jpg",
+    "split": "train"
+  },
+  "c8af1b8c0d5f883f4329541d11fb7ad1f2e783544931ccc4d1f6bee12766e5a8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_115.jpg",
+    "split": "train"
+  },
+  "b5643c6a0696abc3372f7a7fb48822c2a2db59aba377ff57ef9d7aa6464e52dd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_116.jpg",
+    "split": "train"
+  },
+  "1d8916ac6b045a105e2b7028cf7bba721edc3944ff36680bba83bfdbef08794b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_117.jpg",
+    "split": "train"
+  },
+  "c8c8c61f4fef369c08b35bc784d3d5c6b814b69579e11ebbc657c9784704dbf3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_118.jpg",
+    "split": "train"
+  },
+  "0817b7c60a594b28bb2e4945e6cebebc682b18cb06f7a3ad937e36799ad6eb50": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_110.jpg",
+    "split": "train"
+  },
+  "0a6443dad472daaa7503ea686b896f026c95a0bba1d4bcd926577c467d64d0ee": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_111.jpg",
+    "split": "test"
+  },
+  "4c382562d68f88285094f900206b19904b0c43211c1dcb47478c323079b2821f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_112.jpg",
+    "split": "train"
+  },
+  "132a779e0367a97c8967753270cdadda256584c9c4d732655335dcf14b7070af": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_113.jpg",
+    "split": "train"
+  },
+  "ba2409421ee5a425c0c1af5a47c411cd4c18df02ed5f62e709127886e311a20f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_115.jpg",
+    "split": "train"
+  },
+  "709c38651883600d386e1dd56428a8f89527d74888abed0c61d837df15b2bf21": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_117.jpg",
+    "split": "train"
+  },
+  "ac44fc408fef30a752382bd6c9a983a18a0262d7ea65e2f4c59052644c88793b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_118.jpg",
+    "split": "train"
+  },
+  "44a588b5c1ee72f3a2a13859b0f183de713a7a114db2dd849ad71fbd328164a9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_119.jpg",
+    "split": "test"
+  },
+  "5c6cff41c901891c6eefe8280573de177e588438f6e1b4c1ae33b5b289c19c09": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_120.jpg",
+    "split": "train"
+  },
+  "d2af2d7579a0f2417fadf51ec3b359b033019ebcb14661b08568744cff98f23c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_121.jpg",
+    "split": "train"
+  },
+  "234aad1548a9d500bd373fbf017b224d654b3d8ddf343431b13bfedd98b3c600": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_122.jpg",
+    "split": "train"
+  },
+  "31be35a076f597e029712de029bf20cac7170a9af54799c8f8fe2a42457f5259": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_123.jpg",
+    "split": "train"
+  },
+  "850aef8613999fffece7e10da8f30ce17888e41c791fe829b2dca1494d021d96": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_124.jpg",
+    "split": "train"
+  },
+  "ea738a8c71248ac962778a0283901f7e2f958ecd7aec0b04329eb55d12c32ca6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_125.jpg",
+    "split": "train"
+  },
+  "60b9aaaf2dba805d000049ab4f4089f3c8d9a4c1a4fddeb65bcf4b420e131444": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_126.jpg",
+    "split": "train"
+  },
+  "cee1f60c9391d62cdc6f8ba19ce031c793c04483b31b8e50d5abf861d0fa28e2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_127.jpg",
+    "split": "train"
+  },
+  "6736d2ed87b2c8c84a770e1aa9009dff6da999f0a82d2c4bcaccd6ec8f2027a6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_128.jpg",
+    "split": "train"
+  },
+  "a1fe40d04bac349d810c0dfb7f300cb9db374704105aaf518f1464fbdc0bb579": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_129.jpg",
+    "split": "train"
+  },
+  "68b23e34406bd9f458a298d9103a68bcc54063a8450e12539ac8e6740728244c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_130.jpg",
+    "split": "train"
+  },
+  "e6d506c1828b4ab0cc1f3bde832b78900e8bb6382d387364e91bb154d2e23310": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_131.jpg",
+    "split": "train"
+  },
+  "535168c9463e35317c12b99adb08e6e5e1a2af99983faa187b42fc7688cc90d5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_132.jpg",
+    "split": "test"
+  },
+  "97328230e023c5bfbbf355816dc3deb6c6bfb645136497d94802c106b0306bb7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_133.jpg",
+    "split": "train"
+  },
+  "c65e20531a8d1e3d536e3265225f5a3523f38358348fb15176d2c0b028646c6b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_134.jpg",
+    "split": "train"
+  },
+  "37ee852bc41710758020eb5db348f0fb5f49599efcc803abc658a699b79cd317": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_135.jpg",
+    "split": "train"
+  },
+  "954bf20ae323981efb9dfa40a5eaccf5cc047976e9948b9d6961d38fd5aa4c72": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_136.jpg",
+    "split": "train"
+  },
+  "5e015e198ca474f17c4ceea9c4cf2208316f6d5a4f38dc7b0f48c4bf73ad5176": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_137.jpg",
+    "split": "train"
+  },
+  "909ccd5ea9d3e79ab708d2dedd0815ad9b8d7be45fa65892c7667dd99f1bbf44": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_138.jpg",
+    "split": "train"
+  },
+  "6df515985cec7fc8b9bbc0f2da04614463ef4baa020f4019a86980bcefac86c9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_139.jpg",
+    "split": "train"
+  },
+  "2b1cffba1f229ff6fc42d3ced2a5d1f85cc5bf840deec6701537374700cb4aa4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_140.jpg",
+    "split": "train"
+  },
+  "b85e9f99196af6536346e9548e798b586bc5046e54d32f17a59691d6ae7fb365": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_141.jpg",
+    "split": "train"
+  },
+  "3b6aaa1a554cb412569f329a12a5bf58f17198fbdc77a8f5294ae8a5b1b48ed1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_142.jpg",
+    "split": "train"
+  },
+  "a1b057b1764a72044ff493c7becb7d8ee8c2aff4808e1d6453c30690a705db18": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "vertebra",
+    "filename": "vertebra_143.jpg",
+    "split": "train"
+  },
+  "3e3f04b1f573fd47e549a6fcad1e4133a4d86458d5469fc2564d252986f925d2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_112.jpg",
+    "split": "train"
+  },
+  "94319a32b3879fa3af915e50e1deb85b11711b6c951f8ad8989b6063dd47071f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_113.jpg",
+    "split": "train"
+  },
+  "8f120b16de2793f1bacc19153af156970a63987251c566283db8a36df7966d1d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_114.jpg",
+    "split": "test"
+  },
+  "5fb54fca2671377b5f66f91cfdeb65a0f52b92a07d073432ed245834cf62d219": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_115.jpg",
+    "split": "train"
+  },
+  "55c5ab889b10c131f71a15138d7bcfca14240bb8500a6473154111aef9ce9a95": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_116.jpg",
+    "split": "test"
+  },
+  "d0fa949406b579fa89c487036cd8fadffc843d18effe568ca5a805d6eaaff11e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_117.jpg",
+    "split": "train"
+  },
+  "2f1558e18fccd0d758a7311d83f3acf6ed72d81c5c2e1f4d420a7ddcdf39aa60": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_118.jpg",
+    "split": "train"
+  },
+  "f79db9ba68db72afdba8fc7a705c6c0cccdc6928f1095ae9bfaf83217fa142d0": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_119.jpg",
+    "split": "train"
+  },
+  "368c53b1a68ca6485ba5ef2a0d5cfd818122c1c8ff194438d1e872b0dcec8c56": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "pelvis_120.jpg",
+    "split": "train"
+  },
+  "4b093f641d1b072add9bee83b467fba34aea3888a57d6a747060fa34d03eb882": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_102.jpg",
+    "split": "train"
+  },
+  "2309584981ceab26453c13146fbc61148ed364cd7825b09c0d247c34937ca289": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_103.jpg",
+    "split": "train"
+  },
+  "cba2319f44c7b1031c8d3ef9e74367ed71990de6a8414f180d05e57bd1592428": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_104.jpg",
+    "split": "train"
+  },
+  "fffb5081ac29a5ef1f55e57ec33629570a8439048e644c5d969fdba85cbe5bf5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_105.jpg",
+    "split": "train"
+  },
+  "d8316b1393b29d3c700c6aa1480910b0058da682545f164afeb556e2738deb17": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_106.jpg",
+    "split": "train"
+  },
+  "6261856cdd47292523a32b6c7c08e05133258ba19c2f1a669b4133af5cf9014e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_107.jpg",
+    "split": "test"
+  },
+  "c541d477b2cba4c19f98ab690e6433b2697e2b2eb8de11c8521eda167e40884b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_108.jpg",
+    "split": "train"
+  },
+  "9acd32020b0abff5a04e0202f1254056abb30fc72c5fdc0f4aef3141e2c28fcd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_109.jpg",
+    "split": "test"
+  },
+  "15d370a10fbbfb8e76320bdfc55eb92b11ab0dcb637c5f58cbdab230c74c2480": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_110.jpg",
+    "split": "train"
+  },
+  "c906835b7b0ed03ca5b650f16450c34a5d5e798ae964d7d7f9553c6e104795b8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_111.jpg",
+    "split": "train"
+  },
+  "750a83a1356815f2af9259f0941bb273fea8a1898acd51037ef259d4f23ba6ca": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_112.jpg",
+    "split": "train"
+  },
+  "e1d8012064cdd34d44218d7be633aae4b9e9bc888131071e95720ff8198276cc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_113.jpg",
+    "split": "train"
+  },
+  "74ac654458266818f6d644ed99daf3e5c39512af8a4ccecf34608348aa19daed": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_114.jpg",
+    "split": "train"
+  },
+  "a57731dd6f0eab215c29b5e38a3865abfcc47af8f47524e12900051c11d00d6c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_115.jpg",
+    "split": "test"
+  },
+  "046a530961ddc42e5194f2492061da5577cc6c93a6c3680c61427bfb8f8f9bcd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_116.jpg",
+    "split": "train"
+  },
+  "1e98d16f6b5f66c33e1f0f1252e00d8a5260f24734412bef7c32500b433671df": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_117.jpg",
+    "split": "train"
+  },
+  "24562b37c099d3721ad41abb3fd01a7395663a3894986fca355a8ea011b6951e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_118.jpg",
+    "split": "train"
+  },
+  "e71794e09204cc2df1b27c06de98fe8a7475d2d10f5f1c602a0d7a50dd6dd7d4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_119.jpg",
+    "split": "test"
+  },
+  "31a6f8bbaf2248e93ba37e2e119b4a48d6b3032a03a59f6dc124e1cb3e6ddb8a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_120.jpg",
+    "split": "train"
+  },
+  "01c73901b3b3ec283df0d18a8a21cc095639e9179d68f759442b9e910b71dde5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_121.jpg",
+    "split": "train"
+  },
+  "601a1b44398b802f5d2be103c5a3b1500f5d5cd10dfa6978e0a8e7d2dbf9c451": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_122.jpg",
+    "split": "train"
+  },
+  "7ea88f736920bb468a260552c5038c186b9d414bd22ff865676e301b31fac5ef": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_123.jpg",
+    "split": "train"
+  },
+  "c0a5bc04b6db476bcd805406e5c76d40af9a9337d4bae6c25d75ec4571afe1a2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_124.jpg",
+    "split": "train"
+  },
+  "180aedebe8945f39898ec022499df25a909f1dfe096aebe46b909639aa27f23b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_125.jpg",
+    "split": "test"
+  },
+  "2c1c9d58699753fd12cdf2fa9fd43b7b441218488c0418d92133a0a3474fd3db": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_126.jpg",
+    "split": "train"
+  },
+  "a667d309dd1ca1eb468377adf1f39c82143e80ef8e027a853d4d2d6a9c09425d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_127.jpg",
+    "split": "test"
+  },
+  "97678baca44cc5b5d14121d87e6aa17d001d18fc73259af80aa2e832fd8acb69": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_128.jpg",
+    "split": "test"
+  },
+  "89ff585866b94f16abda4c85ae7f43ce71f821d49442baeae65d99cf5c25e9d2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_129.jpg",
+    "split": "train"
+  },
+  "0ebe096532ffbdec663deb5bfc5435d8144e7ef225c3f8f4ee3071b7c35bb204": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_130.jpg",
+    "split": "test"
+  },
+  "9dc0c809d5b24647cba53f7e8cb09d987a6bc445b978b348cd8f4c44ed6fe12c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_131.jpg",
+    "split": "train"
+  },
+  "928fbdd11c8e15f936a89186b006c63658983896b92e2d3c08ff1ac2891241d5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_132.jpg",
+    "split": "test"
+  },
+  "3448ab9fbdb2ac3b3da5967dc4fb5cf6c41dd4a6df300541c34eb09cf47a5e1f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_133.jpg",
+    "split": "train"
+  },
+  "cac1b81154d18242149c6d932a7145d1d7e374b3fea4bf7affdbfde3aa572974": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_134.jpg",
+    "split": "train"
+  },
+  "b2c6c503177f0ec01629338e70aa9b7de066cbc01257774cf684a9aee8aabcf8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_135.jpg",
+    "split": "train"
+  },
+  "175158e9a0764b028f64208b044725cf3eac165d56ef34106ad6cfcec415e3e7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_136.jpg",
+    "split": "train"
+  },
+  "2c648197a74126ca418dd15b1c3fce4cb87fc40b9a232133e32b9f0f31070efd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_137.jpg",
+    "split": "train"
+  },
+  "0a596ba1abf3954e44be103932f163d368dd9ec72aea31cd45a880b3eec77705": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_138.jpg",
+    "split": "train"
+  },
+  "05fa9fa7d0c361613a119ff3fe115166dfa9ffa4d74361888b5ca2c918057456": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_139.jpg",
+    "split": "train"
+  },
+  "78652baf006c2527125da67ee2a11c23e9bbec4fbb83f1bc3ffce019976b930a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_140.jpg",
+    "split": "train"
+  },
+  "9613a65a5ab87ba85cdc5cb1401a038be8a7333c9bc72fa1f6104f58893ac215": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_141.jpg",
+    "split": "train"
+  },
+  "3ab132f144d4e5b12276ab64407cf165d794cb261728f75b93fe609399015931": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_142.jpg",
+    "split": "train"
+  },
+  "b2923bf1f4d54acc4d096bea16976bcc72fa4a3e47efbc81745b4d4664307276": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_143.jpg",
+    "split": "train"
+  },
+  "d7552a618d5989a7442f265b191f31d57ee95602ce34f12abf76e8edf275b2f9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_144.jpg",
+    "split": "train"
+  },
+  "2f30173c81c55dc1e17000d398ea80e58732af81923729377fde48df1e7fa5ad": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_145.jpg",
+    "split": "train"
+  },
+  "ebf491e4570b26e87fe1a113d15a9181f2c02d122b4519068535f62e89f40565": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_146.jpg",
+    "split": "test"
+  },
+  "2073a8a3b42533bcf2159fdadb4dd69ec227a64e4b967a7e6b71730e16ea802f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_147.jpg",
+    "split": "train"
+  },
+  "7d692a4fb8f05f99ce11b2c910679cda0d8151c0d35f23d771de1a3a650e2db0": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_148.jpg",
+    "split": "train"
+  },
+  "c31adf7527c48cae1c4ac7bc90ffd5318242f437dc210bc4b2c8eca51ecf76a8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_149.jpg",
+    "split": "train"
+  },
+  "12f788f5ccfa2d87e92a23362aac0a53eb9e1be62de9ebc3bf700d3299ea1729": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_150.jpg",
+    "split": "test"
+  },
+  "6201fc36148fad3e12737ea297648b3320fdc314ff081425d9137213cf0a183f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_151.jpg",
+    "split": "train"
+  },
+  "5f7723c182bedd3ca35a3b2574c2032684526018b50f0a350d6ffac7373bbabe": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_152.jpg",
+    "split": "train"
+  },
+  "9b609c8c4359456c37c19b3d7e04661281c061c0be534d4dc1ceaeccab09a1a6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_153.jpg",
+    "split": "train"
+  },
+  "54961df035ab22861001098c4d069a921162ecb67a37df052541b3f18065f920": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_154.jpg",
+    "split": "train"
+  },
+  "81db5cdf72221b4a1acd6fcd5caf20498b7d6b67e716c893c2b7e2357e75da02": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_155.jpg",
+    "split": "train"
+  },
+  "756b07d4b68512b9b24666139062a8294cf45994b0517b6f781dec7d6074e0f4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_156.jpg",
+    "split": "train"
+  },
+  "810a4cdfe620cd1e1b6cc856cae3970306de1f0dc68400870a83a6e883d97958": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_157.jpg",
+    "split": "train"
+  },
+  "2d018c271ebc97c9bed1d8c1dd88d9f8d85fed936a0d80d5de30007c3be1c798": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_158.jpg",
+    "split": "train"
+  },
+  "51b028627ce7abc33052f2344ab835c75adeb84e04b580ed7298d9135bc32baf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_159.jpg",
+    "split": "train"
+  },
+  "03390f17414a3f480a2c7b390a5b5c75ab5a19743d828e311766c4e18cc4e12d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_160.jpg",
+    "split": "train"
+  },
+  "30744f11fcda0d8a99adf266eaa4abe95efda6a4571311a2b31f04852055973a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_161.jpg",
+    "split": "train"
+  },
+  "d3871562c1cf1888eccf9dcf7e691171660d14813c330d246a50439767418b83": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_162.jpg",
+    "split": "train"
+  },
+  "50108aa145a4bdf06592bbe9a63c81541a3e08d54b1f3c8b7dd6a0705c711b3c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_163.jpg",
+    "split": "train"
+  },
+  "49dd182fccdbdca83348718cfb22d322e1c3c956184bcf13644be6c781e35727": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_164.jpg",
+    "split": "train"
+  },
+  "3da642fa1029908445fd7c12d983ea6188ffba7ca05ef9056be663a53222cc72": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_165.jpg",
+    "split": "test"
+  },
+  "3ba631c9a9c2acc2b660fcb7465bfedc5c63309371013114fbee9146f406a743": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_166.jpg",
+    "split": "train"
+  },
+  "92ab7d39ff5cd8a2028af5a5d90aa3fb6bda13f209cebc67f2b5cacc2230ab53": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_167.jpg",
+    "split": "train"
+  },
+  "c4f7760e82ce2ce8336000e06953e893bc4fe95909b7b73d13ce8cc31e08c357": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "cranio_168.jpg",
+    "split": "train"
+  },
+  "71e45a6c8d99b097c22c17317657880a435990295a531006e87abde41b9db4fb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_001.jpg",
+    "split": "train"
+  },
+  "6bac6d0577d033c866d50a6fa82d9b5f8ab94099b037cf28c91649f540a6327d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_002.jpg",
+    "split": "train"
+  },
+  "41c36a2c251dbdefee9b293460a10c9f7723a65e23ac9bde99f3bfc869fcf68f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_003.jpg",
+    "split": "train"
+  },
+  "2edb8cde6d806cc7a9f6c86b45b2aeace0d644495d1e08206cb5d4f760092f36": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_002.jpg",
+    "split": "train"
+  },
+  "03894d0ef28c28753994094672dc356b84e173e16b06534f530338005941698e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_003.jpg",
+    "split": "train"
+  },
+  "5332d4685f88a52d54bf111eee02104d66713bf06bd483c16e6e36b0801d471a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_004.jpg",
+    "split": "train"
+  },
+  "93af761cb8576690502e9ab097c5328e78286331586fa671d97fa2d0ffb669c2": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_humero_01.jpg",
+    "split": "held_out"
+  },
+  "be0586b5973d13a6f847ddcccd1e5ec136d8ab797eb52aa1e7c3ac068f76db80": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_humero_02.jpg",
+    "split": "selection"
+  },
+  "2a249dda7e1b2f4feb44abde90ade0f89f134484b31a54f56d024002b77b016c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_007.jpg",
+    "split": "train"
+  },
+  "f7167eadd97e830d13dac75dd1bab0eef508eec778696cdfa8776affcafed1a3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_008.jpg",
+    "split": "train"
+  },
+  "0a4754e04822ed66533e0969bc2a14bc886f36a43083cbb57e3e11d9fb7a766a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_009.jpg",
+    "split": "train"
+  },
+  "c79f6cfbc7e391ee2156f4ca42f98f86986ff955af68a88289c2ed23b58967c2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_010.jpg",
+    "split": "train"
+  },
+  "d1f221296f91e9ce18fec4d6c7c811156ced950b5366d8277f755cf901c320ce": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_011.jpg",
+    "split": "train"
+  },
+  "c26a83388305429afc46147d9cb1bd4a999fa2044dc4dbc9797aa89003b79284": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_012.jpg",
+    "split": "train"
+  },
+  "244b87718b8ff22ffdd6b30289e2c153a222df2244535a4764c1e9d8fa5e9275": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_013.jpg",
+    "split": "train"
+  },
+  "4f7a48f89a6ba22847f6e58e0638362a412620c69654d03c63c713d96a5e40b1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_014.jpg",
+    "split": "train"
+  },
+  "3267608b035aea54197446771d4e229306eb45e2bf7b703495a2b80bd3bc9128": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_015.jpg",
+    "split": "train"
+  },
+  "89c6a4f2ef1ce0a70afc9a4964942c5670af846f1bc241a4eded9690fb8be7e6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_016.jpg",
+    "split": "test"
+  },
+  "de5535ff437e86e07e50c05c6bd4723eba75e9ed7bdd06607f3e442aab539eb9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_017.jpg",
+    "split": "test"
+  },
+  "e89c1f88b03ce2cc45d2dccef22a4cf345d5b76351ce1694b4ada37f78eaad40": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_018.jpg",
+    "split": "test"
+  },
+  "734f3f87b1d08059fd96a13409b6eb3f6c787a8582abd3bce6820d8ecf7a7f1e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_019.jpg",
+    "split": "train"
+  },
+  "9b439cd0bc014d0bc2785c21897b00a2113097d5828537511ba326c18caa190d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_020.jpg",
+    "split": "test"
+  },
+  "399630f870157908567293e80940ba5b3f125741c2f2f061011bdc1df249d800": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_021.jpg",
+    "split": "train"
+  },
+  "3d763c310e74583a965a20095e36173c0ba5f2943fd1cc67a03253a9dd08ee68": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_022.jpg",
+    "split": "train"
+  },
+  "9704f3e831719f61d12b4be5797925f2d3767bb984d44fdd9153b49161fb9623": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_024.jpg",
+    "split": "train"
+  },
+  "86e4751c4a59a79a69fcc8264a946e5f05917d0fdace376523c5ecb2ce8cc236": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_004.jpg",
+    "split": "train"
+  },
+  "bf36195e8fd01eb724707525911af0a7c21dd87b8ed5b63f3bc0b25bbe0e3a6a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_005.jpg",
+    "split": "test"
+  },
+  "176466f890ce80d224bca83cbb90756dd5e40bd9f06b09c8d87bc47dbc59cb7d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_006.jpg",
+    "split": "train"
+  },
+  "3267b5e544cefcaf2fbbdc9337151d23c9ac29b90a1d8ab9289f932746c8d744": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_007.jpg",
+    "split": "train"
+  },
+  "466bff5910428279ff8867af0cc7317a208d98ead25ccf1b634611c73c9b84a5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_008.jpg",
+    "split": "test"
+  },
+  "f40154dafa6217f53d8565d1fc80ac681768f22e4d44d007fd6517f7a31a097d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_009.jpg",
+    "split": "train"
+  },
+  "68d80a7c4aabcbd78a5c32f81b2335a4cf75d2af9974f3d1d4eabe53d6bcd772": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_010.jpg",
+    "split": "train"
+  },
+  "4ef326d81ede6d72bfb619bde741e63291be56d96f6d74ee68628f9db7dcac26": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_011.jpg",
+    "split": "train"
+  },
+  "d806d2332a32c43ac402a84e1d5d5a5541d99aa9377039dfa300e5ac8a50549d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_012.jpg",
+    "split": "train"
+  },
+  "4b79fd934c2eb8156bf2e3c32f72a34b6cf8b6899edcd3e279667608ee510502": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_013.jpg",
+    "split": "test"
+  },
+  "6e145a5c140d4e9e8193a94888b378ab7b8e76bd32289846b0aa5b85af088125": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_014.jpg",
+    "split": "train"
+  },
+  "e6544cebcff99d49b85970f4e85f1792f3afe340e4bd16ce68e175db0e0d39ee": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_015.jpg",
+    "split": "train"
+  },
+  "9bb5ba8ce2ca5f67d86ae0e053b9404918a50aab6c1d67740bf9a246acfd0ead": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_016.jpg",
+    "split": "train"
+  },
+  "d487f1f490099013b0a84b6945084f2618b15636cf5b0b1c048398507d4417e2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_017.jpg",
+    "split": "test"
+  },
+  "5c7be8d5f3ce23f1464afb6e93e1c04bd22ab06f1c8c13b02ddebbf883818cc4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_018.jpg",
+    "split": "train"
+  },
+  "b0fa19ab674f1808c1f8d490ad822eddaa31a2402f2384ab5bc180f85dc8a0fa": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_019.jpg",
+    "split": "train"
+  },
+  "4a8d022c475a588a70bcfb7fd2a5288e258dcf9f6c944263a77fd6e7da06975b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_020.jpg",
+    "split": "train"
+  },
+  "1cc843c135a283a943a586e808626fd210cf1c5a3302c788f15397b095c67975": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_001.jpg",
+    "split": "train"
+  },
+  "f397e79f71f77c91d7087ba0198503a7abf87d2b910f054c4d4560a2cd6c1953": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_002.jpg",
+    "split": "train"
+  },
+  "24b529013dcf7bc4d56804188d9a5b7917d604fb069e3a4564a4ebe1236788bf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_003.jpg",
+    "split": "train"
+  },
+  "d8094b2b5fa1b3e2e1e4c7a2a3b400a6e874dcab0cfd8bff9540a4accb503c17": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_004.jpg",
+    "split": "train"
+  },
+  "a2dff07f7d4617c45a3670c7ad95fc7e145c3a34e1dc47b5d8e50e6916f2e9d8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_005.jpg",
+    "split": "train"
+  },
+  "32395609c0badbdec8036570fc89fd15d7659a0101d1c1d9dce43ee4fdc67322": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_006.jpg",
+    "split": "train"
+  },
+  "b716f14c327d50ef87c314956dc73fdaf2048e3a324ff6beaad9155fdc3c3363": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_007.jpg",
+    "split": "train"
+  },
+  "c9850b10b45460435805afb0619b0202e21a574d18947ba39de996195265eeca": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_008.jpg",
+    "split": "train"
+  },
+  "855c6ec2fdf99635a8c4f07f3ffb2275d9f48a31358cf0c4e812db2810ef3bc3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_009.jpg",
+    "split": "test"
+  },
+  "d06eabd41f5e1f5831b9c4a724f30c1aa596e2d82b32cd21b0260727c9a3e281": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_010.jpg",
+    "split": "train"
+  },
+  "73c378aeaf38fdf85f85157b88767bae2cd152db8d396e56f43c846a358141dc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_011.jpg",
+    "split": "test"
+  },
+  "71a99ce7911d5c86f5a4f63183dbfe83f8d8704732835f227abe9f9217cbcbca": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_012.jpg",
+    "split": "train"
+  },
+  "8a15f03722abb8ef352a786b1fd587daad045c7943453cf45d34213a4164583c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_013.jpg",
+    "split": "test"
+  },
+  "8ce26e7cfaf5697b89bae7ee2491b0905239e90ba50009a53b66e57ad309ce8d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_014.jpg",
+    "split": "test"
+  },
+  "6fe06d92c22aff6c4949f38806e5e1902ba89ac57d7b3abcc5b300d128e7a6af": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_015.jpg",
+    "split": "train"
+  },
+  "0365ba461cdc1ab426684192713ca7b6bded057ce269ae123f73ecd68a91a099": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_016.jpg",
+    "split": "test"
+  },
+  "4d25126740ee49c53e6432aaf60bc40f7b650fb953978ef678b214f95facaca1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_017.jpg",
+    "split": "train"
+  },
+  "f2eb0a399c3b3155cb8430e60479244f55359f264232e7e9ebe9eb4e558603c8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_018.jpg",
+    "split": "test"
+  },
+  "25afa187b16cca76431635d3bb3c6911f8b24a1460e3c1bf47339b061dcbe4b7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_019.jpg",
+    "split": "train"
+  },
+  "9f5f446ffe2912b581448640f83fb4cee942e80c96069ca89fdbfe78a0cce9a5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_020.jpg",
+    "split": "train"
+  },
+  "da7f7bec779216c98c33fe4ad7b03f11a45fe1ab633a89ae9e67413207c923ac": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_021.jpg",
+    "split": "train"
+  },
+  "e50974bbe60f170be1e0fc12df24621881267fa5bb9b425e0a631d562b797aa5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_022.jpg",
+    "split": "train"
+  },
+  "d196af6ce8a6b10e70149522949abbd3ac1162d6690d0b659f768d63a2f1497d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_023.jpg",
+    "split": "test"
+  },
+  "3063f70cd32df03b4e87f240c99f4e48d32f661d5197d104e41dd43ee141a797": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_024.jpg",
+    "split": "train"
+  },
+  "7cd4591e1a7d0bbb0b389782743a1f6154c397f3ca6b0055545d730237251a17": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_025.jpg",
+    "split": "train"
+  },
+  "242b3afab92c85d830ffa65a312c92e7b02b73aa4e7ef95fccf54fafa839e533": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_026.jpg",
+    "split": "train"
+  },
+  "8f2412a435e41950f0cda8b3da2ee8772c65d665c5ccbf6022c6b9d97693c022": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_027.jpg",
+    "split": "train"
+  },
+  "1c6d5a77ff62ff5674ed8f554c0946619936aee5b9140630f11f16e5f6113779": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_028.jpg",
+    "split": "train"
+  },
+  "cc3646989ca873bae6ddae0c624c586c8e7882d389b9e8b5420b6395f5c4f47e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_029.jpg",
+    "split": "test"
+  },
+  "dc8204b5cbe553d54ad5274899b03e081859bdebf813befdc58f49ea08948adc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_030.jpg",
+    "split": "train"
+  },
+  "58570b503434462e3c0937accdb169231d921168f57fa839200627559a3b00f2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_031.jpg",
+    "split": "train"
+  },
+  "74d416fdc8b9842594c381d9ecb77f7d2327eeaff9971aebf86cd89edc276824": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_032.jpg",
+    "split": "train"
+  },
+  "f2f14fcfc946b0fa537c4e95156f72324cd785d98b2266961297cc08ccc9f5cf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_033.jpg",
+    "split": "train"
+  },
+  "a9a0d8b1b1372e4b9a4730a6ffd114651265e90aef26888c567602c8f9d2e335": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_034.jpg",
+    "split": "train"
+  },
+  "42251858df43186d246efc5869ea4f1ec1c84face1bc670bda2a248197716296": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_035.jpg",
+    "split": "train"
+  },
+  "336b729de5f021866db72e7908e9c9b91f11a9b4027c555d68a2c419a5c9a939": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_036.jpg",
+    "split": "train"
+  },
+  "2774f6c4737f1b596e1636f2c040323729a081a61083f2d76fe25b359001b2f9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_037.jpg",
+    "split": "train"
+  },
+  "68b465558d326cb8874326d262fc14682d4040f6f6c569bfc279ca5d1420335a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_038.jpg",
+    "split": "train"
+  },
+  "5ffaac83de1466752869a84884d300e9197c970e07d58260cde17d6f13314040": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_063.jpg",
+    "split": "train"
+  },
+  "abeae6dcadba54622f926a5d8e2f82f31556ebc2adcc5eda803e9539311f447b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_064.jpg",
+    "split": "train"
+  },
+  "28403c78947152ef4f89037cf8a84d89f966071db87f7e725f69d540f08dfc1b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_065.jpg",
+    "split": "train"
+  },
+  "2a69b6738ad56dc1dd2b26748220870b68fe14db18072f89f6457420d6759e8c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_066.jpg",
+    "split": "train"
+  },
+  "52a8e01ebb96398507c4f894414bcddbab79d78aca0a6b5db7ea986b9f186204": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_067.jpg",
+    "split": "train"
+  },
+  "dfb153e325954d8b6e2a7420ffc6599ed62a3f234bc7cbe4a2653fb29a52d949": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_068.jpg",
+    "split": "train"
+  },
+  "03335dd8524a82cc4895ca887850bec860462c749a522f5d74eaa7d77aec9308": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_069.jpg",
+    "split": "train"
+  },
+  "c5d830e445528b60eede202edda9193e32f0f04eabbd84d2f4fc7ef079cb50fe": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_070.jpg",
+    "split": "train"
+  },
+  "8d62eca4b8b32e06e71110efd3bb040a2ebfd476f33cc49ffd060424182eaf38": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_071.jpg",
+    "split": "train"
+  },
+  "28d9f96390de096a87a9a0d390835363039ccf7aa019e56683fef611d0cccb3b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_072.jpg",
+    "split": "train"
+  },
+  "1f2d6d58c9503941a6a1cfb6461eb9f516073084ce49af09aba312e3fb84caa6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_073.jpg",
+    "split": "test"
+  },
+  "cb66dbe79cd437409fec11059f0ac94316b5de8970252cdd13dccfe38d16de0e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_074.jpg",
+    "split": "train"
+  },
+  "f15e9e26cafc169bd7268d27c2ad84ea9be4bbd81800785e62903b61f72e3e38": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_075.jpg",
+    "split": "test"
+  },
+  "9d12585957e8c8002935269a9bcd87267fd38a78bc26be4647579ae0a67f819f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_076.jpg",
+    "split": "train"
+  },
+  "29eb2ffce316f240074ae29d4c60f16abae83d3922ab8e4eaeec8aa9a310656f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_077.jpg",
+    "split": "train"
+  },
+  "4f835c4064b895241eb38b5f02a89bdecb8dd34f99a9f0022e8e1f1fe46d8662": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_078.jpg",
+    "split": "train"
+  },
+  "5b4ff86bff6373528176292f8f1bc878e67b6fdccd55fe300f5ceaca2d5ad1fc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_079.jpg",
+    "split": "train"
+  },
+  "da74393cd12a7b9e03bc28606754629d42e7b925ee9ac18e17b362a6dcf8c2f7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_080.jpg",
+    "split": "train"
+  },
+  "f537bfd20ada28d95277e241ba709772216e6fd94fd03bfd787ef39a29ccde5a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_081.jpg",
+    "split": "train"
+  },
+  "aa46c367f1e950cc3e53c2b2b3ec2a7b442910734523f0b996fc2235a796913d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_082.jpg",
+    "split": "train"
+  },
+  "04e3b78866cef79943fda691f4d1368bcbd7991c636748ec1eeacf1a60dc9683": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_083.jpg",
+    "split": "train"
+  },
+  "6fb5d44e57b312d5753f0a53e224ccced5a3519c79466f897077a348fe49c121": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_084.jpg",
+    "split": "train"
+  },
+  "52c45adc20f53a52ff24ce99c9f342547f01c4deb77e111a891765f335acc68f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_085.jpg",
+    "split": "train"
+  },
+  "1839df6209c26160b482ac7ed0fd505aa36addfd76dfcb6e4ddf3ac7fa051a50": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_086.jpg",
+    "split": "test"
+  },
+  "6b5a62fb2c2875c35f60d47647c52e4ede65d03ce2077f65402a5a47b26d9549": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_087.jpg",
+    "split": "test"
+  },
+  "bc36dcee2764b99839d85e4e64a2e7f449485cef2caef351c2c676d6a2309ed5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_088.jpg",
+    "split": "test"
+  },
+  "5d12941fdfb3de35a82ea6439acbb7509b2cbe077debf2d843808f483bd07972": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_089.jpg",
+    "split": "train"
+  },
+  "b3edb2996591c9e189ffc0903e884ff8ccad64d8207f24ec1c6b3e3e9f630a43": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_090.jpg",
+    "split": "test"
+  },
+  "97705510b4740183795f421789091578b70a8f1c14a8d201c4ca16adcaacd35c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_025.jpg",
+    "split": "train"
+  },
+  "382fffb80769701628373eb6f56640d9ae3585f1d5b9aad1606286743d5f7d88": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_026.jpg",
+    "split": "train"
+  },
+  "d265d0218a04c41036373f4913d195439868f1e2f0085a1a9d6b9fc5e408e24c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_027.jpg",
+    "split": "train"
+  },
+  "bd2df7a8706fea35d57a4c91b66472d2181d2a329b20dfc12e7edbad2fffb05b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_028.jpg",
+    "split": "train"
+  },
+  "12be01273f7204131a547da301584830bd80f7fd2dbdec894bf3d7f07604f994": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_029.jpg",
+    "split": "train"
+  },
+  "237e2ed720a91098e7bb34213444a8790c0e7aed71c1acff1f8de83599ea33f7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_030.jpg",
+    "split": "train"
+  },
+  "53a1cbd450b5873b0ceb8de9fa7206d96c76de111317382ce25eb011553f0165": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_031.jpg",
+    "split": "train"
+  },
+  "ba6bca55c6b2493eb4b56134fd1483e3b4050a9f7cde5a13bd3b65c0d43cb6a2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_032.jpg",
+    "split": "test"
+  },
+  "cdae214eba6c2fef6a2ea34ca7649a9d7a2c00d3548647da7bd121acdd2edeb7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_033.jpg",
+    "split": "train"
+  },
+  "cc89ac7ef7d1626fc1bb02944a80d6876b0a8501bd880f6f820fa1ac497e46ea": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_034.jpg",
+    "split": "train"
+  },
+  "bd17b6177b41eb843dbbd3a3bfda422883da7354fabc1cf9d6e5838101a60166": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_035.jpg",
+    "split": "test"
+  },
+  "7b5c07456cd911442ccb37d17e053c4955bc0acad1b47bbbdac17e9921dee660": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_036.jpg",
+    "split": "train"
+  },
+  "c6cd23be5fff6a1d94cfcf5a2b91105502d5eb1bdff9a898c567fdf286fdec3f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_037.jpg",
+    "split": "train"
+  },
+  "d242a8ffa07770e2fef2ae4de3a5ae0b9616ae86b97af78ae82506ddfa1968a3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_038.jpg",
+    "split": "train"
+  },
+  "d62899fbe5074cc2275043f628c52860fd22e8881daf8d467c557abf561e9ffb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_039.jpg",
+    "split": "test"
+  },
+  "a933495a114b01d4ffd7f576af64bae1d65fe52c761ddc65fe44cb53a4abd063": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_040.jpg",
+    "split": "test"
+  },
+  "afa288c524f3af065729e87256d7b79bf1e7dc83a94aa2856afa4f45a86f1d68": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_041.jpg",
+    "split": "train"
+  },
+  "7e785d1881b7be31f01419c54534090cddfbefb025509829e515dd1b9b40ec85": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_042.jpg",
+    "split": "train"
+  },
+  "dbacde7fa5055ddc8a7472cfa38d2943c3c3aa8c5579222a5e5830c5f1dd9d56": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_043.jpg",
+    "split": "test"
+  },
+  "c072648c0006192162777785208e911d0c7e58a59ce4496edeb88d0d897514e8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_044.jpg",
+    "split": "test"
+  },
+  "4779a13584b38e1852e6f0faf0dcadcaa6d39604a7967303c9d422e1125a5916": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_045.jpg",
+    "split": "train"
+  },
+  "aab78be3a6d8fc3c71ef7842d70e9b9afc2c86c2d688f5ae950bcd0d12877ece": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_046.jpg",
+    "split": "train"
+  },
+  "d571df7d1fbdb0b4386cfa3773dd0e60244e6242a4adfd9fd04d22273e6a80c1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_047.jpg",
+    "split": "train"
+  },
+  "e5234a915e24e0d057c0938d08955d786c541ef16ea03e323c10aab9e0cf4fdf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_048.jpg",
+    "split": "train"
+  },
+  "1e282f3a2b4cd0ce77d819721302fd1183e9342fee2c0e009c264088e13d3b0d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_049.jpg",
+    "split": "test"
+  },
+  "5d6387b03810a763c158c8d1fdf213f48b7ab9e603ea72351186c66897a6a55e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_050.jpg",
+    "split": "train"
+  },
+  "35e46d063213c8fed44c5378e94ab6a3b3b01201ab0bca37faf0dcdb5225031b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_051.jpg",
+    "split": "train"
+  },
+  "ade350ff7b4fe7ee6a258e34cf03b382cd0f092fedcfa4deddde93541a9ffecf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_052.jpg",
+    "split": "train"
+  },
+  "0ca26e974f16fe42bc3b47fd6e047215bd6ab18c8dcd3157291de9622fd13b80": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_053.jpg",
+    "split": "train"
+  },
+  "af8b0a83518744718acfa017952db9a07aac86c8294ed11e26b92bc8e12592bb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_054.jpg",
+    "split": "train"
+  },
+  "8071ab6dde6866220201b9989f47920f7181783a2a102e3bbed21e12596d49b9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_055.jpg",
+    "split": "train"
+  },
+  "d39dd3509fda22ca33be7e3f20bf4cfae952018a716ddb215d1290877cb2a6ca": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_056.jpg",
+    "split": "train"
+  },
+  "f74d367937a992de2acb4d386a9d461f8597fc0f4b6d00ea9deb7a274fc71d13": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_057.jpg",
+    "split": "train"
+  },
+  "370ddf7cd912eb18619de99374d2b45596f549f2d93622a3d4817aa82968fba7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_058.jpg",
+    "split": "train"
+  },
+  "dd04835bc76e65b4c5cbd11d7fe51f2f48e9c26773299898d9363800513133ac": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_059.jpg",
+    "split": "train"
+  },
+  "496cc2100465995f0ca73417129e2b2c943ed79526dbfb47f6bffda14a635b84": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_060.jpg",
+    "split": "train"
+  },
+  "161adeadbe244d62a72e132cad230c21132bb9724f799d8845e52ef97a696161": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_061.jpg",
+    "split": "train"
+  },
+  "1dafc6bbf1edc5915fe87dfcd01f83bf3032c4daf0f3c93ac7b4c0eddf84262e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_119.jpg",
+    "split": "train"
+  },
+  "40cb99729747b1b6fa226f4096bcfc254cbcecd51e5c890816db520a4904daa7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_120.jpg",
+    "split": "train"
+  },
+  "b9fd4ce137d76549c199d9545c0d75f8ed9a0e96a0c8203b5c628752906ba9ed": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_121.jpg",
+    "split": "train"
+  },
+  "be61234b68f2521dde540d9fd8c29a335a1fbe2c93ad510b38683951810194fa": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_122.jpg",
+    "split": "train"
+  },
+  "d8bc33c9d3af669f8966f67f1ac2edf31163ff4a0fb3fe328359094d50c51618": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_123.jpg",
+    "split": "train"
+  },
+  "1fe819da2ffac65ff38d6b112f07c9467182baf693b8003d9b9e586b9918415c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_124.jpg",
+    "split": "train"
+  },
+  "be59d4eae6f5ab2046f3d9ad8e5a1e3014ccadbb4207ca23a99780553f072a0b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_125.jpg",
+    "split": "train"
+  },
+  "86fbf65a0d30361df5eafbe286a7509f00b56719e9e7386e4bf82414dd37b077": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_127.jpg",
+    "split": "test"
+  },
+  "3bc1b6ddffe7c2de36ae376bb9500205e8aee68e0931eae7a6a033f728774c4d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_128.jpg",
+    "split": "train"
+  },
+  "8989e3453d53c64f914a0675dfefd90ed324a30b32bc0c61077f6889f6ea7874": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_129.jpg",
+    "split": "train"
+  },
+  "6c980839d2be2155d9dbcab6336403172d6b01d1fb72feec346cc40a344afb11": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_130.jpg",
+    "split": "train"
+  },
+  "048d366b8c686a91f589ae2ead95870faad32a50ec89e3f903787eb1f6871b3c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_131.jpg",
+    "split": "train"
+  },
+  "55ca9f5dc126eb27ce28305ab8bd09fea91750af46729c5bcd86ce01793dd448": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_132.jpg",
+    "split": "train"
+  },
+  "cf6b30ef21319343277f5ec24bfc61881cb5a2b38324af40d826ec3cea595b27": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_133.jpg",
+    "split": "train"
+  },
+  "f81a322c4eb526106f42d83363c28bf96ea034f14e194e3625ffe3cf4608f6e1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_135.jpg",
+    "split": "train"
+  },
+  "a713acdc61e77910d75af87e97b8917a42322a82ab1119c69244d8857110f2dd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_137.jpg",
+    "split": "train"
+  },
+  "b62c57fe7523a865463cb925a96c3e668d39abacf48a8689e43efde67f0b8d6d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_138.jpg",
+    "split": "train"
+  },
+  "cf79d6ba4305f5d2b6104d07a250f3bb8b56ab1ad02ecd2189ddda0cc5ae8159": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_139.jpg",
+    "split": "train"
+  },
+  "c3da83c90f120ce56cfacbc4d2dffac9d75bbdc62de916e233d79c1f79589d19": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_140.jpg",
+    "split": "test"
+  },
+  "2ba08e7b0132a5270a299fa5591d6a5cae7b5f219a3ea714280202f519c2853a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_141.jpg",
+    "split": "train"
+  },
+  "13ebd758b3f08657e56c01774210b65b81d5ca6c428352e3099bc464585a9ee2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_142.jpg",
+    "split": "test"
+  },
+  "8301a33eb5e7020b9d09bf82a26adc1a774ac0c01c60d2c4a5dc7bc2ca99bca4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_143.jpg",
+    "split": "train"
+  },
+  "6002c3690fe3057d6648c140c55e0d2e3467e77d5d16bbaec7d7d55cb3cfb509": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_144.jpg",
+    "split": "train"
+  },
+  "e16cf1cea32c510657d6ad071839de74c5526051b96c7806d9c0a23a848acb8f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_145.jpg",
+    "split": "test"
+  },
+  "537b35358bec2a44d1e46a4a7966f73ffcaba9e4b84b500b7da422bba23fa0ff": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "costilla_146.jpg",
+    "split": "train"
+  },
+  "619eb273043333ab7acc3dbe3b19b6c24740917226068227678dd22eb84954c8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "costilla",
+    "filename": "openverse_7d6830ec-0b2c-4721-af82-9f734c009b47.jpg",
+    "split": "train"
+  },
+  "5073ac7eb96b7515eb82217fbdb47244c4be529c1ba6530b014d93d7f6d434c8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_9aa54769-a487-41fa-b2f2-462d8f82f72c.jpg",
+    "split": "train"
+  },
+  "8bd672f5c3717fcd345b75a1cdcbf84f85aefde270c355dfc9ebaeabe88a9e6a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "openverse_50a6a6a2-28ca-4926-8cff-54d54974df0b.jpg",
+    "split": "train"
+  },
+  "7570464b8e86d1b1854e61124d8078fe3443be9138a50c8802eb24f825096e07": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_12bd89a3-7d3b-4f63-bb1c-6979c3f5732b.jpg",
+    "split": "train"
+  },
+  "db0607a97c41356ba0cffe03f7672007b76901422f502034ccd7a5e03b3b59fa": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_1b4d6ed4-8d02-487b-85e7-534940a847b3.jpg",
+    "split": "train"
+  },
+  "aa5f887836168ada9fec312fa73e79bc3e99b2a422d0a1b8f965326512107b03": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_2f3f8bc6-f327-4ff5-b5ef-dba76d64a8bb.jpg",
+    "split": "train"
+  },
+  "87d67c47ff35abf326830b2a6bb2172fc97114b1032a5f420c027611ce875755": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_5898be0f-0d71-4601-acc7-604e5677d37f.jpg",
+    "split": "train"
+  },
+  "bd9037206c645612a09c4cae9c5737572afb6a9b4f6c721b607a1f7fde294865": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_9ce62620-f3ba-4811-9eca-4db4a6dfde9d.jpg",
+    "split": "train"
+  },
+  "b426c4bf388f0d21233c00d82c93fa9280054ecf45493656c4cf076bba6eb3e2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_c2f58ce8-c625-4228-83a9-280f2d297938.jpg",
+    "split": "train"
+  },
+  "1cdbcfbdbcbc7b84c37fce7371e93e578f3b4510d7248a9ea91070f51ae6e546": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_f0a77315-82a8-428a-8923-457d32f1a38f.jpg",
+    "split": "train"
+  },
+  "36abf36804539a2d6aae2a55f293afac3a9d25c2eaf58a40138857a9ba4b8e00": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "openverse_113758a9-8c65-4b7e-8614-881d97712bd9.jpg",
+    "split": "train"
+  },
+  "b8c447d4491b37de1d8a9099946a5375fee9a74c5f7205380676cca1ffa963e5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "openverse_c8b3412a-36db-4646-a78f-e0698b324418.jpg",
+    "split": "train"
+  },
+  "fd85c7bf9c82386d952fa34057ece060aeccb3296ac606403df5a1a90e7972a8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "pelvis",
+    "filename": "openverse_c14a4ebf-0576-458d-ac94-6e48b9c75f21.jpg",
+    "split": "train"
+  },
+  "c412d01d15b1562c67a160a91122aae1e98c3df5f3b482ff67ab443e8e12640c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_0c23976c-295f-4585-89fe-88139c8c610b.jpg",
+    "split": "train"
+  },
+  "1ee1ca90cb8a248e4a868862d0bf0d5e09b71190ab5783c78f29ae737afcbfd3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_60516e75-da2f-4019-98e0-2b0f4de4b89a.jpg",
+    "split": "train"
+  },
+  "45ab4f41c4010a827083be87431949e5ee0e7bb5864869c182a1dd20814f39b3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_aac1791c-0862-4cc3-94d2-0fba191ddb7a.jpg",
+    "split": "train"
+  },
+  "37f19a4a798e0d7e7115c878378c6954d5d1269a99c3615ada4648d7c6c2ed6f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_d2b5d9d6-7c81-45d9-b368-3c67e4d106d7.jpg",
+    "split": "train"
+  },
+  "ffad843cf4084754563eb6d82daa5883a5fda90a878a861d002d662293be4c0c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "openverse_0d02c6a5-3722-45a8-a4e0-e0299a490153.jpg",
+    "split": "train"
+  },
+  "8bfb4dfae9b01c2b27068114a0af7b354688d84485384fdc07a18f97a598fef5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "openverse_8587ae14-de06-45ec-bd0d-a1f7ea41c0bf.jpg",
+    "split": "train"
+  },
+  "ff8dce2e180c94e59dab559695dbf52bc5a1340bedf9243178fb71089fdb60bb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "mandibula_maxilar",
+    "filename": "openverse_9cdf7bb5-aabf-4a9c-abd2-a4bdf871aebb.jpg",
+    "split": "train"
+  },
+  "17fce0b93fc6496cf0323adffc50aec023af94a19a0268492e5c8f9487481d81": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_17dc9416-c166-4d51-94b8-5e8beb3bb96e.jpg",
+    "split": "train"
+  },
+  "6550567d4801f5caa952e696a1b85b98fffe1f96bfc5188851a71992ac244538": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_1a51d1cc-a9b1-4345-9430-8e1a3537ab85.jpg",
+    "split": "train"
+  },
+  "4b50aead92733e044e0e063f61002b617526bf637afbf0d3bb84ce32fb476619": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_2738aa23-10c7-480c-9894-6196beecd352.jpg",
+    "split": "train"
+  },
+  "19b4b701eac6dd3374f1ddf06cf91303675c60e0f70a9fb828201a82cabaee31": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_6349eb18-5d52-4c83-98a7-cad25304709c.jpg",
+    "split": "train"
+  },
+  "d97dd6004e8d491708217a552df543d45e7493c70e9f2f66249dbcb673b919a4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_7be727c8-0a04-4c25-b1e1-5480d062d64f.jpg",
+    "split": "train"
+  },
+  "e9dc8d2df4d688f6b596f3ab082d1a2156456d9f2500256e38b91a2267b147ed": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_8eb36e32-c7f1-4c47-a58a-11389327a76b.jpg",
+    "split": "train"
+  },
+  "5893e19b10a4928d8d215bcf43e5be3922cc96b2f77a6b70cb7395e0e46b1a22": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_c339ae0d-186d-4020-a6ea-b13a81b46c5a.jpg",
+    "split": "train"
+  },
+  "43ae6becf65a4915e0ec76861e9b4e719f800c46e587714aac4e62f15d87ece7": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_bee00483-162e-482e-8f4f-ef15549fc060.jpg",
+    "split": "train"
+  },
+  "0f1e6296161b2af0a7e6f3b3265b525d31e34c5889e780b40974f1e06a1f3755": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_51f8c14c-d786-4c55-94db-ff82f517b5d6.jpg",
+    "split": "train"
+  },
+  "6ca0df69de73fa827b31ec35bd3c47ecc56213a0620b7d329608b49efba1e761": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_e7f334fa-08fe-4222-a336-077ff3bcdf38.jpg",
+    "split": "test"
+  },
+  "42284315f683374992f2209add3af141d867e3ce6557566d9e40613269fc70bb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_9518d24a-a8da-41f7-977c-41966601c2d5.jpg",
+    "split": "train"
+  },
+  "6bff0f414825d3283c69340f43034652e390a0adb5ae263ddc1c3447a44ee75e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_81eddf9e-ee5d-45f5-a9d7-7009d23d4e15.jpg",
+    "split": "train"
+  },
+  "e7262b09031396e5d292044dc9577a1f35f84ab77a5629c6b2986c515150a31d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_e87f9cd4-9364-4ba7-851b-1f2f32ecdbec.jpg",
+    "split": "test"
+  },
+  "b8c35efac877aaf9ada012a663db0f77b69dfcf60f678e60215c9cc9b5e46560": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_b0e4b2b1-be8a-475f-88dc-74c45c17041a.jpg",
+    "split": "train"
+  },
+  "0ce5147073880829c6028a3295eee41e0494d1a507dfdc7db3a4bb02a53ff59f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_5bf4dac3-eca8-44cd-8abe-49cf059652c1.jpg",
+    "split": "test"
+  },
+  "2d93152db9b49e601f47e96450bb1db8317d3ed9c5c88594020b66235a8f9f5f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_0fcfa7aa-5de9-4eb6-b650-e1cc3e96984e.jpg",
+    "split": "train"
+  },
+  "2b53b5318d545a0b395bd1c54ecd0d44e7d54e883ab31712518a0eee9a4c71f5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_a03ef226-2bc3-4959-b432-68950fb0696f.jpg",
+    "split": "train"
+  },
+  "2a6024ea057d2dd66fd4e2233396c9f4ac2a5803291d094c42b827c879561226": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_f63d3f54-8de4-4f33-ac4b-680ea47ca26e.jpg",
+    "split": "train"
+  },
+  "e04190de09e8c84d3ae93a6e4a6894c3f3d2e2208a07e912603d5908d5f3a0fb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_2ec5bee2-000d-49ee-92a2-b83082f5ea7a.jpg",
+    "split": "test"
+  },
+  "b5f35ca448671810f99b82e55f77bde385b5dbc1ffb3189018a164c6fcd522f2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_e849077b-cf7b-4ddd-9b63-d69454454e79.jpg",
+    "split": "train"
+  },
+  "739e8455ae1acb090197d1d7464f425a2920de91088eaace4d3a458d3c3456f8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_6b89c55a-d9ca-4d32-89f1-0fd2713c9e7a.jpg",
+    "split": "train"
+  },
+  "916cfe9e62ba74b10d3ca3cd2e158a3a323dc4bbb75697d714994f5e82e3284a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_d380bfc6-88f2-4ee8-ab06-c3bd0dc70465.jpg",
+    "split": "test"
+  },
+  "76699d96048e65d0347da6d5bfaf7614517a305ce6fb3cd9be13dd84fecc9852": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_ef579f85-8672-4b3a-84f2-e3fb65888028.jpg",
+    "split": "train"
+  },
+  "9e8846b468c2ed166fab7c6dfdd15c8c3b9b4d010d30223e9ddbf6b587a3eb60": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_a19b6f48-d696-423b-84b6-404922c81ba2.jpg",
+    "split": "train"
+  },
+  "5431755f10f0a706eafd94738bda1b7057d4911b7e14381c4877354c024d2b69": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_d735188c-910d-46cd-b0ed-1e8f1a3b95c9.jpg",
+    "split": "train"
+  },
+  "0b6efdd7af5c74e5d7f769e61cd25a1eaaa6c5c420922de6927afa46bef2e3bc": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_c03de2a6-1e59-4b5f-9eaf-6844267325fb.jpg",
+    "split": "train"
+  },
+  "aa658ddee4396b4e4e5a9f604e3373b9f76d59d8278e5b8b9c747d5346a67be4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "openverse_0a1d04dd-ad1f-4a7f-b072-6897f026fe5d.jpg",
+    "split": "test"
+  },
+  "42c73c383407d3a4e5c7da1913526b68b783d021dc0bd7cce5472dd979a95f5e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_516YyC3VwnL._AC_UF894,1000_QL80_.jpg",
+    "split": "train"
+  },
+  "957390175f0eae3e4018933f4a491cf98443a9e9113f20f1b1bd8017a633480c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_Craneo_Perro_Siberia.jpg",
+    "split": "train"
+  },
+  "ff3445be05a67d3d682b35fec3e56eb8213a5e8fe69113b18c0c43b9feea0735": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_dd6338e5a4ec007c14d9829a074b54c7.jpg",
+    "split": "train"
+  },
+  "47126ae3844525363a47b3abc63c2e8cd93aeedc89d718f1867d81661bffbebf": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_images.jpg",
+    "split": "train"
+  },
+  "f4424f0320d7eec58978faa1ff73e55c892d16f9ab1b32e65b3c5654fad077c2": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_images_(1).jpg",
+    "split": "train"
+  },
+  "4e334016b8f94087ee918cec9faa8b9bf227e7e40bbd28500567ef7c74d8f96e": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_images_(2).jpg",
+    "split": "test"
+  },
+  "e6286ab21a3622a2c235172f3200e0d5ba1ea4d6a17e53111212d997e47cfe58": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_istockphoto-497441540-612x612.jpg",
+    "split": "test"
+  },
+  "6839d96790b196cd07b7152c032a327b8498d410cea53eb764b56aa8e014b7fa": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_canido_lobo-calavera_657590-8271.jpg",
+    "split": "test"
+  },
+  "e8106d02c6851f7e5f426cfd78a32785b7288c482daf6e9fe1ee3b23469007bb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_images.jpg",
+    "split": "train"
+  },
+  "188527d3003b7fefe0f51cb63a9dc4317990844d1b4533b0645a4dd241d8acc8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_images_(1).jpg",
+    "split": "train"
+  },
+  "44b817161e995e1fd775f436caa3f7ca49d5639c72ed6fc5cda27414f761d854": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_images_(2).jpg",
+    "split": "train"
+  },
+  "ab853fd5e17fc78e04c7401b333f71cd58b54fdca70d0c79b8f31f5c4f7d8a83": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_images_(3).jpg",
+    "split": "train"
+  },
+  "23b96b7d629f97181fce71e604156948273af04f95d042f436505de352e42b01": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_images_(4).jpg",
+    "split": "train"
+  },
+  "45d3e094864ace53612ba3489d726747beb8b3d27ab20ad2ca3339c70b27bf35": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_images_(6).jpg",
+    "split": "train"
+  },
+  "d959b80c5a51377bee203fafcd11936a41d91828ae30aa4d43889766d5ef5145": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_images_(7).jpg",
+    "split": "test"
+  },
+  "e5c1ea4861aa993ed07e014afa89ca841246371a72d7e5d48ba539ce6bf2289f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_IMG_0489+copy.jpg",
+    "split": "test"
+  },
+  "96d9def2d75d59609b2a96444cc0aec72e246db1056cd415c83e65a709985bcd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_equid_il_fullxfull.7781393546_6x4i.jpg",
+    "split": "test"
+  },
+  "1281a508fbb2b74d4ce1506849ec7c2b407164449a161023981fdf1687f09914": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_human_White_Angel_2.jpg",
+    "split": "train"
+  },
+  "30be59ac8e1facf76e4635530f5538e93bcdac14f198e6183a93878ad98c8df6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_human_this-is-a-real-human-skull-with-cancer-and-dentures-v0-etc86l4z3jua1.jpg",
+    "split": "train"
+  },
+  "eae1e88a2b48641d7f0c7f5309478ae2de4f35b945a31652779b891ab0c54cbb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_human_f1c27e7b-bd8c-4d4c-bf74-9314e487cfb3.jpg",
+    "split": "train"
+  },
+  "6e87327ae43a27063f4c8eb4bb5860b1b2be872aabc5eb347aa5d9cb18a90675": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_human_pexels-photo-28210084.jpg",
+    "split": "test"
+  },
+  "e952d0d9a6ba3f98b48b127ba778c95dce91e6aac03f5a3dec86915ae49a8ce6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_human_tvp8dyz8.jpg",
+    "split": "test"
+  },
+  "a215079ecfc13ebc62c9ac80ea3bc516b51812813c5686331655397418331a65": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_51k+OdV57fL.jpg",
+    "split": "train"
+  },
+  "4c92b587989282271df01aa7881ad33a09bef3a9207a8cfd8886331ce74d91bd": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_61tQZj+SJ4L._AC_UF894,1000_QL80_.jpg",
+    "split": "train"
+  },
+  "d3419ae3555b0d447280c8692953d59b55bc0f0dbbc8b807bf828343b5dc0dc5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_61umHnPWTSL._AC_UF894,1000_QL80_.jpg",
+    "split": "train"
+  },
+  "58e5ee55aaacaca4bcd26fe8030a3c830b513f6d99b9a78988d1ab3a48f3799a": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_crane-de-porc-_sus-scrofa-domesticus_-femelle_-t300161f_5.jpg",
+    "split": "train"
+  },
+  "b4ad522b149ef71206ce2ecb9956b6e9ecefea04e5a19592ddb8cf62b1b294bb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_13.png",
+    "split": "train"
+  },
+  "0fc29269c6d09adc6865410533da0c2e5f7ca27fc7f08e6da1375b1f87dd979f": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_images.jpg",
+    "split": "test"
+  },
+  "3cbfc84fe39f33e5dbe3f6d38b4ba1bc485f903861130bbc498b4e4e362acd6d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_images_(2).jpg",
+    "split": "test"
+  },
+  "42c1f5edfcc993ae4f466de6465f1cfb465a2f71599b55a7de9c3e6f08bd36a5": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "stock_suido_images_(3).jpg",
+    "split": "test"
+  },
+  "4fa2d90d9b1addc9bec7741438460b4e88dcf88761847f82a3d78531a0b7981d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_perro_Real_Canine_Dog_Skull_v1_1000_0037.jpg",
+    "split": "test"
+  },
+  "e152f922163ab6af85060a2c11745913aa212c51798fee2ba391bb48792dd570": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_perro_images.jpg",
+    "split": "test"
+  },
+  "8b6b4f9f765152b4af4d1d59a6d054e0d1bee032e90cf6df51835a36f77ade7d": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_perro_Figura-22-Craneo-de-perro-vista-ventral.jpg",
+    "split": "test"
+  },
+  "2cb5435d51c80f01a9c2c885dcd47141f014cbf4c8deb2bece2cf2d8dba747cb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_perro_craneo-perro-prehistorico-217631113811.jpg",
+    "split": "test"
+  },
+  "f1ce285caa8b6d3707e960489307c41c35fdb6cdd5cc47730a73fd96d2577258": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_perro_il_fullxfull.5709723479_4mhl.jpg",
+    "split": "test"
+  },
+  "5c702aea2b071175d2d38305877276500e9490b0f99685e5be8140e72eed8345": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_45747644-man-holding-horse-skull.jpg",
+    "split": "test"
+  },
+  "c08d36515420688b95ab36843d7c3e5542a43f7d5649963f6fa75ca3b9690e10": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_crane-de-cheval-_equus-caballus_-t30017_2.jpg",
+    "split": "test"
+  },
+  "684422abac4985ad511aa70007cb9a9df5d6ad69a8982efea0b3be4a3c7ba2f6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_f_29506732_1657398201321_bg_processed.jpg",
+    "split": "test"
+  },
+  "e179cc66d39a4a6ef442c2550031884f405950dd4ae503258044a620a4f490e3": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_images_(1).jpg",
+    "split": "test"
+  },
+  "9cf7ef62b929802aad5860f9b869e9e82fed4cdba7880d07070c6965a59e2bb6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_images_(2).jpg",
+    "split": "test"
+  },
+  "24deaaaab259b3ea057cc1e66f4eccd1911af325b0b9cc59795aecdf22aa2573": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_images_(3).jpg",
+    "split": "test"
+  },
+  "8bbc610dd6845684042c93dbc4d675a69bae692a715756160bbaf06a50bfc9f4": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_images.jpg",
+    "split": "test"
+  },
+  "a92e475be81f71e730a8f4bbd26548e833820e640a1e214069a160d5cd121668": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_iap_300x300.6623846270_a26b3q7o.jpg",
+    "split": "test"
+  },
+  "1ba51454297bf66bb47a91f4ff5cb1bae9133d2c31a5bca9837d7f5d05a5c2d6": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_upper-jaw-horse-seen-below-260nw-1654522741.jpg",
+    "split": "test"
+  },
+  "2c19d82ca06fff530bb80a201f514c7b944553c6ae90c7dc5519b305701831a8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_craneo-caballo_1368-3435.jpg",
+    "split": "test"
+  },
+  "a199e098992ab5907cbd06c8f861a0c93691697379a427e122d24247db35327c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_suido_61JvZsV5GlL.jpg",
+    "split": "test"
+  },
+  "ebc78d0fa31a0491631955e80a9f8df4729ab671031a104c5d101b70d430157b": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_suido_il_1080xN.6654178269_sre6.jpg",
+    "split": "test"
+  },
+  "1eb1995f806d9ed307732b4ef2b16f92f43c50c7642681299720a77587b27d81": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_suido_il_570xN.5594958444_15ry.jpg",
+    "split": "test"
+  },
+  "82647b68f9b826a42957089826e951da22d0d304d3f4386c418670af213707d8": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_suido_images_(1).jpg",
+    "split": "test"
+  },
+  "e146c7462debafeb7fd6b6d97ab662e9141f7922bb7643d8540e52d3e03ceaa1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_suido_images_(2).jpg",
+    "split": "test"
+  },
+  "d881989f46953d4be28e9ba22396a3755b952a48d79f9434c2cebeb97d89f8f9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_suido_images_(4).jpg",
+    "split": "test"
+  },
+  "2d9f09e3b578ac62af72f780cb861f65d48814eadf2781d42e3a2ca25cdae25c": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_equido_suido_images.jpg",
+    "split": "test"
+  },
+  "c74bfabd4ed1b9a921185d3d81573a0a9e86fccc1547b9073f8032841b9295e9": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_Cráneo_humano_con_raíces.jpg",
+    "split": "test"
+  },
+  "ba5c12bc37863899b2d7dde8cfd1d288135467fdbaa658a7075b144eabe95497": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_VID_20241028_113950_yxto48.jpg",
+    "split": "test"
+  },
+  "31e056c096dc8d869a4fe1264afb37550ab5a0b0d1957339efd44f2962d3a444": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_images_(1).jpg",
+    "split": "test"
+  },
+  "16336fbbde9b636028d669b227c52fc162e2830df790ece630bb972a22f89017": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_images_(2).jpg",
+    "split": "test"
+  },
+  "242a2af6c3e1b27ef18dee119468d3a30de84713159720615097c2d5c6a37f21": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_images_(3).jpg",
+    "split": "test"
+  },
+  "26fb9bc56ff446c4c3bc9f68dfa22df197d97abb91e15369e43d7c3e5f702445": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_images.jpg",
+    "split": "test"
+  },
+  "05e976c6861c19df1c28166812ab5e8a089d75b9104a69375e199a07b78bd490": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_wzyxlj4z3jua1.jpg",
+    "split": "test"
+  },
+  "a9f35d5479f3e0708a366d237a41fec2632f16e40dd757e43ca506510e57d4a1": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_il_1080xN.1927413990_7xcg.jpg",
+    "split": "test"
+  },
+  "64e066a906768063fae8b0cac6185af526c33a38c7158f6a775b308bb6dd4cdb": {
+    "dataset": "real_photos_accepted",
+    "bone_group": "cranio",
+    "filename": "test2_humano_il_1080xN.8062047490_oc06.jpg",
+    "split": "test"
+  },
+  "3edbd365ecf424eb6ee686303a5b592d693d83f7ec369ff665fad5efbf95d947": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "cranio",
+    "filename": "cranio_01.jpg",
+    "split": "selection"
+  },
+  "90d704af46acc5d7d4dd8f0abb0311489dfb3bcccb76f2bceb42d831959adadc": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "cranio",
+    "filename": "cranio_02.jpg",
+    "split": "held_out"
+  },
+  "22fd760c102b678dc9710d73c76702aa744eae4ef263dd915f454ee7e79ba36d": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "cranio",
+    "filename": "cranio_04.jpg",
+    "split": "selection"
+  },
+  "33bc7275d895d709dff71a4ad67080957312e77973c53ce416019375c1f24f98": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "cranio",
+    "filename": "cranio_05.jpg",
+    "split": "selection"
+  },
+  "d6848a04433ce4084a027c570228faa8344f0103a6eafe22c0815348af82e85d": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "cranio",
+    "filename": "cranio_07.jpg",
+    "split": "selection"
+  },
+  "e29f7de836a972d25143e92d79f020c87e7c9f8c45d3dd1431b5d19c8f0f71e4": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_01.jpg",
+    "split": "selection"
+  },
+  "092c7207f791687d37fab55a7ece9e5e5dab3c0d2a424d508ae12d904b035020": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_02.jpg",
+    "split": "held_out"
+  },
+  "2fce4518cd17501e5f903a6643317f906b2d2fd26daac10ad7db2f5d21657b31": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_03.jpg",
+    "split": "selection"
+  },
+  "bfcdf8f72bf7887f74f88cf6a2e959b8b023e40d0a7d34a6c3d34f7ece955fc7": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_05.jpg",
+    "split": "selection"
+  },
+  "c9f9dda14b05f0a0e1095027a5b8509772950b699b7f7320fe906898cb037c1b": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_06.jpg",
+    "split": "selection"
+  },
+  "bb6dfd75ea28c491cbcf8b1d9fe58be9dbd7bbed738e856c2eb81bc0177eeb42": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_07.jpg",
+    "split": "selection"
+  },
+  "64e76db73672e509e2e367680597056a77228fd60d8159fdf326a3a89a51b24f": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "mandibula_08.jpg",
+    "split": "selection"
+  },
+  "2d940e9f0ad1e2abeb9ae6d32b9caac28ff68ac104ba03efab6622805fd8076b": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "hueso_largo_femur_03.jpg",
+    "split": "selection"
+  },
+  "f96666bab8b0f826081225acaba23ab4443992346bdf7529934fb12e847612db": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "sacro",
+    "filename": "sacro_01.jpg",
+    "split": "held_out"
+  },
+  "03635714bd410fc116c1f910cb6dbba5c192ee9af897dce1303771455eac3b26": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "sacro",
+    "filename": "sacro_03.jpg",
+    "split": "selection"
+  },
+  "accebd906c847376f7dfd0074a858fe444dc319c39e877dc8428a154f93546af": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "sacro",
+    "filename": "sacro_04.jpg",
+    "split": "selection"
+  },
+  "a95317bf18ae95dec11ba53a4f4adf7f03fb6e3764361e1d0c1eb092eee71ba2": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "sacro",
+    "filename": "sacro_05.jpg",
+    "split": "selection"
+  },
+  "5ba846f6c01df1bb6ba1c20eb1506513caa7efb7f9203458a3c670e88a0e4a69": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "sacro",
+    "filename": "sacro_06.jpg",
+    "split": "selection"
+  },
+  "ddbff35a594759f12f2609aacd079b755e62d5020a754282f7219780c3c06d9a": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "sacro",
+    "filename": "sacro_08.jpg",
+    "split": "selection"
+  },
+  "f25e570fabafa23ed66be1238549866d55c068680f9885654f127bb811c79658": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "vertebra",
+    "filename": "vertebra_02.jpg",
+    "split": "selection"
+  },
+  "e311b815aada413b61adb0105aba32a83946a5642d892929a93143e15feefd1c": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "vertebra",
+    "filename": "vertebra_03.jpg",
+    "split": "held_out"
+  },
+  "0634246944ba89457615b8078edbbbc0fcbf3617869237848a287492ccf00967": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "vertebra",
+    "filename": "vertebra_04.jpg",
+    "split": "selection"
+  },
+  "07868b1090882601f4512e76df9813ff544a9cbdcf12ca29601d7370f465964c": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "vertebra",
+    "filename": "vertebra_05.jpg",
+    "split": "selection"
+  },
+  "8864a9c9db1a43fdcdb53bfc2f3a212e86eb4b80dad2e590403fd194d3ebbd2a": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "vertebra",
+    "filename": "vertebra_06.jpg",
+    "split": "selection"
+  },
+  "5c18eb914a8fe6e85b9c3a7226d568939ec41a7d21c9d9ad02e9d5b79ada667d": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "vertebra",
+    "filename": "vertebra_07.jpg",
+    "split": "selection"
+  },
+  "b58957eabafb8111d51cf7044f3ee693ac24eaed3cb7bb08f3ec08d682995679": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "vertebra",
+    "filename": "vertebra_08.jpg",
+    "split": "selection"
+  },
+  "ebee7772e8b59e7d8b3d5eaab7cdb4788028b53abc840bf428be0154e8b7af2f": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "costilla",
+    "filename": "costilla_02.jpg",
+    "split": "held_out"
+  },
+  "472abf911524de840480d0c4f2b45a099aad490826a950a699f4238d8fec59cc": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "costilla",
+    "filename": "costilla_03.jpg",
+    "split": "selection"
+  },
+  "bbfb90ca3b6d60f0d4f3cf75049ac94b99c2c1eb5603fc907c787b477a14c909": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "pelvis_01.jpg",
+    "split": "selection"
+  },
+  "8ab30f5556d4f9626f049432ea569079fcea8ad60750567127c4d214ada248d4": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "pelvis_02.jpg",
+    "split": "held_out"
+  },
+  "a248d282aee99fcbfaa922fdcb92dce1079b464febde5dd2b271e38d94932c86": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "pelvis_03.jpg",
+    "split": "selection"
+  },
+  "4be7f19335b456274285c340caf50d217598351d2a9c3949e94ba93ee050bf78": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "pelvis_04.jpg",
+    "split": "selection"
+  },
+  "cf2fea91c6621b4924dafec7b00175428e96669c118869b1b7766a3639129bf4": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "pelvis_05.jpg",
+    "split": "selection"
+  },
+  "4d1e72ce72e76c328b22728c542470358898b24f7b35820d1b974a54cc2462f4": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "pelvis_06.jpg",
+    "split": "selection"
+  },
+  "1c803aac6288bca609c80567091ca89f61162dfdfa3b77e70fe6f87d7cc2b6c0": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "pelvis_07.jpg",
+    "split": "selection"
+  },
+  "a3952aa55d29403ac4d59e04b70f59738e39cf49bc5256f462d494d6c469b321": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_01.jpg",
+    "split": "selection"
+  },
+  "8434cddcb0b8f9769b554134f0f7c800f5ee833b0fcf9aa845bbd069f1d4c501": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_02.jpg",
+    "split": "selection"
+  },
+  "b8175da7c83cf302121bcd5b959924168901e29c0a5b4e50f25a10487e0e90c2": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_04.jpg",
+    "split": "selection"
+  },
+  "53f155d6c012606dcfba8652462ff741c72cd758e45e64b7320608e579829f63": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_05.jpg",
+    "split": "selection"
+  },
+  "0c3d8fdf815887a081dddf4bbde9bd60ae4aee2d82ba3c62e982dc7b799729cc": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_07.jpg",
+    "split": "selection"
+  },
+  "7b45155f1db1b9e97a6ded30b9e22833bbe6f970f1184ac19cbdc1c753e1700f": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "hueso_plano_08.jpg",
+    "split": "selection"
+  },
+  "2c79f2a09daa577bf6cc0ee35c1f79cbcf10955c0e4b57fde737258d62183c0d": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_trapecio_01.jpg",
+    "split": "selection"
+  },
+  "5668cae83ed80891f8cdc7a6e3bd34c2d2bebf3a5afc2b7ce700c0738080b6b4": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_patela_01.jpg",
+    "split": "held_out"
+  },
+  "b5e5cdb3e96966a85dd4d8b302dc5f9e7ce03026d8d18fad001410c9c0cf2e0e": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_pequeno",
+    "filename": "hueso_pequeno_patela_02.jpg",
+    "split": "selection"
+  },
+  "171a7f2f6a1111b440d8abe4de154ccd95ae0e70a52dedd8fa2a9ced3108e4df": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "femur_crop_a.jpg",
+    "split": "selection"
+  },
+  "9e1e094fb1b85419ace63e284325f0c67ffcac8b2875930820b3a04ed7cd6499": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "femur_crop_b.jpg",
+    "split": "selection"
+  },
+  "57a7b1780f2273604e1f592c58d124516808a628dbe876a8ec4161019f8ede86": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "tibia_crop_a.jpg",
+    "split": "selection"
+  },
+  "4f4115f7ebb7f7297ad8f49699037c73e0e7c820b9d98cbb52c6a17156f6c6c6": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "tibia_crop_b.jpg",
+    "split": "selection"
+  },
+  "c4528ef47bec8ae1e244aebfcc2ce6da69c352a99343e5401135e37ca5388251": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "scapula_crop_a.jpg",
+    "split": "selection"
+  },
+  "1f703e0b41202385402bd0d6bfae705d970b7853e032fd0e13d758caf56e3627": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_plano",
+    "filename": "scapula_crop_b.jpg",
+    "split": "held_out"
+  },
+  "08795c872cd18536e824e894fedaabf12ebd0434ab13230402e8e6a795711769": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "hueso_largo",
+    "filename": "images (9).jpg",
+    "split": "selection"
+  },
+  "a704240311f7a98bcaf14af3169b4b4001908f08d069ce296186978f928b4eeb": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "mandibula_maxilar",
+    "filename": "images (12).jpg",
+    "split": "selection"
+  },
+  "388e0eb4f1ca94779cee3a5fa9ebc87c86676413c173b882039543446bb1793c": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "pelvis",
+    "filename": "images (10).jpg",
+    "split": "selection"
+  },
+  "e70f8d771f10cac159daa45bb8620c0f8fb3bc188b0fe4fbbe418712f3dbd88a": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "cranio",
+    "filename": "TREPANED-HUMAN-SKULL-RELICS-ODDITIES.webp",
+    "split": "selection"
+  },
+  "a9d9b73de153588eaf7dffe6c41483e5c834af6e5c58f1310bf25519962c0688": {
+    "dataset": "real_world_benchmark",
+    "bone_group": "costilla",
+    "filename": "jGjMAkC3LBdBeOcObZogSA_Head.jpg",
+    "split": "selection"
+  }
+}

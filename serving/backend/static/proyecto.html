@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>El proyecto · OsteoLab</title>
+  <meta name="description" content="Cómo pasa OsteoLab de una foto a un grupo morfológico: la historia técnica del pipeline." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html" class="is-current">El proyecto</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+<section id="proyecto" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">El proyecto</p>
+        <h2>De la foto al grupo morfológico</h2>
+        <p class="section-lead">
+          OsteoLab nació como una herramienta de apoyo para catalogar restos óseos sin
+          depender de que un especialista esté siempre disponible para una primera
+          identificación. El proceso hasta el modelo actual fue iterativo — cada etapa
+          respondió a una limitación real encontrada en la anterior.
+        </p>
+
+        <ol class="timeline">
+          <li class="timeline-item">
+            <div class="timeline-marker">1</div>
+            <div class="timeline-content">
+              <h3>Medición geométrica clásica</h3>
+              <p>
+                El punto de partida fue puramente visión por computador: localizar el
+                contorno del hueso con OpenCV y extraer medidas relativas — proporción de
+                aspecto, elongación, circularidad, solidez, convexidad, perfil de anchura
+                a lo largo del hueso y momentos de Hu. Sobre ese vector de medidas se
+                entrenó un <code>RandomForestClassifier</code> por grupo morfológico.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">2</div>
+            <div class="timeline-content">
+              <h3>Filtrar antes de clasificar</h3>
+              <p>
+                Antes de invertir cómputo en medir y clasificar, la imagen pasa por un
+                filtro CLIP zero-shot (¿esto es un hueso?) y un filtro binario ResNet18
+                de refuerzo. Así se descartan fotos que no contienen huesos sin necesidad
+                de dataset propio para esa tarea.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">3</div>
+            <div class="timeline-content">
+              <h3>Pocos huesos reales, muchos renders sintéticos</h3>
+              <p>
+                Con uno o dos especímenes reales por hueso concreto, el modelo no puede
+                generalizar a nivel de especie o pieza exacta — por eso se agrupa por
+                forma general (grupo morfológico) y se amplía el dataset con renders 3D
+                sintéticos con ruido. La síntesis pasó por varias iteraciones: ruido
+                clásico primero, y más adelante migración a BlenderProc (máscaras exactas,
+                HDRIs reales de fondo, suciedad procedural, óptica variable) — combinando
+                ambos enfoques en vez de sustituir uno por otro, que fue lo que mejor
+                resultado dio.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">4</div>
+            <div class="timeline-content">
+              <h3>El hueco entre síntesis y realidad</h3>
+              <p>
+                El banco de evaluación con renders limpios llegó a acertar por encima del
+                77%, pero las fotos reales rondaban solo el 27%. El extractor geométrico
+                descarta toda la textura y el sombreado de la imagen — señal que sí podía
+                ayudar a cerrar ese hueco.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">5</div>
+            <div class="timeline-content">
+              <h3>Entra la CNN: modelo híbrido</h3>
+              <p>
+                Se entrenó un backbone ResNet18 preentrenado en dos fases (cabeza
+                congelada primero, luego ajuste fino completo a tasa de aprendizaje baja)
+                en dos variantes: una CNN pura sobre píxeles, y un modelo
+                <strong>híbrido</strong> que concatena el embedding de la CNN con el mismo
+                vector de medidas geométricas antes de una cabeza de clasificación —
+                la apuesta era que forma y textura son señales complementarias, no
+                redundantes. Los resultados confirmaron la apuesta: el híbrido superó a
+                ambas ramas por separado en todos los bancos de prueba.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">6</div>
+            <div class="timeline-content">
+              <h3>La segmentación importaba más de lo esperado</h3>
+              <p>
+                Sustituir la segmentación clásica (umbralización tipo Otsu) por
+                Grounded-SAM — segmentación guiada por lenguaje natural — mejoró de forma
+                notable tanto el modelo geométrico como el híbrido. La medición era buena;
+                lo que fallaba antes era encontrar el hueso dentro de la imagen.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">7</div>
+            <div class="timeline-content">
+              <h3>12 fotos reales, el mayor salto</h3>
+              <p>
+                Incorporar apenas 12 fotografías reales al entrenamiento — un 0.3% del
+                dataset combinado — movió más el resultado que cualquier mejora de
+                síntesis probada hasta entonces. El hueco de dominio entre sintético y
+                real se cierra, sobre todo, con datos reales de verdad.
+              </p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+</body>
+</html>

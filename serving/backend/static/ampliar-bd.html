@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ampliar base de datos · OsteoLab</title>
+  <meta name="description" content="Pega una URL de Sketchfab para ampliar el catálogo de especímenes 3D." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html" class="is-current">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+<section id="ampliar-bd" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Ampliar base de datos</p>
+        <h2>Pega una URL de Sketchfab</h2>
+        <p class="section-lead">
+          Si el modelo trae los huesos como objetos separados (p. ej. un esqueleto
+          "desplegado"), cada uno se descarga, se separa y se renderiza por su cuenta.
+          El nombre que le puso el autor (<code>l_femur</code>, <code>c3</code>...) se
+          intenta mapear al grupo morfológico automáticamente; lo que no se reconoce con
+          confianza pasa a <a href="/identificacion-manual.html">Identificación Manual</a>.
+        </p>
+
+        <div class="ingest-form">
+          <input type="url" id="ingestUrlInput" class="ingest-input"
+                 placeholder="https://sketchfab.com/3d-models/..." />
+          <button id="ingestSubmitBtn" class="btn btn-primary">Analizar</button>
+        </div>
+        <div id="ingestStatus" class="demo-status" hidden></div>
+
+        <div id="ingestJobs" class="ingest-jobs"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/ingest.js"></script>
+</body>
+</html>

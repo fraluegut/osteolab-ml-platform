@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Taxón · OsteoLab</title>
+  <meta name="description" content="Etapa 3 de la cascada: afinar el taxón dentro de un grupo osteológico. Hoy solo cráneo." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html" class="is-current">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Taxón</p>
+        <h2>Etapa 3 de la cascada: afinar dentro del grupo</h2>
+        <p class="section-lead">
+          Cuando la etapa 2 decide el grupo osteológico, una tercera etapa opcional afina
+          más dentro de ese grupo — hoy, taxón (humano / carnívoro / ungulado / roedor /
+          otro primate) solo está entrenado para el grupo <strong>cráneo</strong>. El resto
+          de grupos todavía no tienen experto de etapa 3 (se marca "no disponible" en
+          <a href="/probar.html">Probarlo</a>).
+        </p>
+
+        <h3 class="subhead">Cráneo</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Examen honesto contra 52 fotos reales reservadas, nunca vistas en entrenamiento
+          (<code>scripts/eval_taxon_cranio_held_out.py</code>). Accuracy global
+          <strong>0.769</strong> (antes de rellenar taxón por familia en el manifest: 0.50).
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Taxón</th>
+                <th>Recall</th>
+                <th>Precisión</th>
+                <th>n (test real)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>carnívoro</td><td>0.545</td><td>0.600</td><td>11</td></tr>
+              <tr class="row-best"><td>humano</td><td class="cell-best">0.923</td><td>0.857</td><td>13</td></tr>
+              <tr class="row-warn"><td>otro_primate</td><td class="cell-warn">sin fotos reales</td><td>—</td><td>0</td></tr>
+              <tr><td>roedor</td><td class="cell-best">1.000</td><td>0.800</td><td>4</td></tr>
+              <tr><td>ungulado</td><td>0.750</td><td>0.783</td><td>24</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          Carnívoro sigue siendo la clase más débil. Causa raíz encontrada: las fotos reales
+          de carnívoro etiquetadas tardaban en incluir perro/lobo doméstico — solo había fauna
+          exótica (zorro, gato montés). Al rellenar el taxón por familia del manifest (cánido,
+          équido, suido, humano) entró perro/lobo real y la clase mejoró. Siguen sin existir
+          fotos reales de <strong>gato doméstico</strong> ni de <strong>otro_primate</strong>
+          (mono) en todo el repo — ver <code>base_datos_osea/HISTORIAL.md</code>, pendiente 103.
+        </p>
+
+        <h3 class="subhead">Imágenes que entrenan/miden este experto</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Exactamente lo que usa <code>stage2_taxon_cranio</code> hoy — generado con
+          <code>scripts/build_stage2_taxon_cranio_viewer.py</code>, agrupado por partición
+          (train/test) y taxón. "real" = foto real; el resto son renders sintéticos.
+        </p>
+        <div id="taxonGalleryStatus" class="demo-status">Cargando…</div>
+        <div id="taxonGallery" class="taxon-gallery"></div>
+      </div>
+    </section>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+      <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/taxon.js"></script>
+</body>
+</html>

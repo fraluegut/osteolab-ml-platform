@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Datos · OsteoLab</title>
+  <meta name="description" content="De la malla 3D a la fila de entrenamiento: catálogo, fotos reales y balance de datos." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/datos.html" class="is-current">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+<section id="datos" class="section section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Los datos</p>
+        <h2>De la malla 3D a la fila de entrenamiento</h2>
+        <p class="section-lead">
+          Cada fila que ve un modelo empieza como un espécimen 3D catalogado, pasa por un
+          render multi-vista con ruido sintético y, en un puñado de casos, se cruza con una
+          fotografía real aceptada tras revisión manual. Así queda el recuento actual.
+        </p>
+
+        <h3 class="subhead">Catálogo de mallas 3D</h3>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-value">122</span>
+            <span class="stat-label">especímenes descargados</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">11</span>
+            <span class="stat-label">especies distintas (mayoría <em>Homo sapiens</em>, resto primates de referencia)</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">21 → 9</span>
+            <span class="stat-label">huesos objetivo, agrupados en 9 grupos morfológicos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">3</span>
+            <span class="stat-label">fuentes: Sketchfab (80 esp.), MorphoSource (27 esp.), Smithsonian (7 esp.)</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">De malla a imagen</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Cada espécimen se renderiza desde 24 ángulos fijos. Ese render limpio (2419 vistas) se
+          combina con dos variantes de ruido sintético — clásico y BlenderProc (máscaras exactas,
+          HDRIs reales, suciedad procedural) — para formar el dataset combinado con el que se
+          entrena el modelo actual: <strong>3855 filas, 122 especímenes, 12 especies</strong>.
+        </p>
+
+        <div class="pipeline-example">
+          <div class="pipeline-step">
+            <div class="pipeline-embed-wrap">
+              <iframe
+                title="Human Femur — modelo 3D en Sketchfab"
+                class="pipeline-embed"
+                src="https://sketchfab.com/models/a9c1f1a88b104c3fbfe975fa10b31b31/embed"
+                allow="autoplay; fullscreen; xr-spatial-tracking"
+                loading="lazy"
+              ></iframe>
+            </div>
+            <p class="pipeline-caption">
+              <strong>1. Espécimen catalogado</strong> — <em>Human Femur</em>, escaneado por el
+              laboratorio de anatomía de Eric Bauer (Elon University). CC Attribution.
+              <a href="https://sketchfab.com/3d-models/human-femur-a9c1f1a88b104c3fbfe975fa10b31b31" target="_blank" rel="noopener">Ver en Sketchfab ↗</a>
+            </p>
+          </div>
+
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/dataset/femur-clean.png" alt="Render limpio del fémur sobre fondo blanco" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>2. Render limpio</strong> — una de las 24 vistas fijas generadas en Blender
+              a partir de la malla, sin ruido ni fondo.
+            </p>
+          </div>
+
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/dataset/femur-bg.jpg" alt="Render del fémur compuesto sobre una foto de fondo real (tierra)" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>3. + fondo real</strong> — el render (RGBA) se compone sobre una foto real
+              de <code>data/backgrounds/</code> (mesa, tierra, mármol, tela...) para que el modelo
+              no aprenda a depender del fondo blanco de estudio.
+            </p>
+          </div>
+
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/dataset/femur-bproc.png" alt="Render del fémur con BlenderProc: HDRI real y suciedad procedural" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>4. Variante BlenderProc</strong> — pipeline alternativo con HDRI real,
+              suciedad procedural y máscara ground-truth exacta exportada de la geometría.
+            </p>
+          </div>
+        </div>
+
+        <div class="lightbox" id="lightbox" hidden>
+          <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+          <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+        </div>
+
+        <h3 class="subhead">Fotos reales</h3>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-value">12</span>
+            <span class="stat-label">fotos reales ya en el entrenamiento — solo cubren 4 de los 9 grupos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">839</span>
+            <span class="stat-label">fotos reales candidatas en revisión, pendientes de aceptar</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">63</span>
+            <span class="stat-label">fotos reales en el banco de evaluación — nunca entrenan, son el examen</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">Desbalance por grupo morfológico</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Recuento de filas en el dataset combinado de entrenamiento, por grupo. La diferencia
+          entre el más y el menos representado es de casi 8.5×.
+        </p>
+        <div class="imbalance-chart">
+          <div class="imbalance-row">
+            <span class="imbalance-label">hueso_largo</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:100%"></span></span>
+            <span class="imbalance-value">952</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">hueso_pequeño</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:56.8%"></span></span>
+            <span class="imbalance-value">541</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">vértebra</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:46.8%"></span></span>
+            <span class="imbalance-value">446</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">mandíbula/maxilar</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:43.7%"></span></span>
+            <span class="imbalance-value">416</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">sacro</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:39.6%"></span></span>
+            <span class="imbalance-value">377</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">cráneo</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:36.8%"></span></span>
+            <span class="imbalance-value">350</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">costilla</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:35.9%"></span></span>
+            <span class="imbalance-value">342</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">hueso_plano</span>
+            <span class="imbalance-track"><span class="imbalance-fill" style="width:33.5%"></span></span>
+            <span class="imbalance-value">319</span>
+          </div>
+          <div class="imbalance-row">
+            <span class="imbalance-label">pelvis</span>
+            <span class="imbalance-track"><span class="imbalance-fill imbalance-fill-low" style="width:11.8%"></span></span>
+            <span class="imbalance-value">112</span>
+          </div>
+        </div>
+
+        <h3 class="subhead">Cobertura de fotos reales por grupo</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Fotos reales de entrenamiento por grupo frente al objetivo de trabajo (40/grupo —
+          ver <code>base_datos_osea/HISTORIAL.md</code> 2026-08-03: con menos de eso no hay
+          margen para reservar un banco de examen held-out con más de 1 foto por clase sin
+          dejar casi nada para entrenar).
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Fotos reales · entrenamiento</th>
+                <th>Fotos reales · banco de evaluación</th>
+                <th>Objetivo</th>
+                <th>Faltan</th>
+              </tr>
+            </thead>
+            <tbody id="realPhotosBalanceBody">
+              <tr><td colspan="5" class="table-note">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="subhead">Especímenes 3D por grupo — hoy</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Especímenes físicos distintos (no vistas, no variantes de ruido) detrás de cada
+          grupo. Objetivo de trabajo: al menos 15 por grupo y variedad de especie, no solo
+          cantidad.
+        </p>
+        <div class="table-wrap">
+          <table class="results-table results-table-compact">
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Especímenes 3D</th>
+                <th>Especies distintas</th>
+                <th>Objetivo</th>
+                <th>Faltan</th>
+              </tr>
+            </thead>
+            <tbody id="specimens3dBalanceBody">
+              <tr><td colspan="5" class="table-note">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          15 como piso no es una regla mágica: es donde ya están vértebra/hueso_pequeño, los
+          dos grupos "de en medio" en rendimiento — ni los mejores ni los peores del banco de
+          fotos reales (ver "Resultados"). Contar especies, no solo especímenes: variar
+          especie generaliza mejor que repetir la misma.
+        </p>
+
+        <h3 class="subhead">Catálogo completo — los 122 modelos 3D usados</h3>
+        <p class="section-lead" style="margin-bottom: 1.5rem;">
+          Cada fila es un espécimen real: enlace a la fuente (Sketchfab/MorphoSource/
+          Smithsonian) y una vista renderizada de esa misma malla, para verificar que la
+          imagen sale de donde dice que sale. <a href="/catalog/specimens.csv" download>Descargar como CSV ↓</a>
+        </p>
+        <div class="catalog-filters" id="catalogFilters"></div>
+        <div class="table-wrap">
+          <table class="results-table catalog-table" id="catalogTable">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Grupo</th>
+                <th>Especie</th>
+                <th>Hueso</th>
+                <th>Fuente</th>
+                <th>Licencia</th>
+                <th>Enlace</th>
+              </tr>
+            </thead>
+            <tbody id="catalogTableBody">
+              <tr><td colspan="7" class="table-note">Cargando catálogo…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+  <script src="/datos.js"></script>
+</body>
+</html>
