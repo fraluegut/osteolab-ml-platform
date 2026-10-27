@@ -3246,6 +3246,55 @@ otro entorno con denoiser). Pipeline completo relanzado desde ahí.
      honesto contra CSV de test reservado para un experto stage2 concreto" se repite, generalizarlo
      (mismo motivo que el pendiente 96 ya abierto para el visor).
 
+### 2026-10-27 (continuación) -- causa raíz del fallo de carnívoro: 61 fotos reales sin taxón anotado
+
+El usuario señaló que `data/real_photos_accepted/manifest.csv` tiene columna `familia` rellena para
+muchas fotos de cráneo pero `taxon` vacío -- `scripts/build_stage2_taxon_cranio_dataset.py` solo
+usaba filas con `taxon` ya puesto, así que se quedaba fuera un bloque entero de fotos reales
+etiquetadas por familia. Confirmado contra la carpeta fuente `data/a huesos craneo/` (subcarpetas
+`canido/equid/human/suido`, mismas fotos sin prefijo `stock_`, el nombre de carpeta ES el taxón):
+mapeo familia->taxon aplicado: cánido->carnivoro, équido->ungulado, suido->ungulado, humano->humano.
+61 filas de `manifest.csv` rellenadas (13 cánido, 26 équido, 8 suido, 14 humano). Quedan 56 filas de
+cráneo sin familia ni taxón (genéricas sin identificar, correcto dejarlas fuera).
+
+Clave del fallo anterior: las 14 fotos reales de carnívoro usadas en el test (`taxon=carnivoro` ya
+puesto) eran TODO fauna exótica (zorro, mapache-perro, gato montés, gato pescador) -- cero perro o
+gato doméstico real. Las 13 fotos de cánido (perro/lobo doméstico) que sí existían en el repo nunca
+entraron ni a train ni a test porque tenían `taxon` vacío.
+
+Dataset regenerado (`bone_geometric_features_stage2_taxon_cranio.csv`: 370 filas train,
+`..._test.csv`: 52 filas test real) y reentrenado `stage2_taxon_cranio` (mismos hiperparámetros,
+`run_id eb1576e8e9cd4651bd8eeea427143a5b`). **Examen honesto contra las 52 fotos reales reservadas**
+(antes 10, ahora 52 -- n mucho más representativo):
+
+| taxon | recall | precision | n |
+|---|---|---|---|
+| carnivoro | 0.545 | 0.600 | 11 |
+| humano | 0.923 | 0.857 | 13 |
+| otro_primate | -- | -- | 0 |
+| roedor | 1.000 | 0.800 | 4 |
+| ungulado | 0.750 | 0.783 | 24 |
+
+Accuracy global 0.50 -> **0.769**. Carnívoro sigue siendo la clase más débil (0.545, antes 0/3) pero
+ya no es un fallo total -- mejora directamente atribuible a meter perro/lobo doméstico real en
+train+test en vez de solo fauna exótica.
+
+Gaps que quedan (no resueltos esta sesión, requieren fotos nuevas que no existen en el repo):
+- **Cero fotos reales de gato doméstico** en ningún sitio del repo (ni accepted ni la carpeta fuente
+  `a huesos craneo/`) -- toda la señal de "felino" viene de sintético + fauna exótica felina.
+- **Cero fotos reales de `otro_primate`** (mono) -- clase sin validar con datos reales, 100%
+  dependiente del sintético.
+- `ungulado` real (24 filas test) mezcla vaca/caballo/cerdo/ciervo sin desglose por especie en el
+  informe -- no se sabe si el 0.75 es parejo o concentrado en una especie.
+
+### Pendiente
+103. Conseguir fotos reales de gato doméstico y de algún primate (mono) para cráneo -- sin esto el
+     taxon de carnívoro (felino) y otro_primate seguirán sin validación real honesta.
+104. Aun con la mejora (0.769), decidir si `stage2_taxon_cranio` ya se promueve a producción en el
+     frontend/demo o se mantiene en pausa -- pendiente de decisión explícita del usuario (el
+     pendiente 101 decía "en pausa" con el run viejo de 0.50; este run es distinto y mejor, pero no
+     se ha pedido promoción todavía).
+
 ### Examen real honesto de las 3 semillas de `hybrid_lab` (72 fotos de test, `real_photos_accepted`)
 
 Las métricas de arriba (val_acc sintético, banco fijo sintético) son optimistas por construcción.
