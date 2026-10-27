@@ -45,6 +45,11 @@ main{overflow-y:auto;display:flex;flex-direction:column;min-width:0}
 .bar input{flex:1;min-width:180px;max-width:360px;padding:6px 10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;font:inherit}
 .bar .info{color:var(--muted);font-size:12px}
 .desc{color:var(--muted);font-size:13px}
+.runinfo{display:flex;align-items:center;gap:8px;font-size:13px;background:var(--accent-soft);border-radius:4px;padding:6px 10px}
+.runinfo select{padding:4px 6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;font:inherit}
+.runinfo .m{font:12px var(--mono);color:var(--muted)}
+.runinfo .m b{color:var(--ink)}
+.runinfo .note{color:var(--muted);font-size:12px}
 .content{padding:16px 20px 40px;display:flex;flex-direction:column;gap:20px}
 .section-title{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
 .dirs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
@@ -126,6 +131,7 @@ main{overflow-y:auto;display:flex;flex-direction:column;min-width:0}
   <div class="top">
     <div class="crumbs" id="crumbs"></div>
     <div class="desc" id="desc"></div>
+    <div class="runinfo" id="runinfo" hidden></div>
     <div class="bar">
       <input id="filter" type="search" placeholder="Filtrar por nombre (p. ej. femur, cranio_03)" aria-label="Filtrar">
       <div class="segbtn" role="group" aria-label="Vista">
@@ -258,6 +264,48 @@ function renderCrumbs() {
   $("crumbs").innerHTML = links.join("");
   $("crumbs").querySelectorAll("a").forEach((a) => a.addEventListener("click", () => go(state.root, a.dataset.p)));
   $("desc").textContent = r ? `${r.description}  ·  ${r.path}${state.path ? "/" + state.path : ""}` : "";
+  if (r && r.mlflow_run_name) loadRunInfo(r); else $("runinfo").hidden = true;
+}
+
+/* ---------- selector de reentrenamiento (MLflow) por experto ---------- */
+const METRIC_LABEL = { best_val_acc: "val_acc (checkpoint elegido)", val_acc: "val_acc", val_worst_class_recall: "peor recall por clase" };
+let runInfoCache = {};
+
+function renderRunInfo(root, data) {
+  const box = $("runinfo");
+  if (!data.runs.length) {
+    box.hidden = false;
+    box.innerHTML = `<span class="note">Sin reentrenamientos registrados en MLflow para "${data.run_name}"${data.error ? ` (${data.error})` : ""}.</span>`;
+    return;
+  }
+  box.hidden = false;
+  const opts = data.runs.map((r, i) =>
+    `<option value="${i}">${r.date} · ${r.mlflow_name}</option>`).join("");
+  box.innerHTML = `
+    <label>Reentrenamiento <select id="runSel">${opts}</select></label>
+    <span class="m" id="runMetrics"></span>
+    <span class="note">· las imágenes de abajo son el dataset actual en disco, no una foto congelada de ese run</span>
+  `;
+  const showMetrics = (i) => {
+    const r = data.runs[i];
+    const parts = Object.entries(r.metrics).map(([k, v]) => `<b>${METRIC_LABEL[k] || k}</b>=${v}`);
+    parts.push(...Object.entries(r.params).map(([k, v]) => `<b>${k}</b>=${v}`));
+    parts.push(`<b>run_id</b>=${r.run_id.slice(0, 8)}`);
+    $("runMetrics").innerHTML = parts.join(" · ");
+  };
+  $("runSel").addEventListener("change", (e) => showMetrics(Number(e.target.value)));
+  showMetrics(0);
+}
+
+async function loadRunInfo(r) {
+  $("runinfo").hidden = false;
+  $("runinfo").innerHTML = `<span class="note">Cargando reentrenamientos de MLflow…</span>`;
+  try {
+    if (!runInfoCache[r.key]) runInfoCache[r.key] = await api(`/api/runs?root=${encodeURIComponent(r.key)}`);
+    renderRunInfo(r.key, runInfoCache[r.key]);
+  } catch (e) {
+    $("runinfo").innerHTML = `<span class="note">No se pudo consultar MLflow: ${e.message}</span>`;
+  }
 }
 
 function filtered() {

@@ -14,15 +14,29 @@ import argparse
 import hashlib
 import io
 import os
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
 import cv2
 import numpy as np
+import requests
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from PIL import Image
+
+MLFLOW_URL = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+
+# Mapea cada raiz "Expertos stage2" al run_name (param logueado en train_cnn.py)
+# que entrena ese experto en concreto -- para poder listar sus reentrenamientos
+# en MLflow (nombre, fecha, metricas) desde el propio explorador.
+ROOT_MLFLOW_RUN_NAME = {
+    "stage2_familia_cranio": "stage2_familia_cranio",
+    "stage2_taxon_cranio": "stage2_taxon_cranio",
+}
+RUN_INFO_METRICS = ["best_val_acc", "val_acc", "val_worst_class_recall"]
+RUN_INFO_PARAMS = ["backbone", "n_train_rows", "model_type"]
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "explorador_static"
@@ -34,12 +48,12 @@ THUMB_SIZE = 320
 # (clave, sección, nombre, etiqueta, ruta relativa al repo, descripción)
 # etiqueta: "actual" = lo que usa el modelo hoy, "descartado", o "".
 ROOTS = [
-    ("stage2_familia_cranio", "Expertos stage2", "Familia cráneo (cánido/suido/équido/humano)", "actual",
+    ("stage2_familia_cranio", "Expertos stage2", "Cráneo · familia", "actual",
      "data/stage2_familia_cranio_viewer",
      "Exactamente lo que entrena/mide este experto -- original + recorte segmentado "
      "(lo que de verdad ve la CNN), separado train/test y por familia. Regenerar con "
      "scripts/build_stage2_familia_cranio_viewer.py tras cambiar el dataset."),
-    ("stage2_taxon_cranio", "Expertos stage2", "Taxón cráneo (humano/carnívoro/ungulado/roedor/otro_primate)", "actual",
+    ("stage2_taxon_cranio", "Expertos stage2", "Cráneo · taxón", "actual",
      "data/stage2_taxon_cranio_viewer",
      "Exactamente lo que entrena/mide este experto -- original + recorte segmentado "
      "(lo que de verdad ve la CNN), separado train/test y por taxón. Regenerar con "
@@ -142,9 +156,49 @@ def list_roots():
         {"key": key, "section": section, "auxiliary": section == AUX_SECTION, "name": name,
          "tag": tag, "path": rel, "description": desc,
          "exists": ROOTS_BY_KEY[key].exists(),
-         "files": count_files(ROOTS_BY_KEY[key]) if ROOTS_BY_KEY[key].exists() else 0}
+         "files": count_files(ROOTS_BY_KEY[key]) if ROOTS_BY_KEY[key].exists() else 0,
+         "mlflow_run_name": ROOT_MLFLOW_RUN_NAME.get(key)}
         for key, section, name, tag, rel, desc in ROOTS
     ]
+
+
+@app.get("/api/runs")
+def list_runs(root: str):
+    """Reentrenamientos en MLflow del experto detras de esta raiz -- nombre,
+    fecha y metricas clave, para saber que version del dataset esta viendo el
+    visor (siempre la mas reciente en disco, no una foto congelada por run)."""
+    run_name = ROOT_MLFLOW_RUN_NAME.get(root)
+    if not run_name:
+        return {"run_name": None, "runs": []}
+    try:
+        exps = requests.get(f"{MLFLOW_URL}/api/2.0/mlflow/experiments/search",
+                             params={"max_results": 50}, timeout=5).json().get("experiments", [])
+        exp_ids = [e["experiment_id"] for e in exps]
+        if not exp_ids:
+            return {"run_name": run_name, "runs": []}
+        body = {
+            "experiment_ids": exp_ids,
+            "filter": f"params.run_name = '{run_name}'",
+            "max_results": 50,
+            "order_by": ["attribute.start_time DESC"],
+        }
+        runs = requests.post(f"{MLFLOW_URL}/api/2.0/mlflow/runs/search", json=body, timeout=5).json().get("runs", [])
+    except requests.RequestException:
+        return {"run_name": run_name, "runs": [], "error": "MLflow no responde"}
+
+    out = []
+    for r in runs:
+        info = r["info"]
+        metrics = {m["key"]: m["value"] for m in r.get("data", {}).get("metrics", [])}
+        params = {p["key"]: p["value"] for p in r.get("data", {}).get("params", [])}
+        out.append({
+            "run_id": info["run_id"],
+            "mlflow_name": info.get("run_name", info["run_id"][:8]),
+            "date": datetime.fromtimestamp(info["start_time"] / 1000).strftime("%Y-%m-%d %H:%M"),
+            "metrics": {k: round(metrics[k], 4) for k in RUN_INFO_METRICS if k in metrics},
+            "params": {k: params[k] for k in RUN_INFO_PARAMS if k in params},
+        })
+    return {"run_name": run_name, "runs": out}
 
 
 @app.get("/api/ls")
