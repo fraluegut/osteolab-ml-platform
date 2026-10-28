@@ -224,6 +224,9 @@ a { color: inherit; }
 }
 .timeline-content h3 { font-size: 1.15rem; margin-bottom: 0.5rem; }
 .timeline-content p { margin: 0; color: var(--ink-soft); }
+.timeline-content p + .inline-list { margin-top: 0.75rem; }
+.inline-list { margin: 0; padding-left: 1.25rem; color: var(--ink-soft); }
+.inline-list li { margin-bottom: 0.35rem; }
 
 /* ---------- tables ---------- */
 .table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); }

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arquitectura · OsteoLab</title>
+  <meta name="description" content="Cómo funciona el sistema actual: el camino exacto que recorre una foto, paso a paso, hasta la predicción final." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/arquitectura.html" class="is-current">Arquitectura</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="arquitectura" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Arquitectura</p>
+        <h2>El camino de una foto, paso a paso</h2>
+        <p class="section-lead">
+          A diferencia de <a href="/proyecto.html">El proyecto</a> (la historia de cómo se llegó
+          hasta aquí), esto es el sistema <strong>tal y como funciona hoy</strong> cuando subís una
+          foto en <a href="/probar.html">Probarlo</a>: qué modelo se ejecuta primero, qué decide
+          cada etapa, y qué pasa si una etapa no encuentra nada.
+        </p>
+
+        <ol class="timeline">
+          <li class="timeline-item">
+            <div class="timeline-marker">1</div>
+            <div class="timeline-content">
+              <h3>Filtro CLIP — ¿esto es un hueso?</h3>
+              <p>
+                Antes de cualquier segmentación o clasificación, la imagen pasa por CLIP
+                zero-shot (<code>/filter/clip</code>, <code>shared/clip_filter/</code>): compara
+                la imagen contra descripciones de texto de los 9 grupos morfológicos y de
+                "no es un hueso". No necesita dataset propio ni entrenamiento — es la primera
+                criba, barata, antes de invertir cómputo en segmentar.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">2</div>
+            <div class="timeline-content">
+              <h3>Filtro ResNet18 — segunda opinión binaria</h3>
+              <p>
+                Un clasificador binario <code>hueso / no_hueso</code> entrenado aparte
+                (<code>/filter/is-bone</code>, <code>shared/bone_filter/</code>) refuerza la
+                decisión de CLIP. Es independiente del clasificador multi-clase de más
+                adelante — solo decide si merece la pena seguir.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">3</div>
+            <div class="timeline-content">
+              <h3>Segmentación — encontrar el hueso dentro de la imagen</h3>
+              <p>
+                Grounded-SAM (segmentación guiada por lenguaje natural) localiza el contorno
+                del hueso y genera el recorte al bounding box con fondo gris neutro
+                (<code>shared/cv_extractor/extract.py</code>). Esta única pasada de
+                segmentación alimenta tanto las features geométricas como el recorte que ve
+                la CNN — no se segmenta dos veces.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">4</div>
+            <div class="timeline-content">
+              <h3>Etapa 1 — grupo morfológico (modelo híbrido)</h3>
+              <p>
+                El modelo <strong>híbrido</strong> (<code>/hybrid/classify</code>,
+                <code>shared/inference/predict_cnn.py</code>) concatena el embedding de una
+                CNN ResNet18 sobre el recorte segmentado con el vector de medidas geométricas
+                (elongación, circularidad, solidez, momentos de Hu...) de la misma
+                segmentación, y predice uno de los 9 grupos morfológicos
+                (<code>cranio</code>, <code>hueso_largo</code>, <code>vertebra</code>...).
+                Es el modelo de referencia — supera tanto a la CNN sola como al geométrico
+                solo en todos los bancos de prueba.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">5</div>
+            <div class="timeline-content">
+              <h3>Puerta de elongación — atajo para hueso largo</h3>
+              <p>
+                En paralelo existe una cascada más barata (<code>shared/inference/predict_cascade.py</code>):
+                si la elongación geométrica supera un umbral fijo (0.900), se predice
+                <code>hueso_largo</code> directamente sin pasar por la CNN — una regla que
+                generaliza bien a fotos reales (recall 0.38 → 0.88) porque mide la envolvente
+                general del objeto, no un contorno fino que las fotos reales ensucian. Si no
+                salta la puerta, delega en la CNN de la etapa 1.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">6</div>
+            <div class="timeline-content">
+              <h3>Etapa 2 — hueso concreto o taxón, según el grupo</h3>
+              <p>
+                Si el grupo predicho en la etapa 1 tiene un modelo de etapa 2
+                (<code>shared/inference/predict_two_stage.py</code>), se llama a ese modelo
+                aparte, entrenado solo con filas de ese grupo — evita que un clasificador
+                plano con todas las clases interfiera entre grupos no relacionados. Dos
+                salidas posibles, nunca ambas a la vez hoy:
+              </p>
+              <ul class="inline-list">
+                <li><code>hueso_largo</code>, <code>hueso_pequeno</code>, <code>vertebra</code> → hueso concreto (fémur, húmero, astrágalo...)</li>
+                <li><code>cranio</code>, <code>mandibula_maxilar</code> → taxón (humano / no_humano)</li>
+                <li><code>costilla</code>, <code>hueso_plano</code>, <code>pelvis</code>, <code>sacro</code> → sin etapa 2 todavía, queda marcado como <code>stage2_pending</code></li>
+              </ul>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <div class="timeline-marker">7</div>
+            <div class="timeline-content">
+              <h3>Qwen VLM — tercera opinión en paralelo</h3>
+              <p>
+                De forma independiente al pipeline entrenado, Qwen2.5-VL 7B
+                (<code>/describe/qwen</code>, <code>/describe/qwen/features</code>,
+                <code>shared/vlm_describe/</code>) da una descripción libre en lenguaje
+                natural más una sugerencia de grupo, o un JSON de descriptores anatómicos
+                estructurados (diáfisis, epífisis, cóndilos, superficie articular...). No es
+                un filtro previo ni sustituye a ningún modelo — es una comparación contra el
+                criterio de los 3 modelos entrenados, pensada para auditar casos dudosos.
+              </p>
+            </div>
+          </li>
+        </ol>
+
+        <p class="section-lead" style="margin-top: 2.5rem;">
+          Todo este camino corre en el mismo proceso FastAPI
+          (<a href="/infraestructura.html">ver infraestructura</a>) y se dispara de una sola
+          subida de foto en <a href="/probar.html">Probarlo</a> — las etapas 1, 5 y 7 llaman en
+          paralelo, la etapa 2 depende del resultado de la etapa 1.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+</body>
+</html>
