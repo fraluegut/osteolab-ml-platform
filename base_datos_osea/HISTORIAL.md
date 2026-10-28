@@ -3374,3 +3374,71 @@ tenía este hueco, solo cráneo.
 Regenerado `bone_geometric_features_real_photos.csv` (367 filas, cráneo 91->110) y
 `bone_geometric_features_combined_lab.csv` (2938 filas, cráneo 547 tras el cambio), y reentrenado
 `hybrid_lab_seed1` (el que está en producción) con el dataset corregido.
+
+## 2026-10-28 -- material gráfico para la charla PyConES: ablación, UMAP y censo de dataset
+
+### Qué se pidió y por qué
+Preparando el guion de la charla "¿Qué hueso es?" (PyConES 2026), se detectó que los 6 modelos de
+ablación `ablation_real{25,50,100}[_synth]_bone_group` (entrenados el 2026-10-25, ya versionados en
+DVC/git en el commit `b5b54c0` pero sin documentar en este historial) responden exactamente a la
+pregunta "¿cuánto aporta el sintético sobre distintas cantidades de foto real?" que se había dejado
+pendiente. Se documentan aquí y se generan 3 piezas gráficas nuevas para la charla.
+
+### 1. Curva de ablación sintético vs. real (ya entrenada, solo graficada hoy)
+`accuracy_clean_benchmark` de los 6 modelos:
+
+| fotos reales | solo real | real + sintético |
+|---|---|---|
+| 25 | 0.454 | 0.847 |
+| 50 | 0.472 | 0.866 |
+| 100 | 0.537 | 0.829 |
+
+El sintético aporta +0.29 a +0.39 de accuracy sobre solo-real en los tres puntos, de forma
+consistente -- confirma con número defendible lo que el modelo híbrido de producción ya sugería.
+Nota: real100_synth (0.829) es ligeramente inferior a real50_synth (0.866) -- probable ruido de
+muestra pequeña de validación, no una tendencia real; no se investiga más por ahora porque no cambia
+la conclusión cualitativa. Gráfica: `serving/backend/static/img/pycon/diapo23/ablacion_sintetico_real.png`.
+
+### 2. UMAP de embeddings: sintético vs. real (nuevo)
+Embeddings extraídos del backbone `resnet18` de `hybrid_lab_bone_group` (modelo en producción) sobre
+crops ya segmentados: 800 sintéticos (muestra aleatoria de los 1.134 disponibles en
+`data/segmented_crops/base_datos_osea/renders_lab/`) + 445 reales (todos los disponibles en
+`data/segmented_crops/real_photos/`). Reducción con UMAP (`n_neighbors=20`, `min_dist=0.2`).
+
+Métrica de mezcla (más objetiva que mirar el scatter): entre los 10 vecinos más cercanos de cada
+punto en el espacio de embeddings de 512 dim, la fracción de mismo origen (sintético/real) es 0.892
+de media -- muy por encima del 0.643 que tocaría si estuviera bien mezclado (dado que el 35.7% de la
+muestra es real). Es decir: **sigue habiendo un gap sim2real visible en el espacio de features**,
+pese al trabajo de la diapositiva 11 (fondos/iluminación/PBR/ruido). No invalida el resultado de
+accuracy -- el modelo igual clasifica bien -- pero es honesto mostrarlo como limitación conocida, no
+como "ya resuelto". Imagen: `serving/backend/static/img/pycon/diapo24/umap_sintetico_real.png`.
+
+### 3. Censo de mallas e imágenes por grupo osteológico (nuevo)
+A partir de `data/processed/bone_geometric_features_combined_lab.csv` (2.938 filas): mallas únicas
+por grupo = combinaciones distintas de `species`+`bone`+`specimen`; imágenes = filas.
+
+| grupo | mallas | imágenes |
+|---|---|---|
+| hueso_largo | 105 | 700 |
+| cráneo | 162 | 547 |
+| vértebra | 74 | 410 |
+| hueso_pequeño | 47 | 314 |
+| mandíbula_maxilar | 35 | 242 |
+| costilla | 47 | 232 |
+| sacro | 31 | 221 |
+| hueso_plano | 25 | 198 |
+| pelvis | 22 | 74 |
+| **total** | **548** | **2.938** |
+
+Pelvis es el grupo con menos mallas Y menos imágenes por malla (74/22 ≈ 3.4 vistas/malla, muy por
+debajo de la media ≈5.4) -- candidato a revisar si el pipeline de render está generando menos vistas
+útiles para ese grupo o si simplemente hay menos mallas de pelvis en el catálogo origen. No
+investigado en esta sesión, queda como pendiente. Imagen:
+`serving/backend/static/img/pycon/diapo25/mallas_e_imagenes_por_grupo.png`.
+
+### Pendiente
+106. Investigar por qué pelvis tiene menos vistas por malla (≈3.4) que la media del resto de grupos
+     (≈5.4) -- puede ser limitación real del catálogo o un hueco del pipeline de render.
+107. El gap sim2real medido por UMAP (0.892 de mezcla por mismo origen, vs. 0.643 esperado si
+     estuviera bien mezclado) sugiere que aún hay margen de mejora en la diapositiva 11
+     (fondos/iluminación/PBR) -- posible línea de trabajo futura, no solo para la charla.
