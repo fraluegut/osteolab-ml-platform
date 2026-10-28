@@ -12,12 +12,28 @@ import re
 import torch
 from PIL import Image
 
-from shared.vlm_describe.model import BONE_GROUPS, PROMPT, load_qwen
+from shared.vlm_describe.model import (
+    BONE_GROUPS,
+    FRAGMENTACION_VALUES,
+    PRESENCE_VALUES,
+    PROMPT,
+    PROMPT_FEATURES,
+    load_qwen,
+)
 
 _model = None
 _processor = None
 
 _JSON_BLOCK_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
+_JSON_LOOSE_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+_FEATURE_PRESENCE_KEYS = (
+    "diafisis",
+    "epifisis",
+    "condilos",
+    "superficie_articular",
+    "dientes",
+)
 
 
 def _load():
@@ -49,6 +65,74 @@ def _parse_response(text: str) -> dict:
     }
 
 
+def _parse_features_response(text: str) -> dict:
+    match = _JSON_BLOCK_RE.search(text) or _JSON_LOOSE_RE.search(text)
+    if not match:
+        return {"error": "no_json_block", "raw_response": text.strip()}
+
+    group = match.group(1) if match.re is _JSON_BLOCK_RE else match.group(0)
+    try:
+        payload = json.loads(group)
+    except json.JSONDecodeError:
+        return {"error": "invalid_json", "raw_response": text.strip()}
+
+    for key in _FEATURE_PRESENCE_KEYS:
+        if payload.get(key) not in PRESENCE_VALUES:
+            payload[key] = None
+
+    if payload.get("fragmentacion") not in FRAGMENTACION_VALUES:
+        payload["fragmentacion"] = None
+
+    tipo = payload.get("tipo_morfologico")
+    if tipo not in BONE_GROUPS and tipo not in ("no_hueso", "no_seguro"):
+        payload["tipo_morfologico"] = None
+
+    observaciones = payload.get("observaciones")
+    if not isinstance(observaciones, list):
+        payload["observaciones"] = []
+
+    return payload
+
+
+def _generate(image: Image.Image, prompt: str, max_new_tokens: int) -> str:
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "image": image},
+                {"type": "text", "text": prompt},
+            ],
+        }
+    ]
+    text = _processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = _processor(text=[text], images=[image], padding=True, return_tensors="pt").to(_model.device)
+
+    with torch.no_grad():
+        generated_ids = _model.generate(**inputs, max_new_tokens=max_new_tokens)
+    trimmed = [out[len(inp):] for inp, out in zip(inputs["input_ids"], generated_ids)]
+    return _processor.batch_decode(trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+
+
+def describe_anatomical_features(image_file) -> dict:
+    """Descriptores anatómicos estructurados (diáfisis, epífisis, cóndilos,
+    superficie articular, dientes, fragmentación, tipo morfológico,
+    observaciones) con Qwen2.5-VL 7B, pensados como features explicables —
+    no sustituye a `describe_image`, es un modo de salida distinto del mismo
+    modelo ya cargado.
+
+    Devuelve el dict parseado del JSON (ver `shared/vlm_describe/model.py::PROMPT_FEATURES`),
+    con cada campo a None si el modelo no respetó los valores permitidos, más
+    `raw_response` siempre incluido para auditoría.
+    """
+    _load()
+
+    image = Image.open(image_file).convert("RGB")
+    raw = _generate(image, PROMPT_FEATURES, max_new_tokens=300)
+    result = _parse_features_response(raw)
+    result["raw_response"] = raw
+    return result
+
+
 def describe_image(image_file) -> dict:
     """Descripción libre + sugerencia de grupo morfológico con Qwen2.5-VL 7B.
 
@@ -64,23 +148,7 @@ def describe_image(image_file) -> dict:
     _load()
 
     image = Image.open(image_file).convert("RGB")
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image", "image": image},
-                {"type": "text", "text": PROMPT},
-            ],
-        }
-    ]
-    text = _processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    inputs = _processor(text=[text], images=[image], padding=True, return_tensors="pt").to(_model.device)
-
-    with torch.no_grad():
-        generated_ids = _model.generate(**inputs, max_new_tokens=400)
-    trimmed = [out[len(inp):] for inp, out in zip(inputs["input_ids"], generated_ids)]
-    raw = _processor.batch_decode(trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-
+    raw = _generate(image, PROMPT, max_new_tokens=400)
     result = _parse_response(raw)
     result["raw_response"] = raw
     return result

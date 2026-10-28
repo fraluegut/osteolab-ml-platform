@@ -15,6 +15,7 @@ from shared.inference.predict_geometric import classify_image, get_reference_poi
 from shared.bone_filter.predict import is_bone
 from shared.clip_filter.predict import classify_image as clip_classify
 from shared.cv_extractor.extract import extract_features
+from shared.vlm_describe.predict import describe_anatomical_features as qwen_describe_features
 from shared.vlm_describe.predict import describe_image as qwen_describe_image
 from shared.bone_ingest import pipeline as bone_ingest
 from shared.catalog import specimens as catalog_specimens
@@ -154,6 +155,22 @@ async def describe_qwen(file: UploadFile = File(...)):
 
     try:
         return qwen_describe_image(file.file)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/describe/qwen/features")
+async def describe_qwen_features(file: UploadFile = File(...)):
+    """Descriptores anatómicos estructurados (diáfisis, epífisis, cóndilos,
+    superficie articular, dientes, fragmentación, tipo morfológico,
+    observaciones) con Qwen2.5-VL 7B — modo de salida distinto de
+    /describe/qwen, mismo modelo; ver shared/vlm_describe/predict.py::describe_anatomical_features.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+    try:
+        return qwen_describe_features(file.file)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

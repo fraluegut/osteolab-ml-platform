@@ -55,6 +55,33 @@ en una línea aparte, en este formato exacto:
 """
 
 
+PRESENCE_VALUES = ("presente", "ausente", "posible")
+FRAGMENTACION_VALUES = ("completo", "parcial", "fragmento_minimo")
+
+PROMPT_FEATURES = """Eres un especialista en osteología anotando descriptores anatómicos \
+de una foto para un catálogo, pensados como features de un clasificador automático.
+
+Observa la imagen y responde SOLO con un bloque JSON en este formato exacto (sin texto \
+antes ni después), usando únicamente los valores permitidos entre paréntesis:
+
+```json
+{
+  "diafisis": "<presente|ausente|posible>",
+  "epifisis": "<presente|ausente|posible>",
+  "condilos": "<presente|ausente|posible>",
+  "superficie_articular": "<presente|ausente|posible>",
+  "dientes": "<presente|ausente|posible>",
+  "fragmentacion": "<completo|parcial|fragmento_minimo>",
+  "tipo_morfologico": "<cranio|mandibula_maxilar|hueso_largo|hueso_plano|pelvis|sacro|vertebra|costilla|hueso_pequeno|no_hueso|no_seguro>",
+  "observaciones": ["<rasgo visual libre, 2-4 frases cortas en total>"]
+}
+```
+
+Usa "posible" solo cuando el rasgo no se ve con claridad (oclusión, ángulo, resolución). \
+No inventes estructuras que no se aprecien en la imagen.
+"""
+
+
 def get_device() -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
