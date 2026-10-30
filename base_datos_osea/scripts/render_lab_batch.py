@@ -32,6 +32,10 @@ def parse_args():
     p.add_argument("--samples", type=int, default=48)
     p.add_argument("--drop-frames", type=int, default=100)
     p.add_argument("--light-preset", default="calido_suave")
+    p.add_argument("--seed", type=int, default=0,
+                    help="semilla pasada a render_bone_lab.py -- misma semilla sobre el mismo mesh "
+                         "reproduce la misma caída física; usar una distinta para generar poses "
+                         "nuevas en vez de repetir las ya existentes (ver renders_lab_extra/ 2026-10-30)")
     p.add_argument("--only", default=None,
                     help="procesa solo especímenes cuya ruta relativa (especie/hueso/especimen) empiece por este prefijo")
     p.add_argument("--skip-existing", action="store_true", default=True)
@@ -74,7 +78,7 @@ def main():
             "--mesh", str(mesh_path), "--out-dir", str(out_dir), "--prefix", prefix,
             "--n-drops", str(args.n_drops), "--views-per-drop", str(args.views_per_drop),
             "--samples", str(args.samples), "--drop-frames", str(args.drop_frames),
-            "--light-preset", args.light_preset,
+            "--light-preset", args.light_preset, "--seed", str(args.seed),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0 or "RENDER_DONE" not in result.stdout:

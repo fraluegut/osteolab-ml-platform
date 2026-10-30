@@ -1,0 +1,6 @@
+outs:
+- md5: 2a275d43e84dfdc929a0e1b5a0a220cd.dir
+  size: 718616215
+  nfiles: 2268
+  hash: md5
+  path: renders_lab_extra

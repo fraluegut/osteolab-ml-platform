@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRISP-DM · OsteoLab</title>
+  <meta name="description" content="El proyecto contado como las 6 fases de CRISP-DM: comprensión del negocio, de los datos, preparación, modelado, evaluación y despliegue." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦴</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="nav-wrap">
+      <a class="brand" href="/">
+        <span class="brand-icon">🦴</span>
+        <span class="brand-text">OsteoLab</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="/">Inicio</a></li>
+        <li><a href="/proyecto.html">El proyecto</a></li>
+        <li><a href="/arquitectura.html">Arquitectura</a></li>
+        <li><a href="/crisp-dm.html" class="is-current">CRISP-DM</a></li>
+        <li><a href="/datos.html">Datos</a></li>
+        <li><a href="/resultados.html">Resultados</a></li>
+        <li><a href="/taxon.html">Taxón</a></li>
+        <li><a href="/infraestructura.html">Infraestructura</a></li>
+        <li><a href="/ampliar-bd.html">Ampliar Base de Datos</a></li>
+        <li><a href="/identificacion-manual.html">Identificación Manual</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
+        <li><a href="/pycon.html" class="nav-pycon" title="Charla en PyConES 2026">PyConES 26</a></li>
+        <li><a href="/probar.html" class="nav-cta">Probarlo</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+
+    <section id="crispdm-intro" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Metodología</p>
+        <h2>El proyecto contado como CRISP-DM</h2>
+        <p class="section-lead">
+          <a href="/arquitectura.html">Arquitectura</a> explica cómo funciona el sistema hoy, paso
+          a paso, cuando llega una foto. Esta página cuenta lo mismo desde otro ángulo: el proceso
+          que siguió el <em>proyecto</em> para llegar hasta ahí, usando las 6 fases del marco
+          <strong>CRISP-DM</strong> (Cross-Industry Standard Process for Data Mining) — el esquema
+          estándar para proyectos de ciencia de datos desde los años 90, todavía el más usado en la
+          industria. No es lineal en la práctica: hay vueltas atrás constantes entre fases (de
+          "Evaluación" a "Preparación de datos", sobre todo), pero sirve como mapa.
+        </p>
+        <div class="flowchart">
+          <div class="flow-branch">
+            <div class="flow-branch-row">
+              <div class="flow-branch-item">
+                <a href="#fase1" class="flow-node"><span class="flow-step">1</span><h4>Comprensión del negocio</h4></a>
+              </div>
+              <div class="flow-branch-item">
+                <a href="#fase2" class="flow-node"><span class="flow-step">2</span><h4>Comprensión de los datos</h4></a>
+              </div>
+              <div class="flow-branch-item">
+                <a href="#fase3" class="flow-node"><span class="flow-step">3</span><h4>Preparación de datos</h4></a>
+              </div>
+              <div class="flow-branch-item">
+                <a href="#fase4" class="flow-node"><span class="flow-step">4</span><h4>Modelado</h4></a>
+              </div>
+              <div class="flow-branch-item">
+                <a href="#fase5" class="flow-node"><span class="flow-step">5</span><h4>Evaluación</h4></a>
+              </div>
+              <div class="flow-branch-item">
+                <a href="#fase6" class="flow-node"><span class="flow-step">6</span><h4>Despliegue</h4></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="fase1" class="section section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Fase 1</p>
+        <h2>Comprensión del negocio</h2>
+        <p class="section-lead">
+          El objetivo no es "identificar el hueso exacto" ni sustituir a un osteólogo — es dar una
+          primera clasificación rápida por <strong>grupo morfológico</strong> (cráneo, hueso largo,
+          vértebra...) a partir de una foto, útil para laboratorio, docencia o una criba inicial
+          antes de la revisión experta. De ahí sale la decisión clave de todo el proyecto: la
+          taxonomía son <strong>9 grupos de forma</strong>, no 21 huesos exactos ni especies —
+          con 1-9 especímenes físicos por hueso, pedir más granularidad hace que el modelo memorice
+          objetos concretos en vez de aprender formas (comprobado con especímenes completos fuera
+          de validación, no solo fotos sueltas).
+        </p>
+        <p class="section-lead" style="margin-bottom:0;">
+          Restricción que viene de aquí y condiciona todo lo demás: <strong>no hay presupuesto para
+          fotografiar miles de huesos reales</strong>. Esa única restricción de negocio es la que
+          obliga a generar datos sintéticos a partir de modelos 3D (fase 2) y a resolver
+          después el problema sim2real (fases 3-5).
+        </p>
+      </div>
+    </section>
+
+    <section id="fase2" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Fase 2</p>
+        <h2>Comprensión de los datos</h2>
+        <p class="section-lead">
+          No existe un <code>data/raw/&lt;clase&gt;/</code> con miles de fotos. Lo que hay es un
+          catálogo de mallas 3D verificadas a mano, varias recetas de render con distinto nivel de
+          realismo, y un puñado de fotos reales curadas. Ver la carpeta de cada fuente, imagen por
+          imagen, es el primer paso para entender qué se le está dando de comer al modelo —
+          exactamente lo que se ve abajo.
+        </p>
+
+        <h3 class="subhead">Las carpetas de datos, de verdad</h3>
+        <p class="section-lead" style="margin-bottom:1.5rem;">
+          Mismo espécimen (fémur de gorila) a través de las tres recetas sintéticas, más una foto
+          real de otro grupo para comparar contra el objetivo final. Clic para ampliar.
+        </p>
+        <div class="pipeline-example">
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/femur_renders_lab.png" alt="Fémur de gorila, receta renders_lab: escena de mesa con física y material multicapa" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>renders_lab/</strong> — escena de laboratorio: el hueso cae físicamente sobre
+              una mesa, HDRI real, material multicapa de 6 capas (<code>bone_material.py</code>).
+              La receta más realista de las tres, y la base del dataset de producción.
+            </p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/femur_noisy_composited.jpg" alt="Fémur de gorila, receta noisy_composited: silueta pegada sobre fondo real" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>renders_noisy_composited/</strong> — silueta sin material realista, pegada
+              sobre una foto de fondo real. Pose de órbita fija, no física — distinta a la de
+              <code>renders_lab</code> para el mismo objeto.
+            </p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/femur_noisy_bproc.png" alt="Fémur de gorila, receta noisy_bproc: BlenderProc con HDRI y suciedad procedural" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>renders_noisy_bproc/</strong> — BlenderProc: HDRI real, suciedad procedural,
+              máscara ground-truth exacta. Otra órbita fija distinta, material más simple que
+              <code>renders_lab</code>.
+            </p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/real_vertebra.jpg" alt="Foto real curada de una vértebra" loading="lazy" data-zoomable />
+            <p class="pipeline-caption">
+              <strong>Fotos entrenamiento/_curated/</strong> — hueso real fotografiado y revisado a
+              mano. Pocas, pero son el dominio que de verdad importa: el examen final siempre se
+              hace aquí, nunca solo contra sintético.
+            </p>
+          </div>
+        </div>
+
+        <h3 class="subhead">Un ejemplar de cada grupo morfológico (renders_lab)</h3>
+        <p class="section-lead" style="margin-bottom:1.5rem;">
+          Los 9 grupos que aprende el modelo, cada uno con su imagen de ejemplo real del dataset
+          de producción.
+        </p>
+        <div class="pipeline-example">
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_cranio.png" alt="Ejemplo de cráneo" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>cráneo</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_mandibula_maxilar.png" alt="Ejemplo de mandíbula/maxilar" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>mandíbula / maxilar</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_hueso_largo.png" alt="Ejemplo de hueso largo" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>hueso largo</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_hueso_plano.png" alt="Ejemplo de hueso plano" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>hueso plano</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_pelvis.png" alt="Ejemplo de pelvis" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>pelvis</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_sacro.png" alt="Ejemplo de sacro" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>sacro</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_vertebra.png" alt="Ejemplo de vértebra" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>vértebra</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_costilla.png" alt="Ejemplo de costilla" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>costilla</strong></p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/grupo_hueso_pequeno.png" alt="Ejemplo de hueso pequeño" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>hueso pequeño</strong></p>
+          </div>
+        </div>
+
+        <div class="lightbox" id="lightbox" hidden>
+          <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+          <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+        </div>
+
+        <p class="section-lead" style="margin-top:2rem;">
+          Vista completa navegable con miniaturas de todas las carpetas (mallas, cada generación de
+          render, fotos reales, recortes segmentados):
+          <a href="/datos.html" class="btn btn-ghost">📁 Ver "Datos" completo →</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="fase3" class="section section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Fase 3</p>
+        <h2>Preparación de datos</h2>
+        <p class="section-lead">
+          Cada imagen se mide con <code>shared/cv_extractor/extract.py</code> (geometría clásica:
+          elongación, circularidad, momentos de Hu, perfil de anchura...) y se vuelca en una tabla.
+          El dataset de producción, <code>bone_geometric_features_combined_lab.csv</code>, mezcla
+          <code>renders_lab</code> + <code>noisy_composited</code> + <code>noisy_bproc</code> +
+          fotos reales de entrenamiento: <strong>2938 filas</strong>.
+        </p>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-value">2938</span>
+            <span class="stat-label">filas en el dataset de producción (<code>combined_lab</code>)</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">548</span>
+            <span class="stat-label">especímenes físicos únicos detrás de esas filas</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">9</span>
+            <span class="stat-label">grupos morfológicos objetivo, no 21 huesos exactos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">specimen_split</span>
+            <span class="stat-label">especímenes completos fuera del split train/val — nunca filas sueltas</span>
+          </div>
+        </div>
+        <p class="section-lead" style="margin-top:1.5rem;">
+          Regla fija para evitar fuga: un conjunto de especímenes completos se reserva entero para
+          banco de evaluación y nunca entra en entrenamiento (24 vistas del mismo objeto no se
+          reparten entre train y test). Detalle completo, paso a paso y ejecutable, en
+          <code>notebooks/pycon26_01_preparacion_datos.ipynb</code>.
+        </p>
+      </div>
+    </section>
+
+    <section id="fase4" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Fase 4</p>
+        <h2>Modelado</h2>
+        <p class="section-lead">
+          Dos modelos sobre los mismos datos: un <strong>Random Forest</strong> sobre las features
+          geométricas (clásico, interpretable), y una <strong>CNN híbrida</strong> (recorte de
+          imagen + vector geométrico, transferencia de aprendizaje sobre <code>resnet18</code>).
+          El modelo en producción es <code>hybrid_lab</code>.
+        </p>
+
+        <h3 class="subhead">Ablación: ¿aporta algo el vector geométrico?</h3>
+        <p class="section-lead" style="margin-bottom:1.5rem;">
+          Entrenados <code>cnn_only</code> y <code>hybrid</code> con receta idéntica (mismo
+          dataset, misma semilla) y evaluados en el banco grande de fotos reales (117 fotos,
+          dominio nunca visto en entrenamiento):
+        </p>
+        <div class="table-wrap">
+          <table class="results-table">
+            <thead>
+              <tr><th>Modelo</th><th>Banco sintético fijo</th><th>Fotos reales (n=117)</th><th>Balanced accuracy</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>cnn_only</code> (sin geometría)</td><td>0.4815</td><td>0.7094</td><td>0.6755</td></tr>
+              <tr><td><code>hybrid</code> (con geometría)</td><td><strong>0.5972</strong></td><td><strong>0.8120</strong></td><td><strong>0.8098</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="section-lead" style="margin-top:1rem;">
+          +10 a +13 puntos con geometría, en ambos dominios. El vector geométrico se queda en
+          producción — no es un accesorio, es la diferencia entre 0.71 y 0.81 de accuracy en el
+          dominio que de verdad importa.
+        </p>
+      </div>
+    </section>
+
+    <section id="fase5" class="section section-alt">
+      <div class="section-inner">
+        <p class="section-eyebrow">Fase 5</p>
+        <h2>Evaluación</h2>
+        <p class="section-lead">
+          Tres bancos, de más fácil a más difícil — solo el último cuenta como resultado real:
+          validación interna → banco sintético con especímenes excluidos → banco de fotos reales.
+          Si un cambio mejora el banco 2 y empeora el 3, es mala señal: el modelo se está ajustando
+          a particularidades del render, no a la forma real del hueso.
+        </p>
+
+        <h3 class="subhead">Caso de estudio en vivo: una intuición razonable que falló al medirla</h3>
+        <p class="section-lead" style="margin-bottom:1.5rem;">
+          Durante la preparación de esta charla se notó que <code>noisy_composited</code> y
+          <code>noisy_bproc</code> repiten casi los mismos especímenes que ya están en
+          <code>renders_lab</code> (112/113 y 90/91 coinciden). Parecía una limpieza obvia:
+          quedarse solo con <code>renders_lab</code> + fotos reales. Se probó de verdad:
+        </p>
+        <div class="table-wrap">
+          <table class="results-table">
+            <thead>
+              <tr><th>Dataset</th><th>Filas</th><th>Banco sintético fijo</th><th>Fotos reales (n=117)</th><th>Balanced accuracy</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>combined_lab</code> (3 variantes + reales, producción)</td><td>2938</td><td>0.5972</td><td><strong>0.8120</strong></td><td><strong>0.8098</strong></td></tr>
+              <tr><td><code>combined_lab</code> deduplicado (solo renders_lab + reales)</td><td>1447</td><td>0.5463</td><td>0.6923</td><td>0.7280</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="section-lead" style="margin-top:1rem;">
+          <strong>Empeoró 12 puntos.</strong> No había fuga (el split separa especímenes completos,
+          verificado en código) — el motivo real es que cada receta usa una <strong>pose física
+          distinta</strong> (caída real en <code>renders_lab</code> vs. órbita fija en las otras
+          dos) y un material distinto: no es duplicación cosmética, es variación visual legítima
+          que ayuda a generalizar a fotos reales. Se revirtió el cambio y quedó documentado en
+          <code>base_datos_osea/HISTORIAL.md</code> (2026-10-30).
+        </p>
+
+        <h3 class="subhead">Segundo intento: más poses dentro de renders_lab, sin pedir prestado</h3>
+        <p class="section-lead" style="margin-bottom:1.5rem;">
+          Si <code>renders_lab</code> es la receta de mejor acabado, ¿generar poses nuevas ahí
+          mismo (física real, otra semilla) en vez de mezclar recetas de menor calidad para ganar
+          volumen? Renderizados 189 especímenes × 6 vistas nuevas (1134 imágenes), dataset de
+          2527 filas (<code>renders_lab</code> + poses nuevas + reales, sin las otras dos recetas):
+        </p>
+        <div class="table-wrap">
+          <table class="results-table">
+            <thead>
+              <tr><th>Dataset</th><th>Filas</th><th>Banco sintético fijo</th><th>Fotos reales (n=117)</th><th>Balanced accuracy</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>combined_lab</code> (3 variantes + reales, producción)</td><td>2938</td><td>0.5972</td><td><strong>0.8120</strong></td><td><strong>0.8098</strong></td></tr>
+              <tr><td><code>combined_lab</code> deduplicado (solo renders_lab + reales)</td><td>1447</td><td>0.5463</td><td>0.6923</td><td>0.7280</td></tr>
+              <tr><td><code>combined_lab</code> + poses nuevas (renders_lab + extra + reales)</td><td>2527</td><td>0.5185</td><td>0.7607</td><td>0.7404</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="section-lead" style="margin-top:1rem; margin-bottom:0;">
+          Mejora sobre el dedup (+6.8 puntos) pero sigue por debajo del original (-5.1 puntos).
+          Confirma que parte del problema era volumen/pose, pero no todo: las otras dos recetas
+          aportan algo más que pose repetida — fondos fotográficos distintos
+          (<code>noisy_composited</code>) y un acabado de material distinto
+          (<code>noisy_bproc</code>) que más poses de la misma escena de mesa no replican.
+          <strong>Producción no cambia</strong>: sigue <code>hybrid_lab</code>, 3 variantes +
+          reales. Los tres modelos quedan en MLflow/DVC como referencia, ninguno promovido.
+        </p>
+      </div>
+    </section>
+
+    <section id="fase6" class="section">
+      <div class="section-inner">
+        <p class="section-eyebrow">Fase 6</p>
+        <h2>Despliegue</h2>
+        <p class="section-lead">
+          El modelo entrenado no es el final — se sirve en una cascada de dos etapas
+          (<a href="/arquitectura.html">ver Arquitectura</a> para el diagrama completo) detrás de
+          una API FastAPI, con reproducibilidad real: cada entrenamiento y evaluación queda
+          registrado en <strong>MLflow</strong>, cada artefacto grande (modelos, datasets de
+          imagen) en <strong>DVC</strong>, cada decisión y su motivo en
+          <code>HISTORIAL.md</code>, y el código en git. Nada queda solo en el disco de una
+          máquina.
+        </p>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-value">MLflow</span>
+            <span class="stat-label">cada run de entrenamiento/evaluación, parámetros + métricas</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">DVC</span>
+            <span class="stat-label">modelos y carpetas de imágenes grandes, versionados con <code>dvc push</code></span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">Git</span>
+            <span class="stat-label">código, CSVs procesados, notebooks, historial</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>© <span id="year"></span> ArqueoBytes — OsteoLab</p>
+  </footer>
+
+  <script src="/common.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+outs:
+- md5: 47283e71fe56d7e6d672710f47762737
+  size: 585
+  hash: md5
+  path: cnn_encoder_hybrid_lab_moreposes_seed0_bone_group.joblib

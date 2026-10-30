@@ -3493,3 +3493,37 @@ Runs en MLflow: experimento `osteolab-bone-classification-cnn-hybrid` para los t
 108. Si se quiere seguir probando reducir la duplicación de especímenes sin perder volumen, la
      vía sería generar MÁS vistas por espécimen en `renders_lab` (en vez de tomarlas de las otras
      dos variantes) -- no se ha intentado todavía.
+
+### Seguimiento: más poses en renders_lab, sin pedir prestado a las otras recetas
+Hipótesis del usuario tras el intento fallido de arriba: si `renders_lab` es la receta con mejor
+acabado, en vez de mezclar recetas de menor calidad para ganar volumen, ¿generar más poses nuevas
+dentro de `renders_lab` mismo (física real, seed distinta) iguala o supera al original?
+
+Render de 189 especímenes x 6 vistas nuevas (`--seed 1`, 2 drops x 3 vistas) a
+`base_datos_osea/renders_lab_extra/` (1134 imágenes, 0 fallos, ~2h con Blender/Cycles). Tabla de
+features + recortes segmentados generados igual que para `renders_lab`. Dataset
+`bone_geometric_features_combined_lab_moreposes.csv` = `renders_lab` + `renders_lab_extra` +
+fotos reales, 2527 filas (sin mezclar `noisy_composited`/`noisy_bproc`). Reentrenado
+`hybrid_lab_moreposes_seed0`, misma receta de entrenamiento que los anteriores, evaluado contra el
+mismo banco de 117 fotos reales:
+
+| Dataset | Filas | Banco sintético fijo | Fotos reales (n=117) | Balanced accuracy |
+|---|---|---|---|---|
+| `combined_lab` (3 variantes + reales, producción) | 2938 | 0.5972 | **0.8120** | **0.8098** |
+| `combined_lab` deduplicado (solo renders_lab + reales) | 1447 | 0.5463 | 0.6923 | 0.7280 |
+| `combined_lab` + poses nuevas (renders_lab + renders_lab_extra + reales) | 2527 | 0.5185 | 0.7607 | 0.7404 |
+
+Mejora sobre el dedup (+6.8 puntos en fotos reales) pero sigue por debajo del original (-5.1
+puntos) -- confirma que parte del problema del dedup era volumen/pose, pero no todo: las otras dos
+recetas aportan algo más que pose repetida (fondos distintos en `noisy_composited`, acabado de
+material distinto en `noisy_bproc`) que más poses de la misma escena de mesa no replican.
+
+**Producción no cambia**: sigue `hybrid_lab` (3 variantes + reales, 2938 filas). Los tres
+experimentos (`hybrid_lab_seed0`, `hybrid_lab_dedup_seed0`, `hybrid_lab_moreposes_seed0`) quedan en
+DVC/MLflow como referencia, ninguno promovido.
+
+### Pendiente
+108. ~~Generar más vistas por espécimen en `renders_lab`~~ -- probado, mejora sobre el dedup pero
+     no supera al original. Si se retoma esta línea, el siguiente paso sería replicar los fondos
+     fotográficos de `noisy_composited` (no solo más pose) dentro de la propia escena de
+     `renders_lab`, en vez de sumar otra receta aparte.
