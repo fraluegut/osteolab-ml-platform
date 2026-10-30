@@ -338,19 +338,45 @@
             </thead>
             <tbody>
               <tr><td><code>combined_lab</code> (3 variantes + reales, producción)</td><td>2938</td><td>0.5972</td><td><strong>0.8120</strong></td><td><strong>0.8098</strong></td></tr>
-              <tr><td><code>combined_lab</code> deduplicado (solo renders_lab + reales)</td><td>1447</td><td>0.5463</td><td>0.6923</td><td>0.7280</td></tr>
               <tr><td><code>combined_lab</code> + poses nuevas (renders_lab + extra + reales)</td><td>2527</td><td>0.5185</td><td>0.7607</td><td>0.7404</td></tr>
+              <tr><td><code>combined_lab</code> lab + bproc (sin composited)</td><td>1861</td><td>0.5324</td><td>0.7265</td><td>0.7471</td></tr>
+              <tr><td><code>combined_lab</code> deduplicado (solo renders_lab + reales)</td><td>1447</td><td>0.5463</td><td>0.6923</td><td>0.7280</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="section-lead" style="margin-top:1rem; margin-bottom:0;">
+        <p class="section-lead" style="margin-top:1rem;">
           Mejora sobre el dedup (+6.8 puntos) pero sigue por debajo del original (-5.1 puntos).
-          Confirma que parte del problema era volumen/pose, pero no todo: las otras dos recetas
-          aportan algo más que pose repetida — fondos fotográficos distintos
-          (<code>noisy_composited</code>) y un acabado de material distinto
-          (<code>noisy_bproc</code>) que más poses de la misma escena de mesa no replican.
-          <strong>Producción no cambia</strong>: sigue <code>hybrid_lab</code>, 3 variantes +
-          reales. Los tres modelos quedan en MLflow/DVC como referencia, ninguno promovido.
+          Parte del problema del dedup era volumen/pose, pero no todo.
+        </p>
+
+        <h3 class="subhead">Un fondo que la CNN nunca llega a ver</h3>
+        <p class="section-lead" style="margin-bottom:1.5rem;">
+          Hipótesis inicial: <code>noisy_composited</code> ayudaba por el fondo fotográfico real
+          pegado detrás del hueso. Al mirar el recorte segmentado real que recibe la CNN (no la
+          imagen completa, el <code>crop_image</code> ya aislado) se descubrió que es falso — el
+          fondo se recorta siempre a gris neutro, la red nunca lo ve:
+        </p>
+        <div class="pipeline-example">
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/femur_renders_lab.png" alt="Render completo de renders_lab, antes de recortar" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>renders_lab, imagen completa</strong> — material con textura real.</p>
+          </div>
+          <div class="pipeline-step">
+            <img class="pipeline-img" src="/img/crispdm/femur_noisy_composited.jpg" alt="Render completo de noisy_composited, antes de recortar" loading="lazy" data-zoomable />
+            <p class="pipeline-caption"><strong>noisy_composited, imagen completa</strong> — silueta plana sobre fondo fotográfico.</p>
+          </div>
+        </div>
+        <p class="section-lead" style="margin-top:1.5rem; margin-bottom:0;">
+          Tras segmentar y recortar (lo que de verdad entrena la CNN), el fondo desaparece en los
+          dos casos y lo único que queda de <code>noisy_composited</code> es una silueta casi sin
+          textura. Lo que sí aporta esa receta: no tiene máscara ground-truth, así que se segmenta
+          con <code>grounded_sam</code> — el mismo método (con su mismo ruido de contorno) que se
+          usa en producción sobre fotos reales — y una pose de cámara distinta a las otras dos
+          recetas. Patrón que se repite en los cuatro experimentos: ninguna pieza individual (pose,
+          ruido de segmentación, acabado de material) explica la mejora por sí sola, es la
+          <strong>diversidad combinada</strong> de las tres. <strong>Producción no cambia</strong>:
+          sigue <code>hybrid_lab</code>, 3 variantes + reales. Los cuatro modelos quedan en
+          MLflow/DVC como referencia, ninguno promovido.
         </p>
       </div>
     </section>

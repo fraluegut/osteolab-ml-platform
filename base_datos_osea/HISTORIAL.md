@@ -3527,3 +3527,31 @@ DVC/MLflow como referencia, ninguno promovido.
      no supera al original. Si se retoma esta línea, el siguiente paso sería replicar los fondos
      fotográficos de `noisy_composited` (no solo más pose) dentro de la propia escena de
      `renders_lab`, en vez de sumar otra receta aparte.
+
+### Tercer experimento: lab + bproc, sin composited
+Siguiente pregunta dentro de la misma línea: ¿el fondo real de `noisy_composited` era lo que
+ayudaba, o era prescindible frente a `noisy_bproc` (máscara exacta, material con textura real, sin
+fondo fotográfico pegado)? Al inspeccionar el recorte segmentado real de `noisy_composited`
+(`data/segmented_crops/.../renders_noisy_composited/...`) se confirmó que la CNN nunca ve ese
+fondo -- el recorte final es casi una silueta plana gris sin apenas textura, muy distinta del
+recorte de `renders_lab` (material completo). El fondo fotográfico no llega a la red; lo que sí
+cambia entre `composited` y `bproc`/`lab` es que `composited` no trae máscara ground-truth y se
+segmenta con `grounded_sam` (mismo método que producción sobre fotos reales, con su ruido de
+contorno habitual) en vez de máscara exacta.
+
+Dataset `bone_geometric_features_combined_lab_plus_bproc.csv` = `renders_lab` + `noisy_bproc` +
+reales, 1861 filas (sin `noisy_composited`). Reentrenado `hybrid_lab_plus_bproc_seed0`, evaluado
+contra el banco de 117 fotos reales:
+
+| Dataset | Filas | Banco sintético fijo | Fotos reales (n=117) | Balanced accuracy |
+|---|---|---|---|---|
+| `combined_lab` (3 variantes + reales, producción) | 2938 | 0.5972 | **0.8120** | **0.8098** |
+| `combined_lab` + poses nuevas (lab + extra + reales) | 2527 | 0.5185 | 0.7607 | 0.7404 |
+| `combined_lab` lab+bproc (sin composited) | 1861 | 0.5324 | 0.7265 | 0.7471 |
+| `combined_lab` deduplicado (solo lab + reales) | 1447 | 0.5463 | 0.6923 | 0.7280 |
+
+Quitar `composited` mejora algo sobre el dedup puro (+3.4 puntos) pero sigue 8.6 puntos por debajo
+de la mezcla completa -- `composited` sí aportaba algo real (probablemente el ruido de segmentación
+`grounded_sam`, no el fondo en sí). Patrón consistente en los 4 experimentos: ninguna pieza
+individual (pose, segmentación, material) explica la mejora por sí sola, es la **diversidad
+combinada** de las tres. Producción sigue sin cambiar.
