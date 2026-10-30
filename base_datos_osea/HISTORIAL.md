@@ -3442,3 +3442,54 @@ investigado en esta sesión, queda como pendiente. Imagen:
 107. El gap sim2real medido por UMAP (0.892 de mezcla por mismo origen, vs. 0.643 esperado si
      estuviera bien mezclado) sugiere que aún hay margen de mejora en la diapositiva 11
      (fondos/iluminación/PBR) -- posible línea de trabajo futura, no solo para la charla.
+
+## 2026-10-30 -- Ablación geometría vs. sin geometría + intento fallido de deduplicar combined_lab
+
+### Ablación cnn_only vs hybrid (¿aporta algo el vector geométrico?)
+Entrenados `cnn_only_lab_ablation` y `hybrid_lab_seed0` con receta idéntica (mismo dataset
+`bone_geometric_features_combined_lab.csv`, misma semilla 0, mismos epochs) para aislar el efecto
+del vector geométrico en la cabeza de la red. Evaluados en banco sintético fijo y en el banco
+grande de fotos reales (`real_photos_accepted`, split `test`, 117 imágenes):
+
+| | banco sintético fijo | fotos reales (n=117) | balanced accuracy (fotos reales) |
+|---|---|---|---|
+| cnn_only (sin geometría) | 0.4815 | 0.7094 | 0.6755 |
+| hybrid (con geometría) | 0.5972 | 0.8120 | 0.8098 |
+
+Mejora clara y consistente en ambos dominios (+11.6 sintético, +10.3 real, +13.4 balanced). Con
+117 fotos reales (más del doble del banco de 54 usado en el ablation anterior del 2026-10-28,
+ver sección "material gráfico para la charla") la señal ya no es ruido de muestra pequeña --
+confirma con margen la dirección que insinuaba ese resultado anterior. Conclusión: el vector
+geométrico se queda en producción, aporta de forma demostrable.
+
+### Intento de deduplicar combined_lab -- revertido
+Al preparar el material de la ablación se notó que `combined_lab` (receta de producción) mezcla
+`renders_lab` + `noisy_composited` + `noisy_bproc` + fotos reales, y que casi todos los
+especímenes de `noisy_composited` (112/113) y `noisy_bproc` (90/91) ya están en `renders_lab` --
+el dataset repite el mismo hueso físico 2-3 veces con pieles sintéticas distintas en vez de
+ampliar la variedad de especímenes.
+
+Se probó la limpieza obvia: `scripts/build_combined_lab_variant.py` reescrito para usar solo
+`renders_lab` + fotos reales (2938 -> 1447 filas), reentrenado `hybrid_lab_dedup_seed0` con la
+misma receta que `hybrid_lab_seed0`, y evaluado contra el mismo banco de 117 fotos reales:
+
+| | banco sintético fijo | fotos reales (n=117) | balanced accuracy |
+|---|---|---|---|
+| hybrid_lab_seed0 (dataset con duplicados, 2938 filas) | 0.5972 | 0.8120 | 0.8098 |
+| hybrid_lab_dedup_seed0 (dataset deduplicado, 1447 filas) | 0.5463 | 0.6923 | 0.7280 |
+
+Empeoró en los dos bancos (-12 puntos de accuracy en fotos reales). La hipótesis de que duplicar
+especímenes sesga el modelo era razonable, pero en la práctica pesó más la pérdida de volumen y
+variedad visual que ese sesgo. **Revertido**: `scripts/build_combined_lab_variant.py` y
+`data/processed/bone_geometric_features_combined_lab.csv` vuelven al estado de 3 variantes
+sintéticas + reales (2938 filas). `hybrid_lab_dedup_seed0` y `cnn_only_lab_ablation` se quedan en
+disco/MLflow como referencia del experimento, sin promover a producción.
+
+Runs en MLflow: experimento `osteolab-bone-classification-cnn-hybrid` para los tres entrenamientos
+(`cnn_only_lab_ablation`, `hybrid_lab_seed0`, `hybrid_lab_dedup_seed0`), experimento
+`osteolab-benchmark-real-photos` para las tres evaluaciones sobre las 117 fotos.
+
+### Pendiente
+108. Si se quiere seguir probando reducir la duplicación de especímenes sin perder volumen, la
+     vía sería generar MÁS vistas por espécimen en `renders_lab` (en vez de tomarlas de las otras
+     dos variantes) -- no se ha intentado todavía.

@@ -1,0 +1,5 @@
+outs:
+- md5: e96edd4c2b74629c6ee26e5315bae98c
+  size: 807
+  hash: md5
+  path: cnn_training_meta_cnn_only_lab_ablation_bone_group.json

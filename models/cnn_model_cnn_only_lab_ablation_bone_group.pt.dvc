@@ -1,0 +1,5 @@
+outs:
+- md5: 6db3501694b69fc57b1ed6a93a6d29c8
+  size: 45061133
+  hash: md5
+  path: cnn_model_cnn_only_lab_ablation_bone_group.pt
