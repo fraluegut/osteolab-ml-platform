@@ -1,0 +1,5 @@
+outs:
+- md5: afcb2598d009f38d5209c38996e51970
+  size: 86824291
+  hash: md5
+  path: cnn_model_stage2_taxon_mandibula_maxilar_dinov2s_taxon.pt

@@ -1,0 +1,5 @@
+outs:
+- md5: 8f3d1499a76199f8ad0898a2d7692e00
+  size: 2023
+  hash: md5
+  path: cnn_scaler_stage2_hueso_largo_dinov2s_bone_fine.joblib

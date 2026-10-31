@@ -1,0 +1,5 @@
+outs:
+- md5: 6eae301aec77c44cafabc4dca4759034
+  size: 86831553
+  hash: md5
+  path: cnn_model_hybrid_lab_dinov2reg_seed7_bone_group.pt

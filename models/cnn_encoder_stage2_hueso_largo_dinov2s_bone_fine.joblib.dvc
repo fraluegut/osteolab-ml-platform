@@ -1,0 +1,5 @@
+outs:
+- md5: 66452c0d24157ae971cf88b5d3511f47
+  size: 509
+  hash: md5
+  path: cnn_encoder_stage2_hueso_largo_dinov2s_bone_fine.joblib

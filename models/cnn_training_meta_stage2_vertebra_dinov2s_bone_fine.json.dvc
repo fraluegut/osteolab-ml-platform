@@ -1,0 +1,5 @@
+outs:
+- md5: 181050e2306c4841aecd4b97713801fb
+  size: 790
+  hash: md5
+  path: cnn_training_meta_stage2_vertebra_dinov2s_bone_fine.json

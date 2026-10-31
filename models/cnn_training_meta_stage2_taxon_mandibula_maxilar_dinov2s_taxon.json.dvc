@@ -1,0 +1,5 @@
+outs:
+- md5: 868bf9d8bff1566d21bd2bb6f07a7ab2
+  size: 795
+  hash: md5
+  path: cnn_training_meta_stage2_taxon_mandibula_maxilar_dinov2s_taxon.json

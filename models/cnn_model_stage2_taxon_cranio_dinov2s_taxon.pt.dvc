@@ -1,0 +1,5 @@
+outs:
+- md5: 3953fd8fd6aa874597b7efa26e5d6f56
+  size: 86823163
+  hash: md5
+  path: cnn_model_stage2_taxon_cranio_dinov2s_taxon.pt

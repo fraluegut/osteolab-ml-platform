@@ -1,0 +1,5 @@
+outs:
+- md5: c7ade2516f8a85b037be7f31340db091
+  size: 86823163
+  hash: md5
+  path: cnn_model_stage2_vertebra_dinov2s_bone_fine.pt

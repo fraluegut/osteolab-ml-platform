@@ -3701,3 +3701,62 @@ run original sin semilla fija de dinov2s.
 **Primer cambio de backbone desde que existe el proyecto** -- hasta ahora toda mejora había venido
 de dataset (recetas de render, fotos reales) o de arquitectura de cabeza (híbrido vs gated), nunca
 del extractor de features visuales en sí.
+
+## 2026-10-31 -- Comparativa ampliada de backbones modernos + etapas 2 migradas a DINOv2-small
+
+Preparando la diapo de Modelado (charla PyConES), se amplió la comparativa de backbones más allá
+de los 4 ya conocidos (resnet18/resnet50/resnet18a1/dinov2s). Screening de 1 semilla (seed0) contra
+`benchmark/selection` (n=48), misma receta `hybrid_lab`:
+
+| Backbone | Accuracy | Balanced | Top-3 |
+|---|---|---|---|
+| ResNet18a1 | 0.7500 | 0.7418 | 0.9167 |
+| ResNet50 | 0.8125 | 0.8048 | 0.9583 |
+| ConvNeXtV2-tiny (`convnextv2_tiny.fcmae_ft_in22k_in1k`) | 0.7708 | 0.7714 | 0.9583 |
+| EVA02-small (`eva02_small_patch14_224.mim_in22k`) | 0.7500 | 0.7429 | 0.8958 |
+| DINOv2-small (seed0) | 0.7500 | 0.7608 | 0.8958 |
+| DINOv2-small-reg4 (`vit_small_patch14_reg4_dinov2.lvd142m`, seed0) | **0.8750** | **0.8624** | 0.9583 |
+
+DINOv2-reg4 seed0 parecía ganador claro (+10 puntos balanced sobre DINOv2-small normal en esa
+misma semilla) -- reentrenado con 3 semillas (mismo criterio que toda promoción de backbone) para
+confirmar:
+
+| Semilla | DINOv2-small-reg4 |
+|---|---|
+| seed0 | 0.8624 |
+| seed1 | 0.8180 |
+| seed7 | 0.7492 |
+| **media** | **0.8099** |
+
+**No confirma.** Media de 3 semillas (0.8099) queda POR DEBAJO de la media de DINOv2-small normal
+(0.8203, ver entrada anterior) -- el seed0 fue ruido de init favorable, no señal real. Los
+"registers" (pensados para limpiar artefactos de atención en parches de fondo) no aportan aquí.
+**Descartado**, producción se mantiene en DINOv2-small normal (`hybrid_lab_dinov2s_seed7`).
+ConvNeXtV2-tiny y EVA02-small tampoco superan ni a ResNet50 en su único run -- no se reentrenan con
+más semillas, señal ya suficientemente débil para descartarlos sin gastar más cómputo.
+
+**Etapas 2 migradas de resnet18 a DINOv2-small** (el backbone confirmado, no el reg4 descartado),
+una semilla cada una (igual receta que su entrenamiento original, dataset propio de cada grupo,
+`--benchmark-path` apuntado a ruta inexistente para evitar el bug conocido de evaluar banco fijo
+sin la columna del target fino, ver HISTORIAL 2026-08-14):
+
+| Modelo | Backbone viejo (val_acc) | DINOv2-small (val_acc) |
+|---|---|---|
+| `stage2_hueso_largo` | 0.5532 | 0.5674 |
+| `stage2_hueso_pequeno` | -- | 0.9692 |
+| `stage2_vertebra` | -- | 0.8588 |
+| `stage2_taxon_cranio` | 0.8116 | 0.8841 |
+| `stage2_taxon_mandibula_maxilar` | 0.8537 | 0.9268 |
+
+Mejora o iguala en todos los casos con val_acc comparable. `stage2_taxon_cranio` sigue con
+`recall(humano) = 0.000` tanto en DINOv2 como en el resnet18 anterior -- **no es regresión del
+cambio de backbone**, es el mismo bug preexistente de escasez de fotos humanas en cráneo (ver
+"Piloto de hueso concreto y taxón"). En las demás clases DINOv2 mejora: carnivoro 0.955 vs 0.864,
+ungulado 0.70 vs 0.65.
+
+**Pendiente**: promover estos 5 modelos de etapa 2 a producción (hoy `predict_two_stage.py` sigue
+apuntando a los `run_name` sin sufijo `_dinov2s`) -- de momento solo entrenados y versionados, no
+conectados en `shared/inference/predict_two_stage.py`.
+
+Modelos nuevos versionados en DVC (bug de higiene de siempre -- se aprovechó para destrabar
+también los backbones screening de la sesión anterior que habían quedado sin `dvc add`).

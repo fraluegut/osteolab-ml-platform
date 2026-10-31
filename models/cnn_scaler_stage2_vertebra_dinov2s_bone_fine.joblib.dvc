@@ -1,0 +1,5 @@
+outs:
+- md5: f83438788d0a63319e306fd8f8bb64fa
+  size: 2023
+  hash: md5
+  path: cnn_scaler_stage2_vertebra_dinov2s_bone_fine.joblib
