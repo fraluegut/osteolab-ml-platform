@@ -1,0 +1,5 @@
+outs:
+- md5: d70b5565483c060e20a6b0469dcfa35d
+  size: 45092113
+  hash: md5
+  path: cnn_model_hybrid_bproc_real_seed0_bone_group.pt

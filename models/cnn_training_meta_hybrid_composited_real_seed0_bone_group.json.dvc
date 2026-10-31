@@ -1,0 +1,5 @@
+outs:
+- md5: 9e4989b87a67a2994712ec431eb5e076
+  size: 800
+  hash: md5
+  path: cnn_training_meta_hybrid_composited_real_seed0_bone_group.json

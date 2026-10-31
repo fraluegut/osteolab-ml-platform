@@ -1,0 +1,5 @@
+outs:
+- md5: 60b697789f780787f7de437646fd02ca
+  size: 45092763
+  hash: md5
+  path: cnn_model_hybrid_composited_real_seed0_bone_group.pt

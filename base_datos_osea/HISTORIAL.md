@@ -3624,3 +3624,30 @@ parche aislado como este. `hybrid_lab_mixup_seed0` sobre `combined_lab` contra
 Peor que producción. Mismo patrón que augmentation fuerte (experimento 5): regularización extra
 no ayuda aquí, el cuello de botella no parece ser overfitting a textura/pose. Producción no
 cambia.
+
+### Octavo experimento: ensemble de 3 modelos, uno por receta
+
+En vez de un modelo entrenado sobre la mezcla (`combined_lab`), 3 modelos independientes, cada
+uno sobre receta+reales (`hybrid_lab_dedup_seed0` ya existente, mas `hybrid_bproc_real_seed0` y
+`hybrid_composited_real_seed0` nuevos, datasets `bone_geometric_features_bproc_real.csv` 781
+filas y `bone_geometric_features_composited_real.csv` 1444 filas). Ensemble blando (promedio de
+probabilidades, `scripts/experiments/eval_ensemble_recipes.py`) contra `benchmark/selection`:
+
+| Variante | Balanced accuracy (benchmark/selection, n=48) |
+|---|---|
+| producción (`combined_lab`, un solo modelo) | **0.7735** |
+| ensemble 3 modelos por receta | 0.7074 |
+
+Peor que producción. Cada modelo entrenado solo con su receta generaliza peor individualmente
+(especialmente `hueso_plano` y `mandibula_maxilar`) que el modelo que ve las tres recetas
+mezcladas durante el entrenamiento -- la mezcla no solo aporta volumen, aporta que la red vea la
+variación de dominio DURANTE el entrenamiento, algo que promediar salidas de expertos
+especializados a posteriori no reproduce. Producción no cambia.
+
+### Balance de las 8 líneas probadas (2026-10-30/31)
+
+Ninguna de las 8 líneas (poses extra, dedup, lab+bproc, lab+bproc+poses, augmentation fuerte,
+boost reales x8, mixup, ensemble por receta) supera `hybrid_lab` sobre `combined_lab`
+(3 recetas mezcladas + reales, 2938 filas). Pendiente: línea de datos (sumar fotos/renders
+específicos de `hueso_plano`, la clase más débil en casi todas las tablas) en vez de otra
+palanca de arquitectura/entrenamiento.

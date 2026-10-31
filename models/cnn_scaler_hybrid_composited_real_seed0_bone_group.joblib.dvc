@@ -1,0 +1,5 @@
+outs:
+- md5: bd6bcdbf6a07814d736ddaa96bcfa4ac
+  size: 2023
+  hash: md5
+  path: cnn_scaler_hybrid_composited_real_seed0_bone_group.joblib
