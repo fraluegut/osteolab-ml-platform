@@ -1,0 +1,5 @@
+outs:
+- md5: 0122cdf6c44c0edf6cdf9091e5b5375d
+  size: 811
+  hash: md5
+  path: cnn_training_meta_cnn_only_lab_unsegmented_seed0_bone_group.json

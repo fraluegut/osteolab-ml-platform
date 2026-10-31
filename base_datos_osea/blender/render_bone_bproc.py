@@ -191,7 +191,11 @@ def main():
     bbox_max = verts.max(axis=0)
     radius = float(np.linalg.norm(bbox_max - bbox_min)) / 2.0
 
-    rng_material = random.Random(args.seed or abs(hash(args.prefix)) % (2**31))
+    # 2026-10-31: `args.seed or hash(...)` trataba --seed 0 como "sin semilla"
+    # (0 es falsy) y caía siempre a hash(prefix), no reproducible entre
+    # procesos (PYTHONHASHSEED no fijado) -- mismo bug que render_bone_lab.py.
+    _base_seed_value = args.seed if args.seed is not None else abs(hash(args.prefix)) % (2**31)
+    rng_material = random.Random(_base_seed_value)
     if not keep_original:
         apply_layered_bone_material(mesh_objs, rng_material, bone_size=radius)
 
@@ -208,7 +212,7 @@ def main():
     bproc.renderer.set_max_amount_of_samples(args.samples)
     bproc.renderer.set_output_format(enable_transparency=True)
 
-    base_seed = args.seed or abs(hash(args.prefix)) % (2**31)
+    base_seed = _base_seed_value
     fill = args.fill
     positions = fibonacci_sphere(args.n_views, 1.0)  # direcciones unitarias, distancia por vista según focal
 
@@ -216,8 +220,10 @@ def main():
         rng = random.Random(base_seed + i)
 
         # HDRI real por vista (variedad de iluminación/reflejos)
+        hdri_used = None
         if hdri_files:
-            bproc.world.set_world_background_hdr_img(str(rng.choice(hdri_files)))
+            hdri_used = rng.choice(hdri_files)
+            bproc.world.set_world_background_hdr_img(str(hdri_used))
 
         # Óptica variable: focal length 24-70mm en vez de FOV fijo. Se fija
         # ANTES de calcular la distancia (usa la misma sensor_width que
@@ -250,6 +256,17 @@ def main():
         # geometría, no adivinada sobre el render ya compuesto.
         mask = (rgba[:, :, 3] > 250).astype(np.uint8) * 255
         Image.fromarray(mask, mode="L").save(mask_path)
+
+        import json as _json
+        meta_path = out_dir / f"{args.prefix}_view{i:03d}_meta.json"
+        meta_path.write_text(_json.dumps({
+            "recipe": "noisy_bproc",
+            "camera_strategy": "fibonacci_sphere",
+            "prefix": args.prefix, "view_index": i, "base_seed": base_seed,
+            "hdri_file": hdri_used.name if hdri_used else None,
+            "focal_mm": round(focal_mm, 4), "sensor_width": sensor_width, "fill": fill,
+            "keep_original_texture": keep_original,
+        }, indent=2, ensure_ascii=False))
 
         bproc.utility.reset_keyframes()
 

@@ -57,6 +57,7 @@ from mathutils import Matrix, Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from bone_material import apply_layered_bone_material  # noqa: E402
+from render_bone import write_render_metadata  # noqa: E402
 
 HDRI_DIR = Path(__file__).resolve().parents[1] / "hdris"
 
@@ -585,7 +586,12 @@ def main():
     center_on_bbox(obj)
     normalize_scale(obj)
 
-    base_seed = args.seed or abs(hash(args.prefix)) % (2**31)
+    # 2026-10-31: `args.seed or hash(...)` trataba `--seed 0` (el default del
+    # batch) como "sin semilla" -- 0 es falsy en Python -- así que SIEMPRE caía
+    # al hash(prefix), que usa sal aleatoria por proceso (PYTHONHASHSEED no
+    # fijado) y no es reproducible entre invocaciones. Bug real: el flag
+    # --seed nunca tuvo efecto en la práctica. Fix: comprobar None explícito.
+    base_seed = args.seed if args.seed is not None else abs(hash(args.prefix)) % (2**31)
     rng_material = random.Random(base_seed)
     if not keep_original:
         apply_layered_bone_material([obj], rng_material, bone_size=TARGET_RADIUS)
@@ -645,8 +651,10 @@ def main():
 
         clear_lights(current_lights)
         light_preset = LIGHT_PRESETS[args.light_preset]
+        hdri_choice = None
         if hdri_files:
-            setup_world_hdri(rng_drop.choice(hdri_files), light_preset)
+            hdri_choice = rng_drop.choice(hdri_files)
+            setup_world_hdri(hdri_choice, light_preset)
         current_lights = add_lab_lights(center, settled_radius, rng_drop, light_preset)
         corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
 
@@ -668,6 +676,25 @@ def main():
 
             out_path = out_dir / f"{args.prefix}_drop{drop:02d}_view{shot:03d}.png"
             render_view(scene, table, out_path)
+            write_render_metadata(out_path, {
+                "recipe": "renders_lab",
+                "camera_strategy": "mesa_fisica_random_elevacion_azimut",
+                "prefix": args.prefix, "drop_index": drop, "view_index": shot,
+                "base_seed": base_seed,
+                "keep_original_texture": keep_original,
+                "light_preset": args.light_preset,
+                "hdri_file": hdri_choice.name if hdri_choice else None,
+                "camera": {
+                    "focal_mm": round(focal_mm, 4), "sensor_width": round(sensor_width, 4),
+                    "elevation_deg": round(elevation_deg, 4), "azimuth_deg": round(azimuth_deg, 4),
+                    "fill": round(fill, 4),
+                },
+                "drop": {
+                    "drop_height": round(drop_height, 4), "table_half": round(table_half, 4),
+                    "drop_frames": args.drop_frames, "settled_center": list(center),
+                    "settled_radius": round(settled_radius, 4), "settled_perfectly": settled,
+                },
+            })
             view_idx += 1
 
     print(f"RENDER_DONE views={view_idx} out={out_dir}")

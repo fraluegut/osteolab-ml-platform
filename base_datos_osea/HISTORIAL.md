@@ -3651,3 +3651,25 @@ boost reales x8, mixup, ensemble por receta) supera `hybrid_lab` sobre `combined
 (3 recetas mezcladas + reales, 2938 filas). Pendiente: línea de datos (sumar fotos/renders
 específicos de `hueso_plano`, la clase más débil en casi todas las tablas) en vez de otra
 palanca de arquitectura/entrenamiento.
+
+### Baseline honesto "sin segmentar" (2026-10-31, material para charla PyConES)
+
+Pregunta de la diapo de segmentación: ¿cuánto aporta segmentar de verdad? Medirlo bien exige
+comparación justa -- no vale coger el modelo de producción (entrenado con recortes) y darle fotos
+sin recortar (nunca vio eso, mide otra cosa). Se añadió backend `"none"` a `extract.py`
+(`_locate_bone`: máscara = imagen entera, sin recorte) y un dataset paralelo
+(`bone_geometric_features_combined_lab_unsegmented.csv`, mismas 2938 filas que `combined_lab` pero
+`segmented_path` apunta a la imagen original sin segmentar) para entrenar Y evaluar la misma
+arquitectura (`cnn_only`, sin geometría -- sin contorno no hay features geométricas que calcular)
+en igualdad de condiciones:
+
+| Variante | Balanced accuracy (benchmark/selection, n=48) |
+|---|---|
+| `cnn_only` segmentado (`cnn_only_lab_ablation`, recortes `grounded_sam`) | 0.7704 |
+| `cnn_only` sin segmentar (`cnn_only_lab_unsegmented_seed0`, foto completa) | 0.7556 |
+
+Caída pequeña (-1.5 puntos), no catastrófica -- la CNN compensa parte del ruido de fondo por sí
+sola. Pero dos matices: (1) esto es `cnn_only`, no comparable fila a fila con la tabla de backends
+de segmentación (esa es con el híbrido, otra arquitectura); (2) sin segmentar, la geometría clásica
+(que sí aporta mucho en el híbrido) no es calculable -- no hay contorno limpio del que sacar Hu
+moments/elongación/etc., así que esa vía de mejora queda cerrada de raíz, no solo degradada.

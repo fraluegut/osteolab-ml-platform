@@ -14,6 +14,7 @@ Se ejecuta con Blender, no con python suelto (necesita el módulo `bpy`):
 """
 
 import argparse
+import json
 import math
 import sys
 from pathlib import Path
@@ -21,6 +22,16 @@ from pathlib import Path
 import bmesh
 import bpy
 from mathutils import Matrix, Vector
+
+
+def write_render_metadata(image_path: Path, meta: dict) -> None:
+    """Ficha de generación de UNA imagen, junto al PNG (`<nombre>_meta.json`).
+    2026-10-31: antes de esto ningún script guardaba qué fondo/luz/material/
+    cámara tocó por render -- sin esto, no hay forma de reconstruir la receta
+    exacta de una imagen ya generada (ni repitiendo la semilla, que además
+    tenía un bug de reproducibilidad, ver HISTORIAL.md)."""
+    meta_path = image_path.parent / f"{image_path.stem}_meta.json"
+    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False))
 
 
 def parse_args():

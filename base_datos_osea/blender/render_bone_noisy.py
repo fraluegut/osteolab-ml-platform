@@ -55,6 +55,7 @@ from mathutils import Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from render_bone import (  # noqa: E402
     import_mesh, center_on_mass, framing_target, fibonacci_sphere, make_camera, point_at,
+    write_render_metadata,
 )
 
 # Paleta de fondos: tonos neutros/de mesa/estudio variados, no solo blanco.
@@ -130,9 +131,14 @@ def make_material(rng):
     color = rng.choice(BONE_COLOR_PALETTE)
     # pequeño jitter para no repetir literalmente el mismo tono en dos vistas
     jitter = lambda c: max(0.0, min(1.0, c + rng.uniform(-0.04, 0.04)))
-    bsdf.inputs["Base Color"].default_value = (*[jitter(c) for c in color], 1.0)
-    bsdf.inputs["Roughness"].default_value = rng.uniform(0.35, 0.75)
-    return mat
+    final_color = [jitter(c) for c in color]
+    roughness = rng.uniform(0.35, 0.75)
+    bsdf.inputs["Base Color"].default_value = (*final_color, 1.0)
+    bsdf.inputs["Roughness"].default_value = roughness
+    meta = {
+        "base_color_palette": list(color), "base_color_final": final_color, "roughness": round(roughness, 4),
+    }
+    return mat, meta
 
 
 def setup_world(rng):
@@ -143,17 +149,21 @@ def setup_world(rng):
     links = world.node_tree.links
     bg = nodes["Background"]
 
+    meta = {}
     if rng.random() < 0.5:
         # fondo sólido
         color = rng.choice(BACKGROUND_PALETTE)
         bg.inputs[0].default_value = (*color, 1.0)
+        meta["background_type"] = "solido"
+        meta["background_color"] = list(color)
     else:
         # degradado de dos tonos (justo el tipo de fondo que rompió la
         # segmentación en producción — se incluye a propósito)
         c1 = rng.choice(BACKGROUND_PALETTE)
         c2 = rng.choice(BACKGROUND_PALETTE)
         grad = nodes.new("ShaderNodeTexGradient")
-        grad.gradient_type = rng.choice(["LINEAR", "SPHERICAL"])
+        grad_type = rng.choice(["LINEAR", "SPHERICAL"])
+        grad.gradient_type = grad_type
         ramp = nodes.new("ShaderNodeValToRGB")
         ramp.color_ramp.elements[0].color = (*c1, 1.0)
         ramp.color_ramp.elements[1].color = (*c2, 1.0)
@@ -164,8 +174,14 @@ def setup_world(rng):
         links.new(mapping.outputs["Vector"], grad.inputs["Vector"])
         links.new(grad.outputs["Fac"], ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], bg.inputs["Color"])
+        meta["background_type"] = "degradado"
+        meta["background_gradient_type"] = grad_type
+        meta["background_colors"] = [list(c1), list(c2)]
 
-    bg.inputs[1].default_value = rng.uniform(0.5, 1.3)
+    bg_strength = rng.uniform(0.5, 1.3)
+    bg.inputs[1].default_value = bg_strength
+    meta["background_strength"] = round(bg_strength, 4)
+    return meta
 
 
 def add_lights(center, radius, rng):
@@ -173,8 +189,10 @@ def add_lights(center, radius, rng):
     # generar sombreado desigual real sobre la superficie del hueso — a
     # propósito, es justo lo que faltaba en el rig limpio.
     sun_data = bpy.data.lights.new("key_sun", type="SUN")
-    sun_data.energy = rng.uniform(1.5, 4.5)
-    sun_data.angle = math.radians(rng.uniform(2, 15))  # sombras más o menos duras
+    sun_energy = rng.uniform(1.5, 4.5)
+    sun_angle_deg = rng.uniform(2, 15)  # sombras más o menos duras
+    sun_data.energy = sun_energy
+    sun_data.angle = math.radians(sun_angle_deg)
     base_color = rng.choice(COLOR_TEMP_PRESETS)
     jitter = lambda c: max(0.0, min(1.0, c + rng.uniform(-0.03, 0.03)))
     sun_data.color = tuple(jitter(c) for c in base_color)
@@ -187,7 +205,8 @@ def add_lights(center, radius, rng):
     # Relleno tenue (mismo tipo que el rig limpio, pero con menos energía y
     # solo 2 focos en vez de 4) para que el lado en sombra no quede negro puro.
     energy_per_radius_sq = 90 / (190.0 ** 2)
-    energy = energy_per_radius_sq * radius ** 2 * rng.uniform(0.6, 1.4)
+    fill_mult = rng.uniform(0.6, 1.4)
+    energy = energy_per_radius_sq * radius ** 2 * fill_mult
     for i, (x, y, z) in enumerate([(1, -1, 0.5), (-1, 1, -0.4)]):
         v = center + Vector((x, y, z)).normalized() * radius * 2.2
         light_data = bpy.data.lights.new(f"fill_{i}", type="AREA")
@@ -198,6 +217,13 @@ def add_lights(center, radius, rng):
         light_obj.location = v
         direction = (center - v).normalized()
         light_obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+
+    return {
+        "sun_energy": round(sun_energy, 4),
+        "sun_angle_deg": round(sun_angle_deg, 4),
+        "sun_color_temp_preset": list(base_color),
+        "fill_energy_mult": round(fill_mult, 4),
+    }
 
 
 def bbox_bounds(obj):
@@ -275,24 +301,40 @@ def main():
     cam = make_camera(args.fov_deg, clip_end=distance * 3)
 
     positions = fibonacci_sphere(args.n_views, distance)
-    base_seed = args.seed or abs(hash(args.prefix)) % (2**31)
+    # 2026-10-31: `args.seed or hash(...)` trataba --seed 0 como "sin
+    # semilla" (0 es falsy) y caía siempre al hash(prefix), no reproducible
+    # entre procesos (PYTHONHASHSEED no fijado). Ver mismo fix en
+    # render_bone_lab.py -- el flag --seed nunca tuvo efecto en la práctica.
+    base_seed = args.seed if args.seed is not None else abs(hash(args.prefix)) % (2**31)
 
     for i, offset in enumerate(positions):
         rng = random.Random(base_seed + i)
         clear_scene_lights_and_world()
-        setup_world(rng)
-        add_lights(center, radius, rng)
+        world_meta = setup_world(rng)
+        light_meta = add_lights(center, radius, rng)
+        material_meta = {"keep_original_texture": keep_original_material}
         if not keep_original_material:
             obj.data.materials.clear()
-            obj.data.materials.append(make_material(rng))
+            mat, mat_meta = make_material(rng)
+            obj.data.materials.append(mat)
+            material_meta.update(mat_meta)
 
         cam.location = center + offset
         # Encuadre no siempre centrado: desplaza el punto al que apunta la
         # cámara (no la posición) un poco respecto al centro real de la bbox.
         jitter = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.5, 0.5)))
         point_at(cam, center + jitter * radius * 0.15)
-        scene.render.filepath = str(out_dir / f"{args.prefix}_view{i:03d}.png")
+        out_path = out_dir / f"{args.prefix}_view{i:03d}.png"
+        scene.render.filepath = str(out_path)
         bpy.ops.render.render(write_still=True)
+
+        write_render_metadata(out_path, {
+            "recipe": "noisy_composited_source",
+            "camera_strategy": "fibonacci_sphere",
+            "prefix": args.prefix, "view_index": i, "base_seed": base_seed,
+            "fov_deg": args.fov_deg, "fill": args.fill,
+            "world": world_meta, "light": light_meta, "material": material_meta,
+        })
 
     print(f"RENDER_DONE views={args.n_views} out={out_dir}")
 

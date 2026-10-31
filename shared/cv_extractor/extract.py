@@ -758,7 +758,15 @@ def _locate_bone(image: np.ndarray, backend: str):
     `MIN_CONTOUR_AREA_RATIO`. Compartido por `extract_features` y
     `segment_and_crop` para no correr la segmentación dos veces sobre la
     misma imagen en el mismo sitio."""
-    if backend == "fastsam":
+    if backend == "none":
+        # 2026-10-31: baseline "sin segmentar" para medir honestamente cuánto
+        # aporta segmentar -- máscara = imagen entera, sin recorte ni fondo
+        # pintado de gris. Comparación justa: el modelo que se evalúa así
+        # también se ENTRENA así (ver train_cnn.py --dataset-path con el CSV
+        # "sin segmentar"), no es el modelo de producción (entrenado con
+        # recortes) alimentado con algo que nunca vio.
+        binary = np.full(image.shape[:2], 255, dtype=np.uint8)
+    elif backend == "fastsam":
         binary = _segment_fastsam(image)
     elif backend == "grounded_sam":
         binary = _segment_grounded_sam(image)
