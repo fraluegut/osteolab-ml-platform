@@ -3584,3 +3584,25 @@ experimentación con augmentation/pose/segmentación-sin-cambiar-la-mezcla se da
 ahora -- los cinco intentos (poses extra, dedup, lab+bproc, lab+bproc+poses, augmentation fuerte)
 convergen en que ninguna palanca aislada reproduce lo que aporta la mezcla completa de tres
 recetas.
+
+### Nota de protocolo (2026-10-31): dejar de usar `accepted/test` para comparar líneas
+
+Comparar 5+ líneas experimentales contra el mismo banco fijo (`accepted/test`, 117 fotos) para
+decidir cuál sigue es selección de hipótesis repetida sobre un test fijo -- mismo riesgo que ya
+documentado para selección de checkpoint (ver comentario 2026-08-03 en `train_cnn.py`), pero a
+nivel de línea de experimento. A partir de ahora: comparar líneas nuevas contra
+`benchmark/selection` (54 fotos, ya usado como señal de validación durante el training) y dejar
+`accepted/test` solo para la confirmación final de la línea ganadora.
+
+### Sexto experimento: subir `--real-photo-boost` (sobremuestreo de fotos reales)
+
+Producción ya sobremuestrea fotos reales x4 en el `WeightedRandomSampler` (`--real-photo-boost`,
+default). Probado x8 (`hybrid_lab_boost8_seed0`) contra `benchmark/selection`:
+
+| Variante | Balanced accuracy (benchmark/selection) |
+|---|---|
+| boost x4 (producción) | **0.7735** |
+| boost x8 | 0.7709 |
+
+Sin mejora (ligeramente peor). El sobremuestreo ya está saturado en x4 -- subir más no ayuda.
+Producción no cambia. Modelo descartado queda en DVC/MLflow como referencia.
