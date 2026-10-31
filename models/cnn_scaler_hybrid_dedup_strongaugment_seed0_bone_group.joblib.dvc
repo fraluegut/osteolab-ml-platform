@@ -1,0 +1,5 @@
+outs:
+- md5: 3ff8b4ae22107f83a3c7f1c9f0783877
+  size: 2023
+  hash: md5
+  path: cnn_scaler_hybrid_dedup_strongaugment_seed0_bone_group.joblib

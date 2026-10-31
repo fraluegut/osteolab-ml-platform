@@ -1,0 +1,5 @@
+outs:
+- md5: 1e6324bdf80e741d188aac29177217bd
+  size: 804
+  hash: md5
+  path: cnn_training_meta_hybrid_lab_strongaugment_seed0_bone_group.json

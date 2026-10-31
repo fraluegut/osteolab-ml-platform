@@ -3555,3 +3555,32 @@ de la mezcla completa -- `composited` sí aportaba algo real (probablemente el r
 `grounded_sam`, no el fondo en sí). Patrón consistente en los 4 experimentos: ninguna pieza
 individual (pose, segmentación, material) explica la mejora por sí sola, es la **diversidad
 combinada** de las tres. Producción sigue sin cambiar.
+
+### Quinto experimento: augmentation más agresiva en vez de cambiar el dataset (2026-10-30/31)
+
+Última hipótesis de esta línea: si el problema no es el dataset sino que la red se sobreajusta a
+la textura/pose de los renders, ¿subir la intensidad de `v2` augmentation (crop más agresivo,
+rotación 25°, color jitter fuerte, blur/JPEG/ruido gaussiano aleatorios, `RandomErasing`) sobre el
+dataset de PRODUCCIÓN (`combined_lab`, 2938 filas) ayuda sin tocar la receta de datos? Parche
+aislado en `scripts/experiments/train_strong_augment.py` (no toca `training/cnn_dataset.py`).
+Reentrenados `hybrid_lab_strongaugment_seed0` (sobre `combined_lab`) y
+`hybrid_dedup_strongaugment_seed0` (sobre `bone_geometric_features_dedup_lab_real.csv`, 1447
+filas, mismo recorte dedup del segundo experimento) para ver si la augmentation fuerte compensa
+también la falta de volumen del dedup. Evaluados contra el banco de 117 fotos reales
+(`--source accepted --split test`):
+
+| Dataset | Augmentation | Fotos reales (n=117) balanced accuracy |
+|---|---|---|
+| `combined_lab` (producción) | normal | **0.8098** |
+| `combined_lab` | fuerte (este experimento) | 0.7803 |
+| `dedup_lab_real` (solo renders_lab + reales) | normal | 0.7280 |
+| `dedup_lab_real` | fuerte (este experimento) | 0.7280 (idéntico) |
+
+Augmentation fuerte **empeora** sobre producción (-3 puntos) y no mueve nada el dedup (mismo
+resultado exacto, sugiere que el modelo dedup ya está en un mínimo dominado por falta de volumen,
+no por overfit a textura). Quinto intento consecutivo en esta línea que no supera `combined_lab`.
+Producción sigue sin cambiar: `hybrid_lab` (3 variantes + reales, 2938 filas). Línea de
+experimentación con augmentation/pose/segmentación-sin-cambiar-la-mezcla se da por agotada por
+ahora -- los cinco intentos (poses extra, dedup, lab+bproc, lab+bproc+poses, augmentation fuerte)
+convergen en que ninguna palanca aislada reproduce lo que aporta la mezcla completa de tres
+recetas.

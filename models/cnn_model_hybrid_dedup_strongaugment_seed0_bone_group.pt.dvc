@@ -1,0 +1,5 @@
+outs:
+- md5: efce55b5942adfbabbcd8d6a9f085c30
+  size: 45093283
+  hash: md5
+  path: cnn_model_hybrid_dedup_strongaugment_seed0_bone_group.pt
