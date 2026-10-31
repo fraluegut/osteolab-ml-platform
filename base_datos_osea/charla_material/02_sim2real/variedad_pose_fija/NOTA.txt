@@ -1,0 +1,57 @@
+Pose fija por hueso en las 12 fases (misma cámara, mismo encuadre, sin
+física real -- ver fase 5 más abajo). Zoom subido (fill 0.85). Actualizado
+2026-10-24: se quitó la degradación simulada de ruido (blur/jpeg/downscale)
+de la fase "+fondo" -- el usuario la explica de palabra, no hace falta
+verla; y se añadió una fase final en ALTA RESOLUCIÓN (1800x2520, 220
+samples) como última imagen de cada hueso.
+
+Huesos (6): flujo_femur_gorila/, flujo_craneo/, flujo_mandibula/,
+flujo_tibia/, flujo_escapula/, flujo_vertebra/
+
+12 imágenes por hueso:
+  1_normal_inicial.jpg                    -- clay plano, fondo blanco
+  2_mas_fondo_real.jpg                    -- mismo render, fondo foto real, limpio (sin ruido)
+  3_mas_luces.jpg                         -- mismo render clay, luz tintada cálida, mismo tipo de fondo, limpio
+  4_mas_blenderproc_hdri.png              -- material completo, HDRI real, fondo a cuadros (alfa)
+  5_mas_gravedad_laboratorio.jpg          -- MISMO render que 4, fondo mesa oscura. Pose SIN
+                                              cambiar a propósito (para poder comparar fase a
+                                              fase) -- en producción real (render_bone_lab.py)
+                                              el hueso sí cae con física real a una pose de
+                                              reposo distinta.
+  6_mas_color_paleta_real.png             -- bone_material.py stop_after="color"
+  7_mas_manchas_por_cavidad.png           -- stop_after="stains"
+  8_mas_mineralizacion_moho_contacto.png  -- stop_after="weathering"
+  9_mas_porosidad_bump.png                -- stop_after="bump"
+  10_mas_specular_por_zona_material_completo.png -- material completo
+  11_heatmap_suciedad.png                 -- accesoria, falso color azul=limpio/rojo=sucio
+  12_foto_final.png                       -- SIEMPRE la última, 1800x2520, máxima resolución
+                                              de toda la carpeta (el resto van a 900x1260)
+
+Material procedural forzado en los 6 huesos (incluye craneo/mandibula, que
+traen su propia textura/color de escaneo real -- aquí se ignora a
+propósito para que las 12 fases sean comparables entre sí; el pipeline de
+producción real sigue respetando esa textura tal cual, ver bone_material.py
+y has_real_texture() en render_bone_bproc.py/render_bone_lab.py).
+
+PALETA DE COLOR cambiada (2026-10-24, segunda pasada): el usuario señaló que
+el cráneo (seed original 89) salía "demasiado blanco" y con manchas de
+mineralización demasiado grandes/oscuras para el zoom nuevo -- no un bug,
+solo mala suerte de seed combinada con el hecho de que la paleta de
+producción (bone_palette.json, 426 fotos reales) tiene clusters casi blancos
+con peso alto. Aportó una foto de referencia (cráneo de macaco, tono beige-
+hueso cálido con manchas pardas en los senos/suturas) y pidió imitar esa
+gama. Se extrajo una paleta nueva de esa foto con el mismo método KMeans de
+extract_bone_palette.py (base_datos_osea/blender/bone_palette_demo_macaco.json,
+8 clusters, SOLO para estas imágenes de diagnóstico -- no sustituye ni toca
+bone_palette.json de producción). Cambios en bone_material.py: `palette`
+ahora es un parámetro opcional de build_layered_bone_material/
+apply_layered_bone_material (None = paleta de producción, comportamiento
+sin cambios); se añadió label "channel_stain_dark_stop" al ColorRamp de la
+capa 2 para poder tintar también el color de mancha oscura desde fuera.
+unified_stage.py (script de esta carpeta, no de producción) carga la paleta
+de macaco y tiñe clay/stain con sus colores. Cráneo además recibió un seed
+nuevo (23 en vez de 89) tras comparar varios en una rejilla -- mismo motivo,
+mejor combinación visual de manchas.
+
+Nada de esto medido contra el banco real ni usado en producción -- trabajo
+de diagnóstico/charla.

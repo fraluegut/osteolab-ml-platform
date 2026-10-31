@@ -1,0 +1,1 @@
+caso citado en HISTORIAL: caja de DINO cubre casi toda la imagen, SAM con iou_score elige mal

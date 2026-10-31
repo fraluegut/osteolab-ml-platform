@@ -1,0 +1,76 @@
+Progresión regenerada 2026-10-24, "un cambio a la vez", todo vertical (portrait,
+900x1260 o 768x1024 para las de material). Mismo fémur de gorila
+(gorilla_gorilla/femur/sketchfab_3fbe6a09153b4a0cb38d15005726d8ff) en todas las
+imágenes. Render real -- blender 4.2.1 LTS, GPU CUDA.
+
+CAMBIO IMPORTANTE: se descartó la capa de textura real escaneada
+(bone_base_diffuse.png) de bone_material.py -- el usuario la vio "cutrísima"
+(demasiado plana/artificial incluso con el fix de bump del día anterior).
+Código de esa capa eliminado de bone_material.py (ya no existe capa 1b), el
+color base vuelve a ser 100% Noise procedural + paleta real. Las imágenes
+de progresion_v2 y 04_textura_real_superficie_hueso.png /
+progresion_profesional/6_fix_bump_textura_real.jpg en este mismo directorio
+quedan OBSOLETAS por esta decisión -- no se borraron las de progresion_profesional
+por ser de otra sesión, pero no representan el material actual.
+
+Se añadió un parámetro `stop_after` a build_layered_bone_material /
+apply_layered_bone_material (bone_material.py) para poder parar la
+construcción del material en una capa concreta -- permite generar la
+progresión "una capa a la vez" sin tocar el material de producción
+(stop_after=None, el valor por defecto, construye el material completo
+igual que siempre).
+
+1_normal_inicial.jpg                    -- render_bone.py, clay, fondo blanco.
+2_mas_fondo_real.jpg                    -- MISMO render de 1 (recortado por
+                                            flood-fill, no un render nuevo),
+                                            pegado sobre una foto de fondo real
+                                            -- aísla el cambio de fondo solo.
+3_mas_ruido.jpg                         -- MISMO compuesto de 2, con
+                                            downscale+blur+jpeg encima (post,
+                                            sin re-renderizar) -- aísla el
+                                            cambio de "ruido de cámara" solo.
+4_mas_luces.jpg                         -- render NUEVO con render_bone_noisy.py
+                                            (luz/color de luz distinta) + mismo
+                                            tipo de fondo+degradación que 3.
+                                            Limitación: ese script también
+                                            varía un poco el ángulo de cámara
+                                            (bundlea luz+cámara+color), no se
+                                            pudo aislar solo la luz sin tocar
+                                            el script de producción.
+5_mas_blenderproc_hdri.png              -- render_bone_bproc.py, HDRI real
+                                            (luz/reflejos de entorno real).
+                                            Fondo a cuadros = canal alfa real
+                                            (máscara ground-truth), no una
+                                            foto pegada -- así es como
+                                            funciona en producción. Material
+                                            ya sin la capa de textura real.
+6_mas_gravedad_laboratorio.jpg          -- render_bone_lab.py, física real
+                                            (rigid body), mesa oscura, pose de
+                                            reposo. Material propio de ese
+                                            script (apply_two_layer_material),
+                                            no bone_material.py -- divergencia
+                                            ya documentada (pendiente #81 del
+                                            HISTORIAL).
+7_mas_color_paleta_real.png             -- bone_material.py, stop_after="color":
+                                            SOLO capa 1 (ruido + paleta real).
+8_mas_manchas_por_cavidad.png           -- stop_after="stains": + capa 2
+                                            (manchas ligadas a AO/cavidad).
+9_mas_mineralizacion_moho_contacto.png  -- stop_after="weathering": + capa 2b
+                                            (mineralización/moho/contacto,
+                                            weathering por pieza).
+10_mas_porosidad_bump.png               -- stop_after="bump": + capa 3
+                                            (relieve físico, Voronoi -> Normal).
+11_mas_specular_por_zona_material_completo.png
+                                         -- material completo (stop_after=None):
+                                            + roughness 2 octavas + subsurface
+                                            + specular/IOR por zona + coat
+                                            opcional (capas 4-6).
+12_foto_final.png                       -- mismo render que 11 (punto de
+                                            llegada actual del material).
+13_foto_real_referencia.jpg             -- data/real_photos_accepted/hueso_largo/
+                                            hueso_largo_004.jpg, fémur real de
+                                            museo, el que más se parece en
+                                            tono/superficie.
+
+Nada de esto medido contra el banco real todavía -- sigue siendo trabajo
+visual para la charla.

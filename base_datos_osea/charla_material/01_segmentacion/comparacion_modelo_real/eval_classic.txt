@@ -1,0 +1,135 @@
+Traceback (most recent call last):
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 204, in _new_conn
+    sock = connection.create_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 788, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 493, in _make_request
+    conn.request(
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 500, in request
+    self.endheaders()
+  File "/usr/lib/python3.12/http/client.py", line 1360, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/usr/lib/python3.12/http/client.py", line 1120, in _send_output
+    self.send(msg)
+  File "/usr/lib/python3.12/http/client.py", line 1064, in send
+    self.connect()
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 331, in connect
+    self.sock = self._new_conn()
+                ^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 219, in _new_conn
+    raise NewConnectionError(
+urllib3.exceptions.NewConnectionError: HTTPConnection(host='localhost', port=5000): Failed to establish a new connection: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 872, in urlopen
+    return self.urlopen(
+           ^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 872, in urlopen
+    return self.urlopen(
+           ^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 872, in urlopen
+    return self.urlopen(
+           ^^^^^^^^^^^^^
+  [Previous line repeated 4 more times]
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 842, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/urllib3/util/retry.py", line 543, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=osteolab-benchmark-real-photos (Caused by NewConnectionError("HTTPConnection(host='localhost', port=5000): Failed to establish a new connection: [Errno 111] Connection refused"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/utils/rest_utils.py", line 294, in http_request
+    return _get_http_response_with_retries(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/utils/request_utils.py", line 282, in _get_http_response_with_retries
+    return session.request(method, url, allow_redirects=allow_redirects, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/requests/sessions.py", line 651, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/requests/sessions.py", line 784, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/requests/adapters.py", line 729, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=osteolab-benchmark-real-photos (Caused by NewConnectionError("HTTPConnection(host='localhost', port=5000): Failed to establish a new connection: [Errno 111] Connection refused"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/root/dev/osteolab-ml-platform/training/evaluate_cnn_real_photos.py", line 178, in <module>
+    main()
+  File "/root/dev/osteolab-ml-platform/training/evaluate_cnn_real_photos.py", line 148, in main
+    mlflow.set_experiment("osteolab-benchmark-real-photos")
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/tracking/fluent.py", line 209, in set_experiment
+    experiment = client.get_experiment_by_name(experiment_name)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/tracking/_tracking_service/client.py", line 282, in get_experiment_by_name
+    return self.store.get_experiment_by_name(name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/store/tracking/rest_store.py", line 1433, in get_experiment_by_name
+    response_proto = self._call_endpoint(GetExperimentByName, req_body)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/store/tracking/rest_store.py", line 266, in _call_endpoint
+    return call_endpoint(
+           ^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/utils/rest_utils.py", line 667, in call_endpoint
+    response = http_request(**call_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/dev/osteolab-ml-platform/.venv/lib/python3.12/site-packages/mlflow/utils/rest_utils.py", line 317, in http_request
+    raise MlflowException(f"API request to {url} failed with exception {e}")
+mlflow.exceptions.MlflowException: API request to http://localhost:5000/api/2.0/mlflow/experiments/get-by-name failed with exception HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=osteolab-benchmark-real-photos (Caused by NewConnectionError("HTTPConnection(host='localhost', port=5000): Failed to establish a new connection: [Errno 111] Connection refused"))
+Banco de fotos reales (hybrid): 83 imágenes, 0 sin segmentar (0.0%)
+                   precision    recall  f1-score   support
+
+         costilla       0.47      1.00      0.64         9
+           cranio       0.71      0.60      0.65        20
+      hueso_largo       0.80      0.22      0.35        18
+    hueso_pequeno       0.00      0.00      0.00         8
+      hueso_plano       0.00      0.00      0.00         4
+mandibula_maxilar       0.20      1.00      0.33         5
+           pelvis       0.33      0.60      0.43         5
+            sacro       0.67      0.40      0.50         5
+         vertebra       0.80      0.44      0.57         9
+
+         accuracy                           0.47        83
+        macro avg       0.44      0.47      0.39        83
+     weighted avg       0.55      0.47      0.44        83
+
+Accuracy (fotos reales, hybrid): 0.4699
+Balanced accuracy: 0.4741
+Top-3 accuracy (sobre 83 imágenes segmentadas): 0.7349
+
+Matriz de confusión:
+real\pred             costil  cranio  hueso_  hueso_  hueso_  mandib  pelvis   sacro  verteb
+costilla                   9       0       0       0       0       0       0       0       0
+cranio                     3      12       0       0       0       5       0       0       0
+hueso_largo                4       1       4       0       0       8       0       0       1
+hueso_pequeno              2       1       1       0       0       3       1       0       0
+hueso_plano                0       1       0       0       0       1       1       1       0
+mandibula_maxilar          0       0       0       0       0       5       0       0       0
+pelvis                     0       0       0       0       0       2       3       0       0
+sacro                      1       0       0       0       0       1       1       2       0
+vertebra                   0       2       0       0       0       0       3       0       4
