@@ -3760,3 +3760,53 @@ conectados en `shared/inference/predict_two_stage.py`.
 
 Modelos nuevos versionados en DVC (bug de higiene de siempre -- se aprovechó para destrabar
 también los backbones screening de la sesión anterior que habían quedado sin `dvc add`).
+
+## 2026-10-31 -- Segundo baseline "sin segmentar" (set paralelo, fotos reales) -- resultado contraintuitivo, requiere más investigación
+
+Para la diapo de segmentación se pidió comparar contra "la foto tal cual, sin segmentar", pero
+evaluado sobre el MISMO banco que la tabla de backends (classic/fastsam/grounded_sam, 83 fotos de
+`real_photos_accepted --split test`), no contra el benchmark sintético (eso ya existía, ver entrada
+anterior "Baseline honesto sin segmentar"). Entrenados `cnn_only_lab_dinov2s_seed0` (segmentado,
+grounded_sam) y `cnn_only_lab_unsegmented_dinov2s_seed0` (sin segmentar, dataset paralelo
+`combined_lab_unsegmented.csv` ya existente), ambos backbone DINOv2-small (el confirmado, no el
+resnet18 de la ablación anterior), evaluados con `evaluate_cnn_real_photos.py --source accepted
+--split test`, segmenter acorde a cada modelo:
+
+| Variante | Accuracy (83 fotos reales test) | Balanced accuracy |
+|---|---|---|
+| `cnn_only` segmentado (grounded_sam) | 0.7863 | 0.7926 |
+| `cnn_only` SIN segmentar | **0.9316** | **0.9572** |
+
+**Contraintuitivo -- sin segmentar gana por mucho.** No se reporta como "segmentar no sirve" sin
+más investigación, por 3 razones: (1) `cnn_only` no es la arquitectura de producción (`hybrid`), no
+comparable fila a fila con la tabla classic/fastsam/grounded_sam de arriba (esa es con `hybrid_lab`
+completo); (2) una sola semilla; (3) hipótesis más probable: `grounded_sam` sobre estas 83 fotos
+reales concretas puede estar recortando mal en más casos de los que parece (prompt de texto "bone"
+calibrado sobre otro tipo de iluminación/fondo que el de este lote curado) y el recorte roto
+perjudica más que no recortar -- no es evidencia de que "no segmentar es mejor" en general, puede
+ser evidencia de que la segmentación automática falla más de lo medido en este lote específico de
+fotos reales. **Pendiente**: revisar visualmente las máscaras de grounded_sam sobre estas 83 fotos
+antes de sacar conclusión para la charla -- si hay muchos recortes rotos, el mensaje real de la
+diapo es "la calidad de la segmentación automática importa, un mal recorte es peor que no recortar"
+(mensaje válido y más honesto), no "segmentar no aporta".
+
+**RESUELTO el mismo día**: muestreadas 20 máscaras al azar (`grounded_sam`) sobre fotos de
+`real_photos_accepted` -- solo 1/20 con `area_ratio` extremo (0.864, pero es un cráneo de ciervo en
+primer plano, mask correcta, no error). Inspeccionadas visualmente 3 (costilla, cráneo, hueso
+largo): recortes limpios, contorno bien ajustado al hueso en los 3 casos, incluida la costilla
+(forma fina y curva, caso más difícil). **La segmentación no está rota** -- se descarta la
+hipótesis de recortes defectuosos.
+
+**Conclusión real, más interesante que la hipótesis inicial**: el resultado es casi con toda
+seguridad *shortcut learning* -- sin segmentar, la CNN tiene acceso a mesa/fondo/iluminación de la
+foto completa, y en este dataset curado (fotos agrupadas por fuente/sesión de captura) ese contexto
+correlaciona con el grupo óseo más de lo que debería (ej. todas las costillas fotografiadas en el
+mismo tipo de fondo). El modelo "sin segmentar" aprende a reconocer el entorno de la foto, no el
+hueso -- funciona mejor en ESTE banco cerrado pero no es señal de que segmentar sea innecesario, es
+señal de fuga de información por el diseño del dataset de fotos reales (mismo problema de fondo que
+motivó excluir el fondo con `_crop_masked` en primer lugar, ver HISTORIAL 2026-07-26). **Mensaje
+para la diapo**: no "sin segmentar es mejor", sino "sin segmentar, el modelo hace trampa con el
+fondo -- por eso NO es un benchmark honesto, y es justo la razón por la que se segmenta en
+producción". Pendiente si hay tiempo: repetir esta comparación con fondos estandarizados/
+aleatorizados entre grupos para aislar el efecto, pero no es bloqueante para la charla -- el punto
+pedagógico (shortcut learning) es válido y más rico que un número de accuracy suelto.
