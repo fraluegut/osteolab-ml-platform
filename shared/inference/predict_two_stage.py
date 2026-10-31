@@ -25,15 +25,15 @@ from shared.inference.predict_cnn import classify_image
 
 # grupo de etapa 1 -> run_name del modelo de etapa 2 que afina el hueso concreto
 STAGE2_MODELS = {
-    "hueso_largo": "stage2_hueso_largo",
-    "hueso_pequeno": "stage2_hueso_pequeno",
-    "vertebra": "stage2_vertebra",
+    "hueso_largo": "stage2_hueso_largo_dinov2s",
+    "hueso_pequeno": "stage2_hueso_pequeno_dinov2s",
+    "vertebra": "stage2_vertebra_dinov2s",
 }
 
 # grupo de etapa 1 -> run_name del modelo de etapa 2 que afina el taxón (humano/no_humano)
 STAGE2_TAXON_MODELS = {
-    "cranio": "stage2_taxon_cranio",
-    "mandibula_maxilar": "stage2_taxon_mandibula_maxilar",
+    "cranio": "stage2_taxon_cranio_dinov2s",
+    "mandibula_maxilar": "stage2_taxon_mandibula_maxilar_dinov2s",
 }
 
 
