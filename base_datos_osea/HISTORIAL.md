@@ -3810,3 +3810,26 @@ fondo -- por eso NO es un benchmark honesto, y es justo la razón por la que se 
 producción". Pendiente si hay tiempo: repetir esta comparación con fondos estandarizados/
 aleatorizados entre grupos para aislar el efecto, pero no es bloqueante para la charla -- el punto
 pedagógico (shortcut learning) es válido y más rico que un número de accuracy suelto.
+
+**Medición justa, hecha el mismo día**: para la diapo se necesitaba un número de "sin segmentar"
+que SÍ fuera honesto (sin el atajo de fondo). Solución: usar el benchmark SINTÉTICO
+(`bone_geometric_benchmark.csv`, 216 renders, 24 por clase, fondo de estudio controlado igual para
+los 9 grupos -- ahí no hay correlación fondo/clase posible, a diferencia de las fotos reales
+curadas). Creado `bone_geometric_benchmark_unsegmented.csv` (mismo CSV, `segmented_path` apuntando
+a `source_path`, el render crudo sin recortar) y evaluados los mismos dos modelos
+`cnn_only_lab_dinov2s_seed0` / `cnn_only_lab_unsegmented_dinov2s_seed0` de la entrada anterior
+contra su benchmark correspondiente (`/tmp/.../eval_synth_bench.py`, ad-hoc, reusa `BoneClassifier`
+y `BoneImageDataset` de `train_cnn.py`/`cnn_dataset.py`, no commiteado -- es un script de
+verificación puntual, no parte del pipeline):
+
+| Variante | Accuracy (benchmark sintético, n=216, fondo controlado) |
+|---|---|
+| `cnn_only` segmentado | 0.8796 |
+| `cnn_only` sin segmentar | 0.7593 |
+
+**Caída de -12 puntos, honesta y en la dirección esperada** -- confirma la ablación antigua
+(resnet18, 2026-10-31 anterior: -1.5 puntos, 0.7704 vs 0.7556) con el mismo signo, magnitud mayor
+probablemente porque DINOv2 es mejor backbone y tiene más margen para aprovechar un fondo limpio.
+**Este es el número que va en la diapo de segmentación**, no el 0.9316 de fotos reales (ese queda
+como ejemplo de shortcut learning en la diapo de higiene de datos, no como medición de "sin
+segmentar").
