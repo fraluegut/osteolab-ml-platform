@@ -3606,3 +3606,21 @@ default). Probado x8 (`hybrid_lab_boost8_seed0`) contra `benchmark/selection`:
 
 Sin mejora (ligeramente peor). El sobremuestreo ya está saturado en x4 -- subir más no ayuda.
 Producción no cambia. Modelo descartado queda en DVC/MLflow como referencia.
+
+### Séptimo experimento: mixup estándar sobre batches de entrenamiento
+
+Parche aislado en `scripts/experiments/train_mixup.py` (mixup de Zhang et al., lambda~Beta(0.4,0.4),
+p=0.5 por batch, mezcla imagen+geometría con la misma lambda, pérdida interpolada entre las dos
+etiquetas). Nota: mixup estándar entre cualquier par del batch, NO limitado a pares
+sintético/real -- eso requeriría exponer `is_real` por fila en el Dataset, fuera de alcance de un
+parche aislado como este. `hybrid_lab_mixup_seed0` sobre `combined_lab` contra
+`benchmark/selection`:
+
+| Variante | Balanced accuracy (benchmark/selection) |
+|---|---|
+| producción (sin mixup) | **0.7735** |
+| mixup estándar | 0.7550 |
+
+Peor que producción. Mismo patrón que augmentation fuerte (experimento 5): regularización extra
+no ayuda aquí, el cuello de botella no parece ser overfitting a textura/pose. Producción no
+cambia.

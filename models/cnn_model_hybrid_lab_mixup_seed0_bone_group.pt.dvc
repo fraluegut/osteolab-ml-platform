@@ -1,0 +1,5 @@
+outs:
+- md5: a8e710323bef27a913e8233e22e50eae
+  size: 45091983
+  hash: md5
+  path: cnn_model_hybrid_lab_mixup_seed0_bone_group.pt
