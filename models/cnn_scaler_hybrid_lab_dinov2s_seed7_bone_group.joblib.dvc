@@ -1,0 +1,5 @@
+outs:
+- md5: e21ac1a6decd8f24f78a18d64cc47432
+  size: 2023
+  hash: md5
+  path: cnn_scaler_hybrid_lab_dinov2s_seed7_bone_group.joblib

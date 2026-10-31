@@ -3673,3 +3673,31 @@ sola. Pero dos matices: (1) esto es `cnn_only`, no comparable fila a fila con la
 de segmentación (esa es con el híbrido, otra arquitectura); (2) sin segmentar, la geometría clásica
 (que sí aporta mucho en el híbrido) no es calculable -- no hay contorno limpio del que sacar Hu
 moments/elongación/etc., así que esa vía de mejora queda cerrada de raíz, no solo degradada.
+
+### Backbone DINOv2-small promovido a producción (2026-10-31, material charla PyConES)
+
+Al preparar la diapo de Modelado se encontraron 3 variantes de backbone entrenadas el 2026-10-25
+y nunca documentadas ni comparadas (`hybrid_lab_dinov2s`, `hybrid_lab_resnet50`,
+`hybrid_lab_resnet18a1`, mismo bug de higiene de siempre). Medidas contra `benchmark/selection`
+(n=48, protocolo de esta sesión): DINOv2-small (`vit_small_patch14_dinov2.lvd142m`) 0.8180 vs
+ResNet18 producción 0.7735 en una sola semilla -- señal fuerte, se reentrena con 3 semillas
+(mismo criterio que `hybrid_lab`) para confirmar antes de decidir:
+
+| Semilla | ResNet18 (producción) | DINOv2-small |
+|---|---|---|
+| seed0 | 0.7735 | 0.7608 |
+| seed1 | 0.7418 | 0.8243 |
+| seed7 | 0.7418 | **0.8757** |
+| **media** | **0.7524** | **0.8203** |
+
++6.8 puntos de media, gana en 2/3 semillas. **Decisión del usuario: promover DINOv2-small seed7**
+(la mejor de las 3) a modelo de producción -- `cnn_model_hybrid_bone_group.pt` y hermanos
+(`cnn_encoder_`/`cnn_feature_columns_`/`cnn_scaler_`/`cnn_training_meta_`) sustituidos por los
+pesos de `hybrid_lab_dinov2s_seed7`, verificado que `classify_image()` sin `run_name` (el camino
+que usa `serving/backend/main.py` en producción) carga y predice bien con el backbone nuevo. Las
+9 combinaciones de modelo quedan en DVC/MLflow: 3 semillas de DINOv2, resnet50, resnet18a1, y el
+run original sin semilla fija de dinov2s.
+
+**Primer cambio de backbone desde que existe el proyecto** -- hasta ahora toda mejora había venido
+de dataset (recetas de render, fotos reales) o de arquitectura de cabeza (híbrido vs gated), nunca
+del extractor de features visuales en sí.
